@@ -11,7 +11,12 @@ import {
 } from './types';
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  typeof window !== 'undefined'
+    ? ''
+    : process.env.INTERNAL_API_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      'http://127.0.0.1:28080';
+
 
 export class ApiError extends Error {
   status: number;

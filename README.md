@@ -81,6 +81,11 @@ docker compose up -d --build
 - Backend API: [http://localhost:28080](http://localhost:28080)
 - PostgreSQL Port: `25432`
 
+> **提示 (WSL2 / Windows 访问说明)**:
+> - 浏览器可直接访问 [http://localhost:23000](http://localhost:23000) 或 [http://127.0.0.1:23000](http://127.0.0.1:23000)。
+> - 项目采用容器 Host 网络与 Next.js 反向代理设计，完美兼容 WSL2 Mirrored 镜像网络模式。若开启了 Clash / Mihomo 等系统代理工具，建议访问 `http://localhost:23000` 或在代理规则中确认本地回环已绕过。
+
+
 ### Option 2: Local Development
 
 ```bash

@@ -3,30 +3,30 @@ version: '3.8'
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
+    network_mode: host
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: agent_workbench
-    ports:
-      - '${DB_PORT:-25432}:5432'
+    command: ["postgres", "-p", "${DB_PORT:-25432}"]
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      test: ["CMD-SHELL", "pg_isready -p ${DB_PORT:-25432} -U postgres -d agent_workbench"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - '${BACKEND_PORT:-28080}:8080'
+    network_mode: host
     environment:
-      DATABASE_URL: postgres://postgres:postgres@db:5432/agent_workbench?sslmode=disable
-      PORT: '8080'
-      CORS_ORIGINS: http://localhost:${FRONTEND_PORT:-23000},http://localhost:23000
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:${DB_PORT:-25432}/agent_workbench?sslmode=disable
+      PORT: '${BACKEND_PORT:-28080}'
+      CORS_ORIGINS: http://localhost:${FRONTEND_PORT:-23000},http://127.0.0.1:${FRONTEND_PORT:-23000}
       MIGRATIONS_PATH: /app/migrations
     depends_on:
       db:
@@ -36,9 +36,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - '${FRONTEND_PORT:-23000}:3000'
+    network_mode: host
     environment:
+      PORT: '${FRONTEND_PORT:-23000}'
+      HOSTNAME: '0.0.0.0'
+      INTERNAL_API_URL: http://127.0.0.1:${BACKEND_PORT:-28080}
       NEXT_PUBLIC_API_URL: http://localhost:${BACKEND_PORT:-28080}
     depends_on:
       - backend

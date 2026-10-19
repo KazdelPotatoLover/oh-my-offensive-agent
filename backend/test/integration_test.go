@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync"
+
 	"testing"
 	"time"
 
@@ -22,8 +24,18 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const testDBURL = "postgres://postgres:postgres@localhost:5433/agent_workbench?sslmode=disable"
+func getTestDBURL() string {
+	if u := os.Getenv("DATABASE_URL"); u != "" {
+		return u
+	}
+	if u := os.Getenv("TEST_DATABASE_URL"); u != "" {
+		return u
+	}
+	return "postgres://postgres:postgres@127.0.0.1:25432/agent_workbench?sslmode=disable"
+}
+
 const migrationsPath = "../migrations"
+
 
 type TestEnv struct {
 	pool        *pgxpool.Pool
@@ -36,12 +48,14 @@ type TestEnv struct {
 func setupTestEnv(t *testing.T) *TestEnv {
 	ctx := context.Background()
 
+	dbURL := getTestDBURL()
 	// Run migrations
-	if err := db.RunMigrations(testDBURL, migrationsPath); err != nil {
+	if err := db.RunMigrations(dbURL, migrationsPath); err != nil {
 		t.Fatalf("failed migrations: %v", err)
 	}
 
-	pool, err := db.Connect(ctx, testDBURL)
+	pool, err := db.Connect(ctx, dbURL)
+
 	if err != nil {
 		t.Fatalf("failed connect to db: %v", err)
 	}
