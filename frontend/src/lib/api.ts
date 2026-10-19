@@ -2,12 +2,18 @@ import {
   Task,
   Run,
   RunEvent,
+  AgentMessage,
+  ModelCall,
+  AgentToolCall,
   CreateTaskInput,
   UpdateTaskInput,
   CreateRunInput,
   TasksResponse,
   RunsResponse,
   EventsResponse,
+  MessagesResponse,
+  ModelCallsResponse,
+  ToolCallsResponse,
 } from './types';
 
 const API_BASE_URL =
@@ -138,6 +144,15 @@ export const api = {
     if (input?.fail_at_step !== undefined) {
       body.fail_at_step = input.fail_at_step;
     }
+    if (input?.executor !== undefined) {
+      body.executor = input.executor;
+    }
+    if (input?.provider !== undefined) {
+      body.provider = input.provider;
+    }
+    if (input?.mock_scenario !== undefined) {
+      body.mock_scenario = input.mock_scenario;
+    }
 
     return request<Run>(`/api/tasks/${taskId}/runs`, {
       method: 'POST',
@@ -160,5 +175,21 @@ export const api = {
   async getRunEvents(runId: string): Promise<RunEvent[]> {
     const data = await request<EventsResponse>(`/api/runs/${runId}/events`);
     return data.events || [];
+  },
+
+  // Agent Runtime Data
+  async getRunMessages(runId: string): Promise<AgentMessage[]> {
+    const data = await request<MessagesResponse>(`/api/runs/${runId}/messages`);
+    return data.messages || [];
+  },
+
+  async getRunModelCalls(runId: string): Promise<ModelCall[]> {
+    const data = await request<ModelCallsResponse>(`/api/runs/${runId}/model_calls`);
+    return data.model_calls || [];
+  },
+
+  async getRunToolCalls(runId: string): Promise<AgentToolCall[]> {
+    const data = await request<ToolCallsResponse>(`/api/runs/${runId}/tool_calls`);
+    return data.tool_calls || [];
   },
 };

@@ -70,16 +70,34 @@ export default function TaskDetailPage() {
     return () => clearInterval(interval);
   }, [runs, taskId]);
 
+  const [executorType, setExecutorType] = useState<'agent' | 'fake'>('agent');
+  const [providerType, setProviderType] = useState<'mock' | 'openai'>('mock');
+  const [mockScenario, setMockScenario] = useState('normal');
+
   const handleStartRun = async (e: React.FormEvent) => {
     e.preventDefault();
     setStartingRun(true);
     setStartError(null);
 
     try {
-      const step = failAtStep.trim() !== '' ? parseInt(failAtStep.trim(), 10) : undefined;
-      const newRun = await api.createRun(taskId, {
-        fail_at_step: Number.isInteger(step) ? step : undefined,
-      });
+      let input: any = {};
+      if (executorType === 'agent') {
+        input = {
+          executor: 'agent',
+          provider: providerType,
+        };
+        if (providerType === 'mock') {
+          input.mock_scenario = mockScenario;
+        }
+      } else {
+        const step = failAtStep.trim() !== '' ? parseInt(failAtStep.trim(), 10) : undefined;
+        input = {
+          executor: 'fake',
+          fail_at_step: Number.isInteger(step) ? step : undefined,
+        };
+      }
+
+      const newRun = await api.createRun(taskId, input);
       setRuns((prev) => [newRun, ...prev.filter((r) => r.id !== newRun.id)]);
       setFailAtStep('');
     } catch (err: unknown) {
@@ -199,36 +217,134 @@ export default function TaskDetailPage() {
           </div>
 
           {/* Start Run Action Form */}
-          <div className="bg-gray-950 border border-gray-800/80 rounded-xl p-4 md:w-80 flex-shrink-0">
+          <div className="bg-gray-950 border border-gray-800/80 rounded-xl p-4 md:w-96 flex-shrink-0">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
               Execute Task
             </h2>
             <form onSubmit={handleStartRun} className="space-y-3">
+              {/* Executor Type Tabs */}
               <div>
-                <label
-                  htmlFor="fail-at-step"
-                  className="block text-xs font-medium text-gray-400 mb-1"
-                >
-                  Fail at Step (optional)
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                  Execution Mode
                 </label>
-                <input
-                  id="fail-at-step"
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={failAtStep}
-                  onChange={(e) => setFailAtStep(e.target.value)}
-                  placeholder="e.g. 5 (for testing)"
-                  disabled={startingRun}
-                  className="w-full px-3 py-1.5 bg-gray-900 border border-gray-800 rounded-lg text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
-                />
+                <div className="grid grid-cols-2 gap-1.5 bg-gray-900 p-1 rounded-lg border border-gray-800">
+                  <button
+                    type="button"
+                    onClick={() => setExecutorType('agent')}
+                    className={`py-1 text-xs font-medium rounded-md transition-colors ${
+                      executorType === 'agent'
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Agent Runner
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExecutorType('fake')}
+                    className={`py-1 text-xs font-medium rounded-md transition-colors ${
+                      executorType === 'fake'
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Fake Worker
+                  </button>
+                </div>
               </div>
+
+              {executorType === 'agent' ? (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">
+                      Provider
+                    </label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setProviderType('mock')}
+                        className={`py-1 px-2 text-xs font-medium rounded-lg border transition-colors ${
+                          providerType === 'mock'
+                            ? 'bg-amber-500/10 border-amber-500/40 text-amber-300'
+                            : 'bg-gray-900 border-gray-800 text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        Mock Provider
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProviderType('openai')}
+                        className={`py-1 px-2 text-xs font-medium rounded-lg border transition-colors ${
+                          providerType === 'openai'
+                            ? 'bg-blue-500/10 border-blue-500/40 text-blue-300'
+                            : 'bg-gray-900 border-gray-800 text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        OpenAI Real
+                      </button>
+                    </div>
+                  </div>
+
+                  {providerType === 'mock' ? (
+                    <div>
+                      <label
+                        htmlFor="mock-scenario"
+                        className="block text-xs font-medium text-gray-400 mb-1"
+                      >
+                        Mock Scenario
+                      </label>
+                      <select
+                        id="mock-scenario"
+                        value={mockScenario}
+                        onChange={(e) => setMockScenario(e.target.value)}
+                        className="w-full px-3 py-1.5 bg-gray-900 border border-gray-800 rounded-lg text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      >
+                        <option value="normal">normal (list_samples → read_sample → complete)</option>
+                        <option value="text_and_tool">text_and_tool (cot thought + tool call)</option>
+                        <option value="invalid_tool">invalid_tool (calls non-existent tool)</option>
+                        <option value="invalid_args">invalid_args (schema parameter mismatch)</option>
+                        <option value="infinite_tools">infinite_tools (triggers tool budget exhaustion)</option>
+                        <option value="refusal">refusal (model safety refusal)</option>
+                        <option value="truncated">truncated (max_tokens cut off)</option>
+                        <option value="empty_response">empty_response (empty response error)</option>
+                        <option value="provider_error">provider_error (simulated 500 error)</option>
+                        <option value="delay">delay (sleeps to test cancellation)</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="p-2.5 bg-gray-900/80 border border-gray-800 rounded-lg text-[11px] text-gray-400 leading-relaxed">
+                      Uses backend environment variables: <code className="text-gray-300">LLM_API_KEY</code>, <code className="text-gray-300">LLM_BASE_URL</code>, <code className="text-gray-300">LLM_MODEL</code>.
+                      <p className="text-amber-400/90 mt-1">If not configured, the run will safely fail with model_config_missing.</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div>
+                  <label
+                    htmlFor="fail-at-step"
+                    className="block text-xs font-medium text-gray-400 mb-1"
+                  >
+                    Fail at Step (optional)
+                  </label>
+                  <input
+                    id="fail-at-step"
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={failAtStep}
+                    onChange={(e) => setFailAtStep(e.target.value)}
+                    placeholder="e.g. 5 (for testing failure)"
+                    disabled={startingRun}
+                    className="w-full px-3 py-1.5 bg-gray-900 border border-gray-800 rounded-lg text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                  />
+                </div>
+              )}
 
               <button
                 type="submit"
                 disabled={startingRun || hasActiveRun}
                 title={hasActiveRun ? 'A run is currently active' : 'Start a new run'}
-                className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center space-x-2 shadow-sm"
+                className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center space-x-2 shadow-sm mt-2"
               >
                 {startingRun ? (
                   <>
@@ -325,6 +441,15 @@ export default function TaskDetailPage() {
                         <span className="font-mono text-sm font-semibold text-white group-hover:text-blue-400 transition-colors">
                           Run {run.id.slice(0, 8)}
                         </span>
+                        {run.execution_input?.executor === 'agent' ? (
+                          <span className="text-[11px] font-mono text-purple-300 bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.5 rounded">
+                            Agent ({String((run.execution_input?.agent_config as any)?.provider || 'agent')})
+                          </span>
+                        ) : run.execution_input?.executor === 'fake' ? (
+                          <span className="text-[11px] font-mono text-gray-400 bg-gray-800 border border-gray-700 px-1.5 py-0.5 rounded">
+                            FakeWorker
+                          </span>
+                        ) : null}
                         {run.fail_at_step !== undefined && run.fail_at_step !== null && (
                           <span className="text-[11px] font-mono text-amber-400/90 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.2 rounded">
                             fail@{run.fail_at_step}

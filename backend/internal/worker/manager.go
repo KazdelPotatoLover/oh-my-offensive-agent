@@ -59,8 +59,22 @@ func (m *Manager) SetDefaultWorkerOptions(opts ...WorkerOption) {
 	m.defaultOpts = opts
 }
 
+type Executor interface {
+	Run(ctx context.Context)
+}
+
 // Start launches a FakeWorker for a run.
 func (m *Manager) Start(runID uuid.UUID, failAtStep *int, opts ...WorkerOption) error {
+	m.mu.Lock()
+	combinedOpts := append(append([]WorkerOption{}, m.defaultOpts...), opts...)
+	m.mu.Unlock()
+
+	worker := NewFakeWorker(runID, failAtStep, m.runService, combinedOpts...)
+	return m.StartExecutor(runID, worker)
+}
+
+// StartExecutor launches any Executor (FakeWorker or AgentRunner) for a run.
+func (m *Manager) StartExecutor(runID uuid.UUID, executor Executor) error {
 	m.mu.Lock()
 	if m.closed {
 		m.mu.Unlock()
@@ -75,11 +89,7 @@ func (m *Manager) Start(runID uuid.UUID, failAtStep *int, opts ...WorkerOption) 
 	}
 	m.cancels[runID] = cancel
 	m.wg.Add(1)
-
-	combinedOpts := append(append([]WorkerOption{}, m.defaultOpts...), opts...)
 	m.mu.Unlock()
-
-	worker := NewFakeWorker(runID, failAtStep, m.runService, combinedOpts...)
 
 	go func() {
 		defer func() {
@@ -87,12 +97,12 @@ func (m *Manager) Start(runID uuid.UUID, failAtStep *int, opts ...WorkerOption) 
 			delete(m.cancels, runID)
 			m.mu.Unlock()
 			m.wg.Done()
-			slog.Info("worker finished", "run_id", runID)
+			slog.Info("executor finished", "run_id", runID)
 		}()
-		worker.Run(ctx)
+		executor.Run(ctx)
 	}()
 
-	slog.Info("worker started", "run_id", runID)
+	slog.Info("executor started", "run_id", runID)
 	return nil
 }
 

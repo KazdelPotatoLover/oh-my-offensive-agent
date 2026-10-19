@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	"agent-workbench/backend/internal/model"
+	"agent-workbench/backend/internal/provider"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -24,10 +26,14 @@ func NewRunService(pool *pgxpool.Pool) *RunService {
 	return &RunService{pool: pool}
 }
 
+func (s *RunService) Pool() *pgxpool.Pool {
+	return s.pool
+}
+
 func (s *RunService) ListByTask(ctx context.Context, taskID uuid.UUID) ([]model.Run, error) {
 	rows, err := s.pool.Query(ctx,
 		`SELECT id, task_id, idempotency_key, config_snapshot, execution_input, status, finish_reason, 
-		        fail_at_step, started_at, finished_at, created_at, updated_at 
+		        fail_at_step, final_output, started_at, finished_at, created_at, updated_at 
 		 FROM runs WHERE task_id = $1 ORDER BY created_at DESC`, taskID)
 	if err != nil {
 		return nil, fmt.Errorf("query runs: %w", err)
@@ -38,7 +44,7 @@ func (s *RunService) ListByTask(ctx context.Context, taskID uuid.UUID) ([]model.
 	for rows.Next() {
 		var r model.Run
 		if err := rows.Scan(&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
-			&r.Status, &r.FinishReason, &r.FailAtStep, &r.StartedAt, &r.FinishedAt,
+			&r.Status, &r.FinishReason, &r.FailAtStep, &r.FinalOutput, &r.StartedAt, &r.FinishedAt,
 			&r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan run: %w", err)
 		}
@@ -54,10 +60,10 @@ func (s *RunService) Get(ctx context.Context, id uuid.UUID) (*model.Run, error) 
 	var r model.Run
 	err := s.pool.QueryRow(ctx,
 		`SELECT id, task_id, idempotency_key, config_snapshot, execution_input, status, finish_reason, 
-		        fail_at_step, started_at, finished_at, created_at, updated_at 
+		        fail_at_step, final_output, started_at, finished_at, created_at, updated_at 
 		 FROM runs WHERE id = $1`, id).Scan(
 		&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
-		&r.Status, &r.FinishReason, &r.FailAtStep, &r.StartedAt, &r.FinishedAt,
+		&r.Status, &r.FinishReason, &r.FailAtStep, &r.FinalOutput, &r.StartedAt, &r.FinishedAt,
 		&r.CreatedAt, &r.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -75,17 +81,15 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 		var existing model.Run
 		err := s.pool.QueryRow(ctx,
 			`SELECT id, task_id, idempotency_key, config_snapshot, execution_input, status, finish_reason, 
-			        fail_at_step, started_at, finished_at, created_at, updated_at 
+			        fail_at_step, final_output, started_at, finished_at, created_at, updated_at 
 			 FROM runs WHERE task_id = $1 AND idempotency_key = $2`,
 			taskID, *idempotencyKey).Scan(
 			&existing.ID, &existing.TaskID, &existing.IdempotencyKey, &existing.ConfigSnapshot, &existing.ExecutionInput,
-			&existing.Status, &existing.FinishReason, &existing.FailAtStep, &existing.StartedAt,
+			&existing.Status, &existing.FinishReason, &existing.FailAtStep, &existing.FinalOutput, &existing.StartedAt,
 			&existing.FinishedAt, &existing.CreatedAt, &existing.UpdatedAt)
 		if err == nil {
 			// Found existing - check if params match
-			existingFailAt := existing.FailAtStep
-			reqFailAt := req.FailAtStep
-			if !intPtrEqual(existingFailAt, reqFailAt) {
+			if !runRequestMatches(existing, req) {
 				return nil, false, ErrConflict
 			}
 			return &existing, true, nil
@@ -110,6 +114,60 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 		return nil, false, fmt.Errorf("get task config: %w", err)
 	}
 
+	// Resolve executor configuration: defaults to "fake" if not specified
+	executor := "fake"
+	providerType := "mock"
+	mockScenario := "normal"
+	budget := model.DefaultBudgetConfig()
+
+	// Check Task.Config
+	if len(taskConfig) > 0 && string(taskConfig) != "{}" {
+		var cfgMap map[string]interface{}
+		if err := json.Unmarshal(taskConfig, &cfgMap); err == nil {
+			if ex, ok := cfgMap["executor"].(string); ok && ex != "" {
+				executor = ex
+			}
+			if prov, ok := cfgMap["provider"].(string); ok && prov != "" {
+				providerType = prov
+			}
+			if scen, ok := cfgMap["mock_scenario"].(string); ok && scen != "" {
+				mockScenario = scen
+			}
+			if bMap, ok := cfgMap["budget"].(map[string]interface{}); ok {
+				if bBytes, err := json.Marshal(bMap); err == nil {
+					json.Unmarshal(bBytes, &budget)
+				}
+			}
+		}
+	}
+
+	// Request parameters override Task.Config
+	if req.Executor != nil && *req.Executor != "" {
+		executor = *req.Executor
+	}
+	if req.Provider != nil && *req.Provider != "" {
+		providerType = *req.Provider
+	}
+	if req.MockScenario != nil && *req.MockScenario != "" {
+		mockScenario = *req.MockScenario
+	}
+	if req.Budget != nil {
+		budget = *req.Budget
+	}
+
+	// If real model is selected, validate environment configuration!
+	var sanitizedEndpoint string
+	var modelName string
+	if executor == "agent" && (providerType == "openai" || providerType == "remote") {
+		apiKey := os.Getenv("LLM_API_KEY")
+		baseURL := os.Getenv("LLM_BASE_URL")
+		modelName = os.Getenv("LLM_MODEL")
+		if apiKey == "" || baseURL == "" || modelName == "" {
+			return nil, false, provider.ErrModelConfigMissing
+		}
+		sanitizedEndpoint = baseURL
+	}
+
 	executionInputMap := map[string]interface{}{
 		"objective": taskObjective,
 		"scope":     taskScope,
@@ -118,6 +176,24 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 			"fail_at_step": req.FailAtStep,
 		},
 	}
+	if executor == "agent" {
+		agentConfig := map[string]interface{}{
+			"executor":       "agent",
+			"provider":       providerType,
+			"prompt_version": "v1",
+			"tools_version":  "v1",
+			"budget":         budget,
+		}
+		if providerType == "mock" {
+			agentConfig["mock_scenario"] = mockScenario
+		} else {
+			agentConfig["model"] = modelName
+			agentConfig["endpoint"] = sanitizedEndpoint
+		}
+		executionInputMap["agent_config"] = agentConfig
+		executionInputMap["budget"] = budget
+	}
+
 	executionInputBytes, err := json.Marshal(executionInputMap)
 	if err != nil {
 		return nil, false, fmt.Errorf("marshal execution input: %w", err)
@@ -135,10 +211,10 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 		`INSERT INTO runs (task_id, idempotency_key, config_snapshot, execution_input, status, fail_at_step) 
 		 VALUES ($1, $2, $3, $4, 'queued', $5) 
 		 RETURNING id, task_id, idempotency_key, config_snapshot, execution_input, status, finish_reason, 
-		          fail_at_step, started_at, finished_at, created_at, updated_at`,
+		          fail_at_step, final_output, started_at, finished_at, created_at, updated_at`,
 		taskID, idempotencyKey, taskConfig, executionInputBytes, req.FailAtStep).Scan(
 		&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
-		&r.Status, &r.FinishReason, &r.FailAtStep, &r.StartedAt, &r.FinishedAt,
+		&r.Status, &r.FinishReason, &r.FailAtStep, &r.FinalOutput, &r.StartedAt, &r.FinishedAt,
 		&r.CreatedAt, &r.UpdatedAt)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -148,14 +224,14 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 				var existing model.Run
 				readErr := s.pool.QueryRow(ctx,
 					`SELECT id, task_id, idempotency_key, config_snapshot, execution_input, status, finish_reason, 
-					        fail_at_step, started_at, finished_at, created_at, updated_at 
+					        fail_at_step, final_output, started_at, finished_at, created_at, updated_at 
 					 FROM runs WHERE task_id = $1 AND idempotency_key = $2`,
 					taskID, *idempotencyKey).Scan(
 					&existing.ID, &existing.TaskID, &existing.IdempotencyKey, &existing.ConfigSnapshot, &existing.ExecutionInput,
-					&existing.Status, &existing.FinishReason, &existing.FailAtStep, &existing.StartedAt,
+					&existing.Status, &existing.FinishReason, &existing.FailAtStep, &existing.FinalOutput, &existing.StartedAt,
 					&existing.FinishedAt, &existing.CreatedAt, &existing.UpdatedAt)
 				if readErr == nil {
-					if intPtrEqual(existing.FailAtStep, req.FailAtStep) {
+					if runRequestMatches(existing, req) {
 						return &existing, true, nil
 					}
 					return nil, false, ErrConflict
@@ -264,30 +340,30 @@ func (s *RunService) TransitionState(ctx context.Context, runID uuid.UUID, fromS
 			`UPDATE runs SET status = $1, finish_reason = $2, finished_at = $3, updated_at = $3 
 			 WHERE id = $4 
 			 RETURNING id, task_id, idempotency_key, config_snapshot, execution_input, status, finish_reason, 
-			          fail_at_step, started_at, finished_at, created_at, updated_at`,
+			          fail_at_step, final_output, started_at, finished_at, created_at, updated_at`,
 			toStatus, finishReason, now, runID).Scan(
 			&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
-			&r.Status, &r.FinishReason, &r.FailAtStep, &r.StartedAt, &r.FinishedAt,
+			&r.Status, &r.FinishReason, &r.FailAtStep, &r.FinalOutput, &r.StartedAt, &r.FinishedAt,
 			&r.CreatedAt, &r.UpdatedAt)
 	} else if toStatus == model.RunStatusRunning {
 		err = tx.QueryRow(ctx,
 			`UPDATE runs SET status = $1, started_at = $2, updated_at = $2 
 			 WHERE id = $3 
 			 RETURNING id, task_id, idempotency_key, config_snapshot, execution_input, status, finish_reason, 
-			          fail_at_step, started_at, finished_at, created_at, updated_at`,
+			          fail_at_step, final_output, started_at, finished_at, created_at, updated_at`,
 			toStatus, now, runID).Scan(
 			&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
-			&r.Status, &r.FinishReason, &r.FailAtStep, &r.StartedAt, &r.FinishedAt,
+			&r.Status, &r.FinishReason, &r.FailAtStep, &r.FinalOutput, &r.StartedAt, &r.FinishedAt,
 			&r.CreatedAt, &r.UpdatedAt)
 	} else {
 		err = tx.QueryRow(ctx,
 			`UPDATE runs SET status = $1, updated_at = $2 
 			 WHERE id = $3 
 			 RETURNING id, task_id, idempotency_key, config_snapshot, execution_input, status, finish_reason, 
-			          fail_at_step, started_at, finished_at, created_at, updated_at`,
+			          fail_at_step, final_output, started_at, finished_at, created_at, updated_at`,
 			toStatus, now, runID).Scan(
 			&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
-			&r.Status, &r.FinishReason, &r.FailAtStep, &r.StartedAt, &r.FinishedAt,
+			&r.Status, &r.FinishReason, &r.FailAtStep, &r.FinalOutput, &r.StartedAt, &r.FinishedAt,
 			&r.CreatedAt, &r.UpdatedAt)
 	}
 	if err != nil {
@@ -402,3 +478,35 @@ func intPtrEqual(a, b *int) bool {
 	}
 	return *a == *b
 }
+
+func runRequestMatches(existing model.Run, req model.CreateRunRequest) bool {
+	if !intPtrEqual(existing.FailAtStep, req.FailAtStep) {
+		return false
+	}
+	if len(existing.ExecutionInput) > 0 {
+		var inMap map[string]interface{}
+		if err := json.Unmarshal(existing.ExecutionInput, &inMap); err == nil {
+			if req.Executor != nil && *req.Executor != "" {
+				if ex, _ := inMap["executor"].(string); ex != "" && ex != *req.Executor {
+					return false
+				}
+			}
+			if req.Provider != nil && *req.Provider != "" {
+				if ac, ok := inMap["agent_config"].(map[string]interface{}); ok {
+					if p, _ := ac["provider"].(string); p != "" && p != *req.Provider {
+						return false
+					}
+				}
+			}
+			if req.MockScenario != nil && *req.MockScenario != "" {
+				if ac, ok := inMap["agent_config"].(map[string]interface{}); ok {
+					if sc, _ := ac["mock_scenario"].(string); sc != "" && sc != *req.MockScenario {
+						return false
+					}
+				}
+			}
+		}
+	}
+	return true
+}
+

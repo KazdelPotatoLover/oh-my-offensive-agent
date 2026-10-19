@@ -61,6 +61,7 @@ type Run struct {
 	Status         RunStatus       `json:"status"`
 	FinishReason   *string         `json:"finish_reason,omitempty"`
 	FailAtStep     *int            `json:"fail_at_step,omitempty"`
+	FinalOutput    *string         `json:"final_output,omitempty"`
 	StartedAt      *time.Time      `json:"started_at,omitempty"`
 	FinishedAt     *time.Time      `json:"finished_at,omitempty"`
 	CreatedAt      time.Time       `json:"created_at"`
@@ -74,6 +75,68 @@ type RunEvent struct {
 	Type      string          `json:"type"`
 	Payload   json.RawMessage `json:"payload"`
 	CreatedAt time.Time       `json:"created_at"`
+}
+
+type AgentMessage struct {
+	ID         uuid.UUID       `json:"id"`
+	RunID      uuid.UUID       `json:"run_id"`
+	Seq        int             `json:"seq"`
+	Role       string          `json:"role"`
+	Content    string          `json:"content"`
+	ToolCallID *string         `json:"tool_call_id,omitempty"`
+	ToolCalls  json.RawMessage `json:"tool_calls,omitempty"`
+	CreatedAt  time.Time       `json:"created_at"`
+}
+
+type ModelCall struct {
+	ID               uuid.UUID  `json:"id"`
+	RunID            uuid.UUID  `json:"run_id"`
+	Round            int        `json:"round"`
+	Status           string     `json:"status"` // started, completed, failed, interrupted
+	FinishReason     *string    `json:"finish_reason,omitempty"`
+	RequestID        *string    `json:"request_id,omitempty"`
+	PromptTokens     int        `json:"prompt_tokens"`
+	CompletionTokens int        `json:"completion_tokens"`
+	TotalTokens      int        `json:"total_tokens"`
+	ErrorMessage     *string    `json:"error_message,omitempty"`
+	StartedAt        time.Time  `json:"started_at"`
+	FinishedAt       *time.Time `json:"finished_at,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+}
+
+type AgentToolCall struct {
+	ID           uuid.UUID       `json:"id"`
+	RunID        uuid.UUID       `json:"run_id"`
+	ModelCallID  *uuid.UUID      `json:"model_call_id,omitempty"`
+	CallID       string          `json:"call_id"`
+	ToolName     string          `json:"tool_name"`
+	Arguments    json.RawMessage `json:"arguments"`
+	Output       string          `json:"output"`
+	Status       string          `json:"status"` // pending, running, success, failed, rejected, interrupted
+	ErrorMessage *string         `json:"error_message,omitempty"`
+	StartedAt    *time.Time      `json:"started_at,omitempty"`
+	FinishedAt   *time.Time      `json:"finished_at,omitempty"`
+	CreatedAt    time.Time       `json:"created_at"`
+}
+
+type BudgetConfig struct {
+	MaxModelCalls       int `json:"max_model_calls"`
+	MaxToolCalls        int `json:"max_tool_calls"`
+	RunTimeoutSeconds   int `json:"run_timeout_seconds"`
+	ModelTimeoutSeconds int `json:"model_timeout_seconds"`
+	ToolTimeoutSeconds  int `json:"tool_timeout_seconds"`
+	MaxToolOutputBytes  int `json:"max_tool_output_bytes"`
+}
+
+func DefaultBudgetConfig() BudgetConfig {
+	return BudgetConfig{
+		MaxModelCalls:       8,
+		MaxToolCalls:        12,
+		RunTimeoutSeconds:   120,
+		ModelTimeoutSeconds: 30,
+		ToolTimeoutSeconds:  5,
+		MaxToolOutputBytes:  8192,
+	}
 }
 
 type CreateTaskRequest struct {
@@ -91,5 +154,9 @@ type UpdateTaskRequest struct {
 }
 
 type CreateRunRequest struct {
-	FailAtStep *int `json:"fail_at_step,omitempty"`
+	FailAtStep   *int          `json:"fail_at_step,omitempty"`
+	Executor     *string       `json:"executor,omitempty"`      // "fake" or "agent"
+	Provider     *string       `json:"provider,omitempty"`      // "mock" or "openai"
+	MockScenario *string       `json:"mock_scenario,omitempty"` // e.g. "normal", "multi_tool", etc.
+	Budget       *BudgetConfig `json:"budget,omitempty"`
 }

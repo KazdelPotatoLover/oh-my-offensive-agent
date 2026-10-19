@@ -83,6 +83,22 @@ func MarkInterruptedRuns(ctx context.Context, pool *pgxpool.Pool) error {
 			return fmt.Errorf("failed to update run %s: %w", r.ID, err)
 		}
 
+		// Mark in-progress model_calls as interrupted
+		_, err = tx.Exec(ctx,
+			`UPDATE model_calls SET status = 'interrupted', error_message = 'server restarted', 
+			 finished_at = now() WHERE run_id = $1 AND status = 'started'`, r.ID)
+		if err != nil {
+			return fmt.Errorf("failed to update model_calls for run %s: %w", r.ID, err)
+		}
+
+		// Mark in-progress agent_tool_calls as interrupted
+		_, err = tx.Exec(ctx,
+			`UPDATE agent_tool_calls SET status = 'interrupted', error_message = 'server restarted', 
+			 finished_at = now() WHERE run_id = $1 AND status IN ('pending', 'running')`, r.ID)
+		if err != nil {
+			return fmt.Errorf("failed to update agent_tool_calls for run %s: %w", r.ID, err)
+		}
+
 		// Get next seq
 		var nextSeq int
 		err = tx.QueryRow(ctx,

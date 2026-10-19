@@ -4,9 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
 
+	"agent-workbench/backend/internal/agent"
 	"agent-workbench/backend/internal/model"
+	"agent-workbench/backend/internal/provider"
 	"agent-workbench/backend/internal/service"
+	"agent-workbench/backend/internal/tools"
 	"agent-workbench/backend/internal/worker"
 
 	"github.com/go-chi/chi/v5"
@@ -88,15 +92,56 @@ func (h *RunHandler) Create(w http.ResponseWriter, r *http.Request) {
 			respondError(w, http.StatusConflict, "idempotency key conflict: same key but different request parameters")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to create run")
+		if errors.Is(err, provider.ErrModelConfigMissing) {
+			respondError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to create run: "+err.Error())
 		return
 	}
 
 	if existed {
 		respondJSON(w, http.StatusOK, run)
 	} else {
-		// Start the worker
-		if err := h.manager.Start(run.ID, run.FailAtStep); err != nil {
+		// Determine executor (AgentRunner vs FakeWorker)
+		var startErr error
+		var inputMap map[string]interface{}
+		if len(run.ExecutionInput) > 0 {
+			json.Unmarshal(run.ExecutionInput, &inputMap)
+		}
+
+		executorType := "fake"
+		if agentCfg, ok := inputMap["agent_config"].(map[string]interface{}); ok {
+			if ex, ok := agentCfg["executor"].(string); ok && ex != "" {
+				executorType = ex
+			}
+		}
+
+		if executorType == "agent" {
+			agentCfg, _ := inputMap["agent_config"].(map[string]interface{})
+			provType, _ := agentCfg["provider"].(string)
+
+			budget := model.DefaultBudgetConfig()
+			if bMap, ok := inputMap["budget"].(map[string]interface{}); ok {
+				bBytes, _ := json.Marshal(bMap)
+				json.Unmarshal(bBytes, &budget)
+			}
+
+			var p provider.Provider
+			if provType == "openai" || provType == "remote" {
+				p = provider.NewOpenAIProvider(os.Getenv("LLM_BASE_URL"), os.Getenv("LLM_API_KEY"), os.Getenv("LLM_MODEL"), nil)
+			} else {
+				scenario, _ := agentCfg["mock_scenario"].(string)
+				p = provider.NewMockProvider(provider.MockScenario(scenario))
+			}
+
+			runner := agent.NewAgentRunner(run.ID, h.runService, p, tools.DefaultRegistry(), budget)
+			startErr = h.manager.StartExecutor(run.ID, runner)
+		} else {
+			startErr = h.manager.Start(run.ID, run.FailAtStep)
+		}
+
+		if startErr != nil {
 			respondError(w, http.StatusServiceUnavailable, "service is shutting down")
 			return
 		}
@@ -167,4 +212,49 @@ func (h *RunHandler) GetEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]interface{}{"events": events})
+}
+
+func (h *RunHandler) GetMessages(w http.ResponseWriter, r *http.Request) {
+	runID, err := uuid.Parse(chi.URLParam(r, "runID"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid run ID")
+		return
+	}
+
+	messages, err := h.runService.ListAgentMessages(r.Context(), runID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to get messages")
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"messages": messages})
+}
+
+func (h *RunHandler) GetModelCalls(w http.ResponseWriter, r *http.Request) {
+	runID, err := uuid.Parse(chi.URLParam(r, "runID"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid run ID")
+		return
+	}
+
+	calls, err := h.runService.ListModelCalls(r.Context(), runID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to get model calls")
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"model_calls": calls})
+}
+
+func (h *RunHandler) GetToolCalls(w http.ResponseWriter, r *http.Request) {
+	runID, err := uuid.Parse(chi.URLParam(r, "runID"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid run ID")
+		return
+	}
+
+	toolCalls, err := h.runService.ListAgentToolCalls(r.Context(), runID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to get tool calls")
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"tool_calls": toolCalls})
 }

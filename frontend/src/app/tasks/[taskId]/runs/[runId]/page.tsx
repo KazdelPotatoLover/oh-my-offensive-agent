@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Run, RunEvent } from '@/lib/types';
+import { Run, RunEvent, AgentMessage, ModelCall, AgentToolCall } from '@/lib/types';
 import { RunStatusBadge } from '@/components/RunStatusBadge';
 import { EventTimeline } from '@/components/EventTimeline';
 
@@ -15,23 +15,33 @@ export default function RunDetailPage() {
 
   const [run, setRun] = useState<Run | null>(null);
   const [events, setEvents] = useState<RunEvent[]>([]);
+  const [messages, setMessages] = useState<AgentMessage[]>([]);
+  const [modelCalls, setModelCalls] = useState<ModelCall[]>([]);
+  const [toolCalls, setToolCalls] = useState<AgentToolCall[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [stopping, setStopping] = useState(false);
   const [stopError, setStopError] = useState<string | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'timeline' | 'model_calls' | 'tool_calls' | 'messages'>('timeline');
 
   const loadRunData = useCallback(async (isInitial = false) => {
     if (isInitial) setLoading(true);
     setError(null);
     try {
-      const [runData, eventsData] = await Promise.all([
+      const [runData, eventsData, messagesData, modelCallsData, toolCallsData] = await Promise.all([
         api.getRun(runId),
         api.getRunEvents(runId),
+        api.getRunMessages(runId).catch(() => []),
+        api.getRunModelCalls(runId).catch(() => []),
+        api.getRunToolCalls(runId).catch(() => []),
       ]);
       setRun(runData);
       setEvents(eventsData);
+      setMessages(messagesData);
+      setModelCalls(modelCallsData);
+      setToolCalls(toolCallsData);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -61,12 +71,18 @@ export default function RunDetailPage() {
       if (isPollingRef.current) return;
       isPollingRef.current = true;
       try {
-        const [updatedRun, updatedEvents] = await Promise.all([
+        const [updatedRun, updatedEvents, updatedMessages, updatedModelCalls, updatedToolCalls] = await Promise.all([
           api.getRun(runId),
           api.getRunEvents(runId),
+          api.getRunMessages(runId).catch(() => []),
+          api.getRunModelCalls(runId).catch(() => []),
+          api.getRunToolCalls(runId).catch(() => []),
         ]);
         setRun(updatedRun);
         setEvents(updatedEvents);
+        setMessages(updatedMessages);
+        setModelCalls(updatedModelCalls);
+        setToolCalls(updatedToolCalls);
       } catch {
         // Suppress polling error to avoid UI flicker
       } finally {
@@ -85,7 +101,6 @@ export default function RunDetailPage() {
     try {
       const updated = await api.stopRun(runId);
       setRun(updated);
-      // Re-fetch events
       const updatedEvents = await api.getRunEvents(runId);
       setEvents(updatedEvents);
     } catch (err: unknown) {
@@ -168,6 +183,11 @@ export default function RunDetailPage() {
     run.status.toLowerCase()
   );
 
+  const agentConfig = run.execution_input?.agent_config as Record<string, unknown> | undefined;
+  const isAgentRun = run.execution_input?.executor === 'agent' || modelCalls.length > 0 || toolCalls.length > 0;
+  const isMockProvider = agentConfig?.provider === 'mock';
+  const totalTokens = modelCalls.reduce((acc, c) => acc + (c.total_tokens || 0), 0);
+
   return (
     <div className="space-y-8">
       {/* Breadcrumb Navigation */}
@@ -185,6 +205,41 @@ export default function RunDetailPage() {
         </span>
       </div>
 
+      {/* Provider Info Banner */}
+      {isAgentRun && (
+        <div>
+          {isMockProvider ? (
+            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <span className="px-2 py-0.5 text-xs font-semibold uppercase bg-amber-500/20 text-amber-200 rounded border border-amber-500/40">
+                  模拟 / Mock Provider
+                </span>
+                <span className="text-sm">
+                  当前为本地内置预设回复，场景：<strong className="font-mono text-white">{String(agentConfig?.mock_scenario || 'normal')}</strong>
+                </span>
+              </div>
+              <span className="text-xs text-amber-400/80 hidden sm:inline">无外部 LLM API 消耗</span>
+            </div>
+          ) : (
+            <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl text-blue-300 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <span className="px-2 py-0.5 text-xs font-semibold uppercase bg-blue-500/20 text-blue-200 rounded border border-blue-500/40">
+                  OpenAI Real Model
+                </span>
+                <span className="text-sm">
+                  使用 OpenAI 兼容协议与大语言模型通信
+                </span>
+              </div>
+              {totalTokens > 0 && (
+                <span className="text-xs font-mono text-blue-200">
+                  消耗 Token 总计: {totalTokens.toLocaleString()}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Run Top Banner */}
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-sm space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-800">
@@ -193,7 +248,6 @@ export default function RunDetailPage() {
               <h1 className="text-2xl font-bold text-white tracking-tight font-mono">
                 Run {run.id}
               </h1>
-              {/* Large status badge */}
               <RunStatusBadge status={run.status} size="lg" />
             </div>
             {isActive && (
@@ -297,12 +351,15 @@ export default function RunDetailPage() {
           </div>
 
           <div className="bg-gray-950 p-3.5 rounded-xl border border-gray-800">
-            <span className="text-xs text-gray-500 block mb-1">Fail At Step</span>
+            <span className="text-xs text-gray-500 block mb-1">Executor Mode</span>
             <span className="text-xs sm:text-sm font-mono text-gray-200">
-              {run.fail_at_step !== undefined && run.fail_at_step !== null
-                ? `Step ${run.fail_at_step}`
-                : 'None (Run to completion)'}
+              {isAgentRun ? 'Agent Runner' : 'Fake Worker'}
             </span>
+            {totalTokens > 0 && (
+              <span className="text-[10px] text-emerald-400 block mt-0.5">
+                {totalTokens} tokens
+              </span>
+            )}
           </div>
         </div>
 
@@ -315,10 +372,7 @@ export default function RunDetailPage() {
           >
             <div className="flex items-center space-x-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                Configuration Snapshot
-              </span>
-              <span className="text-xs text-gray-500">
-                ({Object.keys(run.config_snapshot || {}).length} keys)
+                Configuration & Execution Input Snapshot
               </span>
             </div>
             <svg
@@ -334,27 +388,255 @@ export default function RunDetailPage() {
           </button>
 
           {configOpen && (
-            <div className="p-4 border-t border-gray-800 bg-gray-950 overflow-x-auto">
-              <pre className="text-xs font-mono text-gray-300">
-                {JSON.stringify(run.config_snapshot || {}, null, 2)}
-              </pre>
+            <div className="p-4 border-t border-gray-800 bg-gray-950 overflow-x-auto space-y-4">
+              <div>
+                <h3 className="text-xs text-gray-400 font-semibold mb-1">execution_input</h3>
+                <pre className="text-xs font-mono text-gray-300">
+                  {JSON.stringify(run.execution_input || {}, null, 2)}
+                </pre>
+              </div>
+              <div className="pt-2 border-t border-gray-800">
+                <h3 className="text-xs text-gray-400 font-semibold mb-1">config_snapshot (Legacy)</h3>
+                <pre className="text-xs font-mono text-gray-300">
+                  {JSON.stringify(run.config_snapshot || {}, null, 2)}
+                </pre>
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Event Timeline Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <h2 className="text-xl font-bold text-white">Event Timeline</h2>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 border border-gray-700">
-              {events.length} events
-            </span>
+      {/* Final Output / Assistant Answer Section */}
+      {run.final_output && (
+        <div className="bg-gray-900 border border-emerald-500/30 rounded-2xl p-6 shadow-sm space-y-3">
+          <div className="flex items-center space-x-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+            <h2 className="text-lg font-bold text-white">Assistant Final Answer (最终回答)</h2>
+          </div>
+          <div className="p-4 bg-gray-950 border border-gray-800 rounded-xl text-gray-200 text-sm whitespace-pre-wrap font-sans leading-relaxed">
+            {run.final_output}
           </div>
         </div>
+      )}
 
-        <EventTimeline events={events} />
+      {/* Tabs for Timeline / Agent Details */}
+      <div className="space-y-4">
+        <div className="flex border-b border-gray-800 space-x-6">
+          <button
+            type="button"
+            onClick={() => setActiveTab('timeline')}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center space-x-2 ${
+              activeTab === 'timeline'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-gray-400 hover:text-white'
+            }`}
+          >
+            <span>Events Timeline</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-400">
+              {events.length}
+            </span>
+          </button>
+
+          {isAgentRun && (
+            <>
+              <button
+                type="button"
+                onClick={() => setActiveTab('model_calls')}
+                className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center space-x-2 ${
+                  activeTab === 'model_calls'
+                    ? 'border-blue-500 text-blue-400'
+                    : 'border-transparent text-gray-400 hover:text-white'
+                }`}
+              >
+                <span>Model Calls</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-400">
+                  {modelCalls.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('tool_calls')}
+                className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center space-x-2 ${
+                  activeTab === 'tool_calls'
+                    ? 'border-blue-500 text-blue-400'
+                    : 'border-transparent text-gray-400 hover:text-white'
+                }`}
+              >
+                <span>Tool Calls</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-400">
+                  {toolCalls.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('messages')}
+                className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center space-x-2 ${
+                  activeTab === 'messages'
+                    ? 'border-blue-500 text-blue-400'
+                    : 'border-transparent text-gray-400 hover:text-white'
+                }`}
+              >
+                <span>Conversation</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-400">
+                  {messages.length}
+                </span>
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'timeline' && (
+          <EventTimeline events={events} />
+        )}
+
+        {activeTab === 'model_calls' && (
+          <div className="space-y-4">
+            {modelCalls.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 border border-gray-800 rounded-xl">
+                No model calls recorded yet.
+              </div>
+            ) : (
+              modelCalls.map((call) => (
+                <div key={call.id} className="p-4 bg-gray-900 border border-gray-800 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <span className="font-semibold text-white text-sm">
+                        Round {call.round}
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded ${
+                        call.status === 'completed' ? 'bg-green-500/10 text-green-400' :
+                        call.status === 'failed' ? 'bg-red-500/10 text-red-400' : 'bg-blue-500/10 text-blue-400'
+                      }`}>
+                        {call.status}
+                      </span>
+                      {call.finish_reason && (
+                        <span className="text-xs font-mono text-gray-400 bg-gray-950 px-2 py-0.5 rounded border border-gray-800">
+                          finish: {call.finish_reason}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs font-mono text-gray-400 space-x-3">
+                      <span>prompt: {call.prompt_tokens}</span>
+                      <span>completion: {call.completion_tokens}</span>
+                      <span className="text-emerald-400">total: {call.total_tokens}</span>
+                    </div>
+                  </div>
+                  {call.error_message && (
+                    <div className="p-2.5 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-xs font-mono">
+                      {call.error_message}
+                    </div>
+                  )}
+                  <div className="text-[11px] text-gray-500">
+                    Started: {new Date(call.started_at).toLocaleTimeString()}
+                    {call.finished_at && ` • Finished: ${new Date(call.finished_at).toLocaleTimeString()}`}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {activeTab === 'tool_calls' && (
+          <div className="space-y-4">
+            {toolCalls.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 border border-gray-800 rounded-xl">
+                No tool calls recorded yet.
+              </div>
+            ) : (
+              toolCalls.map((tc) => (
+                <div key={tc.id} className="p-4 bg-gray-900 border border-gray-800 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <span className="font-mono font-semibold text-blue-400 text-sm">
+                        {tc.tool_name}
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded ${
+                        tc.status === 'success' ? 'bg-green-500/10 text-green-400' :
+                        tc.status === 'rejected' ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400'
+                      }`}>
+                        {tc.status}
+                      </span>
+                    </div>
+                    <span className="font-mono text-xs text-gray-500">
+                      ID: {tc.call_id}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[11px] text-gray-400 font-semibold block mb-1">Arguments:</span>
+                    <pre className="p-2.5 bg-gray-950 border border-gray-800 rounded text-xs font-mono text-gray-300 overflow-x-auto">
+                      {JSON.stringify(tc.arguments || {}, null, 2)}
+                    </pre>
+                  </div>
+
+                  {tc.output && (
+                    <div>
+                      <span className="text-[11px] text-gray-400 font-semibold block mb-1">Output:</span>
+                      <pre className="p-2.5 bg-gray-950 border border-gray-800 rounded text-xs font-mono text-emerald-300 overflow-x-auto max-h-60">
+                        {tc.output}
+                      </pre>
+                    </div>
+                  )}
+
+                  {tc.error_message && (
+                    <div className="p-2.5 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-xs font-mono">
+                      {tc.error_message}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {activeTab === 'messages' && (
+          <div className="space-y-4">
+            {messages.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 border border-gray-800 rounded-xl">
+                No conversation messages recorded yet.
+              </div>
+            ) : (
+              messages.map((msg) => (
+                <div key={msg.id} className="p-4 bg-gray-900 border border-gray-800 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-semibold uppercase px-2 py-0.5 rounded ${
+                      msg.role === 'system' ? 'bg-gray-800 text-gray-300' :
+                      msg.role === 'user' ? 'bg-blue-500/20 text-blue-300' :
+                      msg.role === 'assistant' ? 'bg-purple-500/20 text-purple-300' :
+                      'bg-emerald-500/20 text-emerald-300'
+                    }`}>
+                      {msg.role}
+                    </span>
+                    <span className="text-xs font-mono text-gray-500">
+                      Seq #{msg.seq}
+                    </span>
+                  </div>
+                  {msg.content && (
+                    <div className="text-sm text-gray-200 whitespace-pre-wrap font-sans">
+                      {msg.content}
+                    </div>
+                  )}
+                  {msg.tool_calls && (
+                    <div className="pt-2">
+                      <span className="text-[11px] text-gray-400 font-semibold block mb-1">Tool Calls:</span>
+                      <pre className="p-2 bg-gray-950 border border-gray-800 rounded text-xs font-mono text-purple-300 overflow-x-auto">
+                        {JSON.stringify(msg.tool_calls, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                  {msg.tool_call_id && (
+                    <div className="text-xs font-mono text-gray-500">
+                      for tool_call_id: {msg.tool_call_id}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
