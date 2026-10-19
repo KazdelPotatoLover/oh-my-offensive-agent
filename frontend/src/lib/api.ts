@@ -5,6 +5,10 @@ import {
   AgentMessage,
   ModelCall,
   AgentToolCall,
+  WorkItem,
+  Observation,
+  AgentSession,
+  PlannerRound,
   CreateTaskInput,
   UpdateTaskInput,
   CreateRunInput,
@@ -14,6 +18,10 @@ import {
   MessagesResponse,
   ModelCallsResponse,
   ToolCallsResponse,
+  WorkItemsResponse,
+  ObservationsResponse,
+  SessionsResponse,
+  PlannerRoundsResponse,
 } from './types';
 
 const API_BASE_URL =
@@ -191,5 +199,26 @@ export const api = {
   async getRunToolCalls(runId: string): Promise<AgentToolCall[]> {
     const data = await request<ToolCallsResponse>(`/api/runs/${runId}/tool_calls`);
     return data.tool_calls || [];
+  },
+
+  // Orchestration & Multi-Worker Data
+  async getRunWorkItems(runId: string): Promise<WorkItem[]> {
+    const data = await request<WorkItemsResponse>(`/api/runs/${runId}/work_items`);
+    return data.work_items || [];
+  },
+
+  async getRunObservations(runId: string): Promise<Observation[]> {
+    const data = await request<ObservationsResponse>(`/api/runs/${runId}/observations`);
+    return data.observations || [];
+  },
+
+  async getRunSessions(runId: string): Promise<AgentSession[]> {
+    const data = await request<SessionsResponse>(`/api/runs/${runId}/sessions`);
+    return data.sessions || [];
+  },
+
+  async getRunPlannerRounds(runId: string): Promise<PlannerRound[]> {
+    const data = await request<PlannerRoundsResponse>(`/api/runs/${runId}/planner_rounds`);
+    return data.planner_rounds || [];
   },
 };

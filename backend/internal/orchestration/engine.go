@@ -33,6 +33,12 @@ func WithOnWorkItemHook(hook func(key string)) EngineOption {
 	}
 }
 
+func WithWorkerActiveHook(hook func(delta int)) EngineOption {
+	return func(e *Engine) {
+		e.onWorkerActiveHook = hook
+	}
+}
+
 // Engine coordinates Planner and Worker sessions for a multi-stage Run.
 type Engine struct {
 	runID              uuid.UUID
@@ -42,6 +48,7 @@ type Engine struct {
 	maxWorkers         int
 	onPlannerRoundHook func(round int)
 	onWorkItemHook     func(key string)
+	onWorkerActiveHook func(delta int)
 
 	// Global budget tracking across Planner and all Workers
 	globalModelCalls int32
@@ -236,7 +243,13 @@ workerDispatchLoop:
 				}
 
 				go func(item *model.WorkItem, attempt *model.Attempt, s *model.AgentSession, tok struct{}) {
+					if e.onWorkerActiveHook != nil {
+						e.onWorkerActiveHook(1)
+					}
 					defer func() {
+						if e.onWorkerActiveHook != nil {
+							e.onWorkerActiveHook(-1)
+						}
 						workerTokens <- tok
 						activeWorkers.Done()
 						workCompletedChan <- struct{}{}

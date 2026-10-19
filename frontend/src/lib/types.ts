@@ -113,10 +113,77 @@ export interface UpdateTaskInput {
 
 export interface CreateRunInput {
   fail_at_step?: number;
-  executor?: 'fake' | 'agent';
+  executor?: 'fake' | 'agent' | 'orchestrator';
   provider?: 'mock' | 'openai';
   mock_scenario?: string;
   idempotency_key?: string;
+  budget?: {
+    max_model_calls?: number;
+    max_tool_calls?: number;
+    max_parallel_workers?: number;
+    run_timeout_seconds?: number;
+  };
+}
+
+export type WorkItemStatus =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'blocked';
+
+export interface WorkItem {
+  id: string;
+  run_id: string;
+  key: string;
+  title: string;
+  objective: string;
+  work_type: string;
+  status: WorkItemStatus;
+  blocked_reason?: string;
+  input_data: Record<string, unknown>;
+  output_data: Record<string, unknown>;
+  current_attempt_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Observation {
+  id: string;
+  run_id: string;
+  attempt_id: string;
+  obs_type: string;
+  content: string;
+  data: Record<string, unknown>;
+  source_tool_call_id: string;
+  created_at: string;
+}
+
+export interface AgentSession {
+  id: string;
+  run_id: string;
+  role: 'planner' | 'worker' | 'legacy_agent';
+  round?: number;
+  work_item_id?: string;
+  attempt_id?: string;
+  status: string;
+  input_snapshot: Record<string, unknown>;
+  finish_reason?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlannerRound {
+  id: string;
+  run_id: string;
+  round: number;
+  trigger_reason: string;
+  session_id?: string;
+  plan_summary?: string;
+  status: string;
+  created_at: string;
+  finished_at?: string;
 }
 
 export interface TasksResponse {
@@ -142,3 +209,20 @@ export interface ModelCallsResponse {
 export interface ToolCallsResponse {
   tool_calls: AgentToolCall[];
 }
+
+export interface WorkItemsResponse {
+  work_items: WorkItem[];
+}
+
+export interface ObservationsResponse {
+  observations: Observation[];
+}
+
+export interface SessionsResponse {
+  sessions: AgentSession[];
+}
+
+export interface PlannerRoundsResponse {
+  planner_rounds: PlannerRound[];
+}
+

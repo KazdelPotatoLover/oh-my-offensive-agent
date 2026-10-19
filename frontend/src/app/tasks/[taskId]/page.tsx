@@ -70,9 +70,10 @@ export default function TaskDetailPage() {
     return () => clearInterval(interval);
   }, [runs, taskId]);
 
-  const [executorType, setExecutorType] = useState<'agent' | 'fake'>('agent');
+  const [executorType, setExecutorType] = useState<'orchestrator' | 'agent' | 'fake'>('orchestrator');
   const [providerType, setProviderType] = useState<'mock' | 'openai'>('mock');
-  const [mockScenario, setMockScenario] = useState('normal');
+  const [mockScenario, setMockScenario] = useState('orchestration');
+  const [parallelWorkers, setParallelWorkers] = useState<number>(1);
 
   const handleStartRun = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +82,20 @@ export default function TaskDetailPage() {
 
     try {
       let input: any = {};
-      if (executorType === 'agent') {
+      if (executorType === 'orchestrator') {
+        input = {
+          executor: 'orchestrator',
+          provider: providerType,
+          budget: {
+            max_parallel_workers: parallelWorkers,
+            max_model_calls: 30,
+            max_tool_calls: 30,
+          },
+        };
+        if (providerType === 'mock') {
+          input.mock_scenario = mockScenario;
+        }
+      } else if (executorType === 'agent') {
         input = {
           executor: 'agent',
           provider: providerType,
@@ -227,11 +241,28 @@ export default function TaskDetailPage() {
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">
                   Execution Mode
                 </label>
-                <div className="grid grid-cols-2 gap-1.5 bg-gray-900 p-1 rounded-lg border border-gray-800">
+                <div className="grid grid-cols-3 gap-1 bg-gray-900 p-1 rounded-lg border border-gray-800">
                   <button
                     type="button"
-                    onClick={() => setExecutorType('agent')}
-                    className={`py-1 text-xs font-medium rounded-md transition-colors ${
+                    onClick={() => {
+                      setExecutorType('orchestrator');
+                      setMockScenario('orchestration');
+                    }}
+                    className={`py-1 text-[11px] font-medium rounded-md transition-colors ${
+                      executorType === 'orchestrator'
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Orchestrator
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExecutorType('agent');
+                      setMockScenario('normal');
+                    }}
+                    className={`py-1 text-[11px] font-medium rounded-md transition-colors ${
                       executorType === 'agent'
                         ? 'bg-blue-600 text-white shadow-sm'
                         : 'text-gray-400 hover:text-white'
@@ -242,7 +273,7 @@ export default function TaskDetailPage() {
                   <button
                     type="button"
                     onClick={() => setExecutorType('fake')}
-                    className={`py-1 text-xs font-medium rounded-md transition-colors ${
+                    className={`py-1 text-[11px] font-medium rounded-md transition-colors ${
                       executorType === 'fake'
                         ? 'bg-blue-600 text-white shadow-sm'
                         : 'text-gray-400 hover:text-white'
@@ -253,7 +284,39 @@ export default function TaskDetailPage() {
                 </div>
               </div>
 
-              {executorType === 'agent' ? (
+              {executorType === 'orchestrator' && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">
+                    Worker 并发数
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5 bg-gray-900 p-1 rounded-lg border border-gray-800">
+                    <button
+                      type="button"
+                      onClick={() => setParallelWorkers(1)}
+                      className={`py-1 text-xs font-medium rounded-md transition-colors ${
+                        parallelWorkers === 1
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      单 Worker (串行)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setParallelWorkers(2)}
+                      className={`py-1 text-xs font-medium rounded-md transition-colors ${
+                        parallelWorkers === 2
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      双 Worker (并行)
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {executorType === 'agent' || executorType === 'orchestrator' ? (
                 <>
                   <div>
                     <label className="block text-xs font-medium text-gray-400 mb-1">
@@ -299,6 +362,7 @@ export default function TaskDetailPage() {
                         onChange={(e) => setMockScenario(e.target.value)}
                         className="w-full px-3 py-1.5 bg-gray-900 border border-gray-800 rounded-lg text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       >
+                        <option value="orchestration">orchestration (Planner + Workers + Summary 闭环)</option>
                         <option value="normal">normal (list_samples → read_sample → complete)</option>
                         <option value="text_and_tool">text_and_tool (cot thought + tool call)</option>
                         <option value="invalid_tool">invalid_tool (calls non-existent tool)</option>

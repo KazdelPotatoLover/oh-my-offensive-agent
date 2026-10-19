@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Run, RunEvent, AgentMessage, ModelCall, AgentToolCall } from '@/lib/types';
+import { Run, RunEvent, AgentMessage, ModelCall, AgentToolCall, WorkItem, Observation, AgentSession, PlannerRound } from '@/lib/types';
 import { RunStatusBadge } from '@/components/RunStatusBadge';
 import { EventTimeline } from '@/components/EventTimeline';
 
@@ -18,30 +18,57 @@ export default function RunDetailPage() {
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [modelCalls, setModelCalls] = useState<ModelCall[]>([]);
   const [toolCalls, setToolCalls] = useState<AgentToolCall[]>([]);
+  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+  const [observations, setObservations] = useState<Observation[]>([]);
+  const [sessions, setSessions] = useState<AgentSession[]>([]);
+  const [plannerRounds, setPlannerRounds] = useState<PlannerRound[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [stopping, setStopping] = useState(false);
   const [stopError, setStopError] = useState<string | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'timeline' | 'model_calls' | 'tool_calls' | 'messages'>('timeline');
+  const [activeTab, setActiveTab] = useState<'work_items' | 'observations' | 'sessions' | 'timeline' | 'model_calls' | 'tool_calls' | 'messages'>('work_items');
 
   const loadRunData = useCallback(async (isInitial = false) => {
     if (isInitial) setLoading(true);
     setError(null);
     try {
-      const [runData, eventsData, messagesData, modelCallsData, toolCallsData] = await Promise.all([
+      const [
+        runData,
+        eventsData,
+        messagesData,
+        modelCallsData,
+        toolCallsData,
+        workItemsData,
+        observationsData,
+        sessionsData,
+        plannerRoundsData,
+      ] = await Promise.all([
         api.getRun(runId),
         api.getRunEvents(runId),
         api.getRunMessages(runId).catch(() => []),
         api.getRunModelCalls(runId).catch(() => []),
         api.getRunToolCalls(runId).catch(() => []),
+        api.getRunWorkItems(runId).catch(() => []),
+        api.getRunObservations(runId).catch(() => []),
+        api.getRunSessions(runId).catch(() => []),
+        api.getRunPlannerRounds(runId).catch(() => []),
       ]);
       setRun(runData);
       setEvents(eventsData);
       setMessages(messagesData);
       setModelCalls(modelCallsData);
       setToolCalls(toolCallsData);
+      setWorkItems(workItemsData);
+      setObservations(observationsData);
+      setSessions(sessionsData);
+      setPlannerRounds(plannerRoundsData);
+
+      // If no work items exist and timeline was default, set appropriately
+      if (isInitial && workItemsData.length === 0) {
+        setActiveTab('timeline');
+      }
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -71,18 +98,36 @@ export default function RunDetailPage() {
       if (isPollingRef.current) return;
       isPollingRef.current = true;
       try {
-        const [updatedRun, updatedEvents, updatedMessages, updatedModelCalls, updatedToolCalls] = await Promise.all([
+        const [
+          updatedRun,
+          updatedEvents,
+          updatedMessages,
+          updatedModelCalls,
+          updatedToolCalls,
+          updatedWorkItems,
+          updatedObservations,
+          updatedSessions,
+          updatedPlannerRounds,
+        ] = await Promise.all([
           api.getRun(runId),
           api.getRunEvents(runId),
           api.getRunMessages(runId).catch(() => []),
           api.getRunModelCalls(runId).catch(() => []),
           api.getRunToolCalls(runId).catch(() => []),
+          api.getRunWorkItems(runId).catch(() => []),
+          api.getRunObservations(runId).catch(() => []),
+          api.getRunSessions(runId).catch(() => []),
+          api.getRunPlannerRounds(runId).catch(() => []),
         ]);
         setRun(updatedRun);
         setEvents(updatedEvents);
         setMessages(updatedMessages);
         setModelCalls(updatedModelCalls);
         setToolCalls(updatedToolCalls);
+        setWorkItems(updatedWorkItems);
+        setObservations(updatedObservations);
+        setSessions(updatedSessions);
+        setPlannerRounds(updatedPlannerRounds);
       } catch {
         // Suppress polling error to avoid UI flicker
       } finally {
@@ -184,8 +229,9 @@ export default function RunDetailPage() {
   );
 
   const agentConfig = run.execution_input?.agent_config as Record<string, unknown> | undefined;
-  const isAgentRun = run.execution_input?.executor === 'agent' || modelCalls.length > 0 || toolCalls.length > 0;
-  const isMockProvider = agentConfig?.provider === 'mock';
+  const isOrchestrator = agentConfig?.executor === 'orchestrator' || agentConfig?.executor === 'orchestration' || workItems.length > 0;
+  const isAgentRun = isOrchestrator || agentConfig?.executor === 'agent' || modelCalls.length > 0 || toolCalls.length > 0;
+  const isMockProvider = agentConfig?.provider === 'mock' || !agentConfig?.provider;
   const totalTokens = modelCalls.reduce((acc, c) => acc + (c.total_tokens || 0), 0);
 
   return (
@@ -353,7 +399,7 @@ export default function RunDetailPage() {
           <div className="bg-gray-950 p-3.5 rounded-xl border border-gray-800">
             <span className="text-xs text-gray-500 block mb-1">Executor Mode</span>
             <span className="text-xs sm:text-sm font-mono text-gray-200">
-              {isAgentRun ? 'Agent Runner' : 'Fake Worker'}
+              {isOrchestrator ? 'Orchestrator (编排)' : isAgentRun ? 'Agent Runner' : 'Fake Worker'}
             </span>
             {totalTokens > 0 && (
               <span className="text-[10px] text-emerald-400 block mt-0.5">
@@ -419,13 +465,64 @@ export default function RunDetailPage() {
         </div>
       )}
 
-      {/* Tabs for Timeline / Agent Details */}
+      {/* Tabs for Timeline / Orchestration / Agent Details */}
       <div className="space-y-4">
-        <div className="flex border-b border-gray-800 space-x-6">
+        <div className="flex border-b border-gray-800 space-x-6 overflow-x-auto pb-px">
+          {workItems.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('work_items')}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center space-x-2 whitespace-nowrap ${
+                activeTab === 'work_items'
+                  ? 'border-indigo-500 text-indigo-400'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <span>Work Items (工作列表)</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300">
+                {workItems.length}
+              </span>
+            </button>
+          )}
+
+          {observations.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('observations')}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center space-x-2 whitespace-nowrap ${
+                activeTab === 'observations'
+                  ? 'border-emerald-500 text-emerald-400'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <span>Observations (证据与观察)</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">
+                {observations.length}
+              </span>
+            </button>
+          )}
+
+          {sessions.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('sessions')}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center space-x-2 whitespace-nowrap ${
+                activeTab === 'sessions'
+                  ? 'border-purple-500 text-purple-400'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <span>Sessions (会话隔离)</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300">
+                {sessions.length}
+              </span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setActiveTab('timeline')}
-            className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center space-x-2 ${
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center space-x-2 whitespace-nowrap ${
               activeTab === 'timeline'
                 ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-gray-400 hover:text-white'
@@ -442,7 +539,7 @@ export default function RunDetailPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab('model_calls')}
-                className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center space-x-2 ${
+                className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center space-x-2 whitespace-nowrap ${
                   activeTab === 'model_calls'
                     ? 'border-blue-500 text-blue-400'
                     : 'border-transparent text-gray-400 hover:text-white'
@@ -457,7 +554,7 @@ export default function RunDetailPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab('tool_calls')}
-                className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center space-x-2 ${
+                className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center space-x-2 whitespace-nowrap ${
                   activeTab === 'tool_calls'
                     ? 'border-blue-500 text-blue-400'
                     : 'border-transparent text-gray-400 hover:text-white'
@@ -472,7 +569,7 @@ export default function RunDetailPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab('messages')}
-                className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center space-x-2 ${
+                className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center space-x-2 whitespace-nowrap ${
                   activeTab === 'messages'
                     ? 'border-blue-500 text-blue-400'
                     : 'border-transparent text-gray-400 hover:text-white'
@@ -488,6 +585,170 @@ export default function RunDetailPage() {
         </div>
 
         {/* Tab Content */}
+        {activeTab === 'work_items' && (
+          <div className="space-y-4">
+            {workItems.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 border border-gray-800 rounded-xl">
+                No work items created yet.
+              </div>
+            ) : (
+              workItems.map((item) => (
+                <div key={item.id} className="p-5 bg-gray-900 border border-gray-800 rounded-xl space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <span className="font-mono font-semibold text-white text-base">
+                        {item.title}
+                      </span>
+                      <span className="font-mono text-xs text-gray-400 bg-gray-950 px-2 py-0.5 rounded border border-gray-800">
+                        {item.key}
+                      </span>
+                      <span className="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                        {item.work_type}
+                      </span>
+                    </div>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center gap-1.5 ${
+                      item.status === 'completed' ? 'bg-green-500/10 text-green-400 border border-green-500/30' :
+                      item.status === 'running' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30 animate-pulse' :
+                      item.status === 'blocked' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' :
+                      item.status === 'failed' ? 'bg-red-500/10 text-red-400 border border-red-500/30' :
+                      'bg-gray-800 text-gray-400'
+                    }`}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                      {item.status.toUpperCase()}
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-gray-300 font-sans leading-relaxed">
+                    {item.objective}
+                  </p>
+
+                  {item.blocked_reason && (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-300 text-xs">
+                      <strong>Blocked Reason:</strong> {item.blocked_reason}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-gray-400 pt-1 border-t border-gray-800/80">
+                    {item.current_attempt_id && (
+                      <span className="font-mono">
+                        Attempt: <span className="text-gray-200">{item.current_attempt_id.slice(0, 8)}</span>
+                      </span>
+                    )}
+                    <span>Created: {new Date(item.created_at).toLocaleTimeString()}</span>
+                  </div>
+
+                  {item.output_data && Object.keys(item.output_data).length > 0 && (
+                    <div className="pt-2">
+                      <span className="text-[11px] text-gray-400 font-semibold block mb-1">Output Data:</span>
+                      <pre className="p-2.5 bg-gray-950 border border-gray-800 rounded text-xs font-mono text-emerald-300 overflow-x-auto max-h-48">
+                        {JSON.stringify(item.output_data, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {activeTab === 'observations' && (
+          <div className="space-y-4">
+            {observations.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 border border-gray-800 rounded-xl">
+                No observations recorded yet.
+              </div>
+            ) : (
+              observations.map((obs) => (
+                <div key={obs.id} className="p-4 bg-gray-900 border border-emerald-500/20 rounded-xl space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center space-x-2.5">
+                      <span className="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
+                        {obs.obs_type}
+                      </span>
+                      <span className="font-mono text-xs text-gray-500">
+                        {obs.id.slice(0, 8)}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-xs">
+                      <span className="text-gray-400">Source Evidence:</span>
+                      <span className="px-2 py-0.5 bg-gray-950 text-indigo-300 font-mono text-[11px] rounded border border-indigo-500/30">
+                        tool_call #{obs.source_tool_call_id.slice(0, 8)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-gray-200 font-sans">
+                    {obs.content}
+                  </p>
+
+                  {obs.data && Object.keys(obs.data).length > 0 && (
+                    <div className="pt-1">
+                      <pre className="p-2 bg-gray-950 border border-gray-800 rounded text-xs font-mono text-gray-300 overflow-x-auto">
+                        {JSON.stringify(obs.data, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+
+                  <div className="text-[11px] text-gray-500 pt-1">
+                    Recorded: {new Date(obs.created_at).toLocaleString()}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {activeTab === 'sessions' && (
+          <div className="space-y-4">
+            {sessions.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 border border-gray-800 rounded-xl">
+                No sessions recorded.
+              </div>
+            ) : (
+              sessions.map((sess) => (
+                <div key={sess.id} className="p-4 bg-gray-900 border border-gray-800 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2.5">
+                      <span className={`px-2 py-0.5 text-xs font-semibold uppercase rounded font-mono ${
+                        sess.role === 'planner'
+                          ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                          : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      }`}>
+                        {sess.role}
+                      </span>
+                      <span className="font-mono text-xs text-gray-300">
+                        Session {sess.id.slice(0, 8)}
+                      </span>
+                      {sess.round !== undefined && sess.round !== null && (
+                        <span className="text-xs text-gray-400 bg-gray-950 px-2 py-0.5 rounded border border-gray-800">
+                          Round {sess.round}
+                        </span>
+                      )}
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded ${
+                      sess.status === 'completed' ? 'bg-green-500/10 text-green-400' :
+                      sess.status === 'running' ? 'bg-blue-500/10 text-blue-400 animate-pulse' :
+                      sess.status === 'failed' ? 'bg-red-500/10 text-red-400' : 'bg-gray-800 text-gray-400'
+                    }`}>
+                      {sess.status}
+                    </span>
+                  </div>
+
+                  {sess.finish_reason && (
+                    <div className="text-xs text-gray-400 font-mono">
+                      finish: <span className="text-gray-200">{sess.finish_reason}</span>
+                    </div>
+                  )}
+
+                  <div className="text-[11px] text-gray-500 pt-1">
+                    Created: {new Date(sess.created_at).toLocaleTimeString()}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
         {activeTab === 'timeline' && (
           <EventTimeline events={events} />
         )}

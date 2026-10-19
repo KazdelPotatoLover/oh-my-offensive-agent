@@ -505,12 +505,13 @@ func (s *RunService) SubmitPlan(ctx context.Context, runID uuid.UUID, planItems 
 		}
 	}
 
-	// Insert new work items and dependencies
-	var createdItems []model.WorkItem
+	// Pass 1: Insert new work items and build keyToID
+	var resultItems []model.WorkItem
 	for _, item := range planItems {
 		var itemID uuid.UUID
-		if id, exists := keyToID[item.Key]; exists {
-			itemID = id
+		if existing, exists := keyToItem[item.Key]; exists {
+			itemID = existing.ID
+			resultItems = append(resultItems, existing)
 		} else {
 			inBytes, _ := json.Marshal(item.InputData)
 			if inBytes == nil {
@@ -535,10 +536,13 @@ func (s *RunService) SubmitPlan(ctx context.Context, runID uuid.UUID, planItems 
 			}
 			itemID = wi.ID
 			keyToID[item.Key] = itemID
-			createdItems = append(createdItems, wi)
+			resultItems = append(resultItems, wi)
 		}
+	}
 
-		// Insert dependencies
+	// Pass 2: Insert dependencies
+	for _, item := range planItems {
+		itemID := keyToID[item.Key]
 		for _, depKey := range item.Dependencies {
 			depID := keyToID[depKey]
 			_, err = tx.Exec(ctx,
@@ -556,7 +560,7 @@ func (s *RunService) SubmitPlan(ctx context.Context, runID uuid.UUID, planItems 
 		return nil, fmt.Errorf("commit submit_plan: %w", err)
 	}
 
-	return createdItems, nil
+	return resultItems, nil
 }
 
 // ListWorkItemsByRun retrieves all work items for a run.
@@ -703,7 +707,10 @@ func (s *RunService) ClaimNextPendingWorkItem(ctx context.Context, runID uuid.UU
 		&wi.BlockedReason, &wi.InputData, &wi.OutputData, &wi.CurrentAttemptID, &wi.CreatedAt, &wi.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			// Nothing ready to claim
+			// Commit blocked items update if any
+			if commitErr := tx.Commit(ctx); commitErr != nil {
+				return nil, nil, nil, fmt.Errorf("commit blocked items: %w", commitErr)
+			}
 			return nil, nil, nil, nil
 		}
 		return nil, nil, nil, fmt.Errorf("claim work_item: %w", err)
