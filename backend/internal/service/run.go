@@ -152,16 +152,42 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 		mockScenario = *req.MockScenario
 	}
 	if req.Budget != nil {
-		budget = *req.Budget
+		if req.Budget.MaxModelCalls > 0 {
+			budget.MaxModelCalls = req.Budget.MaxModelCalls
+		}
+		if req.Budget.MaxToolCalls > 0 {
+			budget.MaxToolCalls = req.Budget.MaxToolCalls
+		}
+		if req.Budget.RunTimeoutSeconds > 0 {
+			budget.RunTimeoutSeconds = req.Budget.RunTimeoutSeconds
+		}
+		if req.Budget.ModelTimeoutSeconds > 0 {
+			budget.ModelTimeoutSeconds = req.Budget.ModelTimeoutSeconds
+		}
+		if req.Budget.ToolTimeoutSeconds > 0 {
+			budget.ToolTimeoutSeconds = req.Budget.ToolTimeoutSeconds
+		}
+		if req.Budget.MaxToolOutputBytes > 0 {
+			budget.MaxToolOutputBytes = req.Budget.MaxToolOutputBytes
+		}
+		if req.Budget.MaxPlannerRounds > 0 {
+			budget.MaxPlannerRounds = req.Budget.MaxPlannerRounds
+		}
+		if req.Budget.MaxWorkItems > 0 {
+			budget.MaxWorkItems = req.Budget.MaxWorkItems
+		}
+		if req.Budget.MaxParallelWorkers > 0 {
+			budget.MaxParallelWorkers = req.Budget.MaxParallelWorkers
+		}
 	}
 
 	// If real model is selected, validate environment configuration!
 	var sanitizedEndpoint string
 	var modelName string
-	if executor == "agent" && (providerType == "openai" || providerType == "remote") {
+	if (executor == "agent" || executor == "orchestrator" || executor == "orchestration") && (providerType == "openai" || providerType == "remote") {
 		apiKey := os.Getenv("LLM_API_KEY")
 		baseURL := os.Getenv("LLM_BASE_URL")
-		modelName = os.Getenv("LLM_MODEL")
+		modelName := os.Getenv("LLM_MODEL")
 		if apiKey == "" || baseURL == "" || modelName == "" {
 			return nil, false, provider.ErrModelConfigMissing
 		}
@@ -176,9 +202,9 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 			"fail_at_step": req.FailAtStep,
 		},
 	}
-	if executor == "agent" {
+	if executor == "agent" || executor == "orchestrator" || executor == "orchestration" {
 		agentConfig := map[string]interface{}{
-			"executor":       "agent",
+			"executor":       executor,
 			"provider":       providerType,
 			"prompt_version": "v1",
 			"tools_version":  "v1",

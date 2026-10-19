@@ -29,6 +29,7 @@ const (
 	ScenarioTruncated           MockScenario = "truncated"
 	ScenarioProviderError       MockScenario = "provider_error"
 	ScenarioDelay               MockScenario = "delay"
+	ScenarioOrchestration       MockScenario = "orchestration"
 )
 
 type MockProvider struct {
@@ -79,6 +80,10 @@ func (m *MockProvider) Call(ctx context.Context, messages []ChatMessage, tools [
 			return nil, ctx.Err()
 		case <-time.After(delay):
 		}
+	}
+
+	if scenario == ScenarioOrchestration || m.hasTool(tools, "submit_plan") || m.hasTool(tools, "suggest_completion") || m.hasTool(tools, "record_observation") || m.hasTool(tools, "read_observations") {
+		return m.handleOrchestrationFlow(round, messages, tools)
 	}
 
 	switch scenario {
@@ -373,3 +378,161 @@ func (m *MockProvider) handleNormalFlow(round int, messages []ChatMessage) (*Mod
 		}, nil
 	}
 }
+
+func (m *MockProvider) hasTool(tools []ToolDefinition, name string) bool {
+	for _, t := range tools {
+		if t.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *MockProvider) handleOrchestrationFlow(round int, messages []ChatMessage, tools []ToolDefinition) (*ModelResponse, error) {
+	// 1. Planner submit_plan flow
+	if m.hasTool(tools, "submit_plan") {
+		if len(messages) > 0 && messages[len(messages)-1].Role == RoleTool {
+			return &ModelResponse{
+				Content:      "Plan submitted successfully. Work items scheduled for execution.",
+				FinishReason: "stop",
+				Usage:        &ModelUsage{PromptTokens: 80, CompletionTokens: 20, TotalTokens: 100},
+				RequestID:    fmt.Sprintf("mock-planner-round-%d", round),
+			}, nil
+		}
+		planArgs := `{
+			"summary": "Plan to analyze all 3 HTTP samples and synthesize findings",
+			"items": [
+				{"key": "analyze_home", "title": "Analyze Home Sample", "objective": "Read and observe sample_home", "work_type": "analyze_sample", "input_data": {"sample_id": "sample_home"}},
+				{"key": "analyze_login", "title": "Analyze Login Sample", "objective": "Read and observe sample_login", "work_type": "analyze_sample", "input_data": {"sample_id": "sample_login"}},
+				{"key": "analyze_health", "title": "Analyze Health Sample", "objective": "Read and observe sample_health", "work_type": "analyze_sample", "input_data": {"sample_id": "sample_health"}},
+				{"key": "aggregate_summary", "title": "Aggregate Findings", "objective": "Summarize all observations", "work_type": "aggregate_summary", "dependencies": ["analyze_home", "analyze_login", "analyze_health"]}
+			]
+		}`
+		return &ModelResponse{
+			ToolCalls: []ToolCall{
+				{
+					ID:       "call_submit_plan_1",
+					Type:     "function",
+					Function: FunctionCall{Name: "submit_plan", Arguments: planArgs},
+				},
+			},
+			FinishReason: "tool_calls",
+			Usage:        &ModelUsage{PromptTokens: 120, CompletionTokens: 40, TotalTokens: 160},
+			RequestID:    fmt.Sprintf("mock-planner-round-%d", round),
+		}, nil
+	}
+
+	// 2. Planner suggest_completion flow
+	if m.hasTool(tools, "suggest_completion") {
+		if len(messages) > 0 && messages[len(messages)-1].Role == RoleTool {
+			return &ModelResponse{
+				Content:      "Task execution successfully completed with all verified findings.",
+				FinishReason: "stop",
+				Usage:        &ModelUsage{PromptTokens: 100, CompletionTokens: 20, TotalTokens: 120},
+				RequestID:    fmt.Sprintf("mock-planner-round-%d", round),
+			}, nil
+		}
+		compArgs := `{
+			"conclusion": "complete",
+			"final_summary": "All 3 HTTP response samples (sample_home, sample_login, sample_health) were verified. HTTP status 200 OK and secure headers confirmed across all endpoints."
+		}`
+		return &ModelResponse{
+			ToolCalls: []ToolCall{
+				{
+					ID:       "call_suggest_completion_1",
+					Type:     "function",
+					Function: FunctionCall{Name: "suggest_completion", Arguments: compArgs},
+				},
+			},
+			FinishReason: "tool_calls",
+			Usage:        &ModelUsage{PromptTokens: 140, CompletionTokens: 50, TotalTokens: 190},
+			RequestID:    fmt.Sprintf("mock-planner-round-%d", round),
+		}, nil
+	}
+
+	// 3. Worker analyze_sample flow
+	if m.hasTool(tools, "read_sample") && m.hasTool(tools, "record_observation") {
+		sampleID := "sample_home"
+		fullPrompt := ""
+		for _, msg := range messages {
+			fullPrompt += msg.Content + " "
+		}
+		if strings.Contains(fullPrompt, "sample_login") {
+			sampleID = "sample_login"
+		} else if strings.Contains(fullPrompt, "sample_health") {
+			sampleID = "sample_health"
+		}
+
+		lastMsg := messages[len(messages)-1]
+		if lastMsg.Role != RoleTool {
+			return &ModelResponse{
+				ToolCalls: []ToolCall{
+					{
+						ID:       fmt.Sprintf("call_read_%s", sampleID),
+						Type:     "function",
+						Function: FunctionCall{Name: "read_sample", Arguments: fmt.Sprintf(`{"sample_id":"%s"}`, sampleID)},
+					},
+				},
+				FinishReason: "tool_calls",
+				Usage:        &ModelUsage{PromptTokens: 80, CompletionTokens: 20, TotalTokens: 100},
+				RequestID:    fmt.Sprintf("mock-worker-round-%d", round),
+			}, nil
+		}
+
+		if strings.HasPrefix(lastMsg.ToolCallID, "call_read_") {
+			obsArgs := fmt.Sprintf(`{
+				"obs_type": "http_status",
+				"content": "Endpoint returned status 200 OK",
+				"data": {"sample_id": "%s", "status": 200},
+				"source_tool_call_id": "%s"
+			}`, sampleID, lastMsg.ToolCallID)
+			return &ModelResponse{
+				ToolCalls: []ToolCall{
+					{
+						ID:       fmt.Sprintf("call_obs_%s", sampleID),
+						Type:     "function",
+						Function: FunctionCall{Name: "record_observation", Arguments: obsArgs},
+					},
+				},
+				FinishReason: "tool_calls",
+				Usage:        &ModelUsage{PromptTokens: 90, CompletionTokens: 30, TotalTokens: 120},
+				RequestID:    fmt.Sprintf("mock-worker-round-%d", round),
+			}, nil
+		}
+
+		return &ModelResponse{
+			Content:      fmt.Sprintf("Successfully inspected %s and recorded evidence observation.", sampleID),
+			FinishReason: "stop",
+			Usage:        &ModelUsage{PromptTokens: 100, CompletionTokens: 20, TotalTokens: 120},
+			RequestID:    fmt.Sprintf("mock-worker-round-%d", round),
+		}, nil
+	}
+
+	// 4. Worker aggregate_summary flow
+	if m.hasTool(tools, "read_observations") {
+		lastMsg := messages[len(messages)-1]
+		if lastMsg.Role != RoleTool {
+			return &ModelResponse{
+				ToolCalls: []ToolCall{
+					{
+						ID:       "call_read_obs_all",
+						Type:     "function",
+						Function: FunctionCall{Name: "read_observations", Arguments: `{}`},
+					},
+				},
+				FinishReason: "tool_calls",
+				Usage:        &ModelUsage{PromptTokens: 90, CompletionTokens: 20, TotalTokens: 110},
+				RequestID:    fmt.Sprintf("mock-agg-round-%d", round),
+			}, nil
+		}
+		return &ModelResponse{
+			Content:      "Analyzed all prerequisite observations. All endpoints healthy and returning 200 OK.",
+			FinishReason: "stop",
+			Usage:        &ModelUsage{PromptTokens: 120, CompletionTokens: 30, TotalTokens: 150},
+			RequestID:    fmt.Sprintf("mock-agg-round-%d", round),
+		}, nil
+	}
+
+	return m.handleNormalFlow(round, messages)
+}
+

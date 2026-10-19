@@ -162,6 +162,9 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 
 		// 2. Invoke model without holding DB locks
 		modelTimeout := time.Duration(sr.budget.ModelTimeoutSeconds) * time.Second
+		if modelTimeout <= 0 {
+			modelTimeout = 30 * time.Second
+		}
 		modelCtx, cancelModel := context.WithTimeout(ctx, modelTimeout)
 		resp, callErr := sr.provider.Call(modelCtx, messages, sr.registry.Definitions(), provider.ModelOpts{
 			Timeout: modelTimeout,
@@ -365,6 +368,7 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 			// Tool validation
 			tool, valErr := sr.registry.Validate(tc.Function.Name, argsBytes)
 			if valErr != nil {
+				slog.Error("session runner: tool validation failed", "tool", tc.Function.Name, "error", valErr)
 				errMsg := valErr.Error()
 				now := time.Now()
 				if err := sr.runService.UpdateAgentToolCall(
@@ -403,6 +407,9 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 			})
 
 			toolTimeout := time.Duration(sr.budget.ToolTimeoutSeconds) * time.Second
+			if toolTimeout <= 0 {
+				toolTimeout = 10 * time.Second
+			}
 			toolCtx, cancelTool := context.WithTimeout(ctx, toolTimeout)
 			startTime := time.Now()
 			out, execErr := tool.Execute(toolCtx, argsBytes)
@@ -415,6 +422,7 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 			var toolMsgContent string
 
 			if execErr != nil {
+				slog.Error("session runner: tool execution failed", "tool", tc.Function.Name, "error", execErr)
 				status = "failed"
 				errStr := execErr.Error()
 				errMsg = &errStr

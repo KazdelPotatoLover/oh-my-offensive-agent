@@ -102,6 +102,10 @@ func main() {
 		r.Get("/runs/{runID}/messages", runHandler.GetMessages)
 		r.Get("/runs/{runID}/model_calls", runHandler.GetModelCalls)
 		r.Get("/runs/{runID}/tool_calls", runHandler.GetToolCalls)
+		r.Get("/runs/{runID}/work_items", runHandler.GetWorkItems)
+		r.Get("/runs/{runID}/observations", runHandler.GetObservations)
+		r.Get("/runs/{runID}/sessions", runHandler.GetSessions)
+		r.Get("/runs/{runID}/planner_rounds", runHandler.GetPlannerRounds)
 	})
 
 	// Health check

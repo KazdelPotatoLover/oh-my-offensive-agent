@@ -8,6 +8,7 @@ import (
 
 	"agent-workbench/backend/internal/agent"
 	"agent-workbench/backend/internal/model"
+	"agent-workbench/backend/internal/orchestration"
 	"agent-workbench/backend/internal/provider"
 	"agent-workbench/backend/internal/service"
 	"agent-workbench/backend/internal/tools"
@@ -137,6 +138,29 @@ func (h *RunHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 			runner := agent.NewAgentRunner(run.ID, h.runService, p, tools.DefaultRegistry(), budget)
 			startErr = h.manager.StartExecutor(run.ID, runner)
+		} else if executorType == "orchestrator" || executorType == "orchestration" {
+			agentCfg, _ := inputMap["agent_config"].(map[string]interface{})
+			provType, _ := agentCfg["provider"].(string)
+
+			budget := model.DefaultBudgetConfig()
+			if bMap, ok := inputMap["budget"].(map[string]interface{}); ok {
+				bBytes, _ := json.Marshal(bMap)
+				json.Unmarshal(bBytes, &budget)
+			}
+
+			var p provider.Provider
+			if provType == "openai" || provType == "remote" {
+				p = provider.NewOpenAIProvider(os.Getenv("LLM_BASE_URL"), os.Getenv("LLM_API_KEY"), os.Getenv("LLM_MODEL"), nil)
+			} else {
+				scenario, _ := agentCfg["mock_scenario"].(string)
+				if scenario == "" {
+					scenario = string(provider.ScenarioOrchestration)
+				}
+				p = provider.NewMockProvider(provider.MockScenario(scenario))
+			}
+
+			engine := orchestration.NewEngine(run.ID, h.runService, p, budget)
+			startErr = h.manager.StartExecutor(run.ID, engine)
 		} else {
 			startErr = h.manager.Start(run.ID, run.FailAtStep)
 		}
@@ -258,3 +282,64 @@ func (h *RunHandler) GetToolCalls(w http.ResponseWriter, r *http.Request) {
 	}
 	respondJSON(w, http.StatusOK, map[string]interface{}{"tool_calls": toolCalls})
 }
+
+func (h *RunHandler) GetWorkItems(w http.ResponseWriter, r *http.Request) {
+	runID, err := uuid.Parse(chi.URLParam(r, "runID"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid run ID")
+		return
+	}
+
+	items, err := h.runService.ListWorkItemsByRun(r.Context(), runID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to get work items")
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"work_items": items})
+}
+
+func (h *RunHandler) GetObservations(w http.ResponseWriter, r *http.Request) {
+	runID, err := uuid.Parse(chi.URLParam(r, "runID"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid run ID")
+		return
+	}
+
+	obs, err := h.runService.ListObservationsByRun(r.Context(), runID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to get observations")
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"observations": obs})
+}
+
+func (h *RunHandler) GetSessions(w http.ResponseWriter, r *http.Request) {
+	runID, err := uuid.Parse(chi.URLParam(r, "runID"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid run ID")
+		return
+	}
+
+	sessions, err := h.runService.ListSessionsByRun(r.Context(), runID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to get sessions")
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"sessions": sessions})
+}
+
+func (h *RunHandler) GetPlannerRounds(w http.ResponseWriter, r *http.Request) {
+	runID, err := uuid.Parse(chi.URLParam(r, "runID"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid run ID")
+		return
+	}
+
+	rounds, err := h.runService.ListPlannerRounds(r.Context(), runID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to get planner rounds")
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"planner_rounds": rounds})
+}
+

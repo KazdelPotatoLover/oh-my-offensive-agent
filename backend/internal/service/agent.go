@@ -627,6 +627,30 @@ func (s *RunService) ListWorkDependenciesByRun(ctx context.Context, runID uuid.U
 	return deps, nil
 }
 
+// ListWorkDependenciesByWorkItem retrieves dependencies for a specific work item.
+func (s *RunService) ListWorkDependenciesByWorkItem(ctx context.Context, workItemID uuid.UUID) ([]model.WorkDependency, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT id, run_id, work_item_id, depends_on_work_item_id, created_at
+		 FROM work_dependencies WHERE work_item_id = $1 ORDER BY created_at ASC`, workItemID)
+	if err != nil {
+		return nil, fmt.Errorf("list work_dependencies by item: %w", err)
+	}
+	defer rows.Close()
+
+	var deps []model.WorkDependency
+	for rows.Next() {
+		var d model.WorkDependency
+		if err := rows.Scan(&d.ID, &d.RunID, &d.WorkItemID, &d.DependsOnWorkItemID, &d.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan work_dependency: %w", err)
+		}
+		deps = append(deps, d)
+	}
+	if deps == nil {
+		deps = []model.WorkDependency{}
+	}
+	return deps, nil
+}
+
 // ClaimNextPendingWorkItem atomically selects and claims the next available WorkItem.
 // Returns nil, nil, nil, nil if no work item is currently ready.
 func (s *RunService) ClaimNextPendingWorkItem(ctx context.Context, runID uuid.UUID) (*model.WorkItem, *model.Attempt, *model.AgentSession, error) {
