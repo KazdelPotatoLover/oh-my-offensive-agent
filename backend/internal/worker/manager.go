@@ -2,8 +2,11 @@ package worker
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"agent-workbench/backend/internal/service"
 
@@ -11,51 +14,142 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+var (
+	ErrManagerClosed = errors.New("worker manager is closed")
+)
+
+type WorkerOption func(*FakeWorker)
+
+func WithStepDelay(d time.Duration) WorkerOption {
+	return func(w *FakeWorker) {
+		w.stepDelay = d
+	}
+}
+
+func WithOnStepHook(hook func(step int)) WorkerOption {
+	return func(w *FakeWorker) {
+		w.onStepHook = hook
+	}
+}
+
 type Manager struct {
-	pool       *pgxpool.Pool
-	runService *service.RunService
-	cancels    sync.Map // map[uuid.UUID]context.CancelFunc
+	pool          *pgxpool.Pool
+	runService    *service.RunService
+	mu            sync.Mutex
+	closed        bool
+	cancels       map[uuid.UUID]context.CancelFunc
+	pendingCancel map[uuid.UUID]bool
+	defaultOpts   []WorkerOption
+	wg            sync.WaitGroup
 }
 
 func NewManager(pool *pgxpool.Pool, runService *service.RunService) *Manager {
 	return &Manager{
-		pool:       pool,
-		runService: runService,
+		pool:          pool,
+		runService:    runService,
+		cancels:       make(map[uuid.UUID]context.CancelFunc),
+		pendingCancel: make(map[uuid.UUID]bool),
 	}
 }
 
-func (m *Manager) Start(runID uuid.UUID, failAtStep *int) {
-	ctx, cancel := context.WithCancel(context.Background())
-	m.cancels.Store(runID, cancel)
+// SetDefaultWorkerOptions configures default options applied to all workers started by this manager.
+func (m *Manager) SetDefaultWorkerOptions(opts ...WorkerOption) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.defaultOpts = opts
+}
 
-	worker := &FakeWorker{
-		runID:      runID,
-		failAtStep: failAtStep,
-		runService: m.runService,
+// Start launches a FakeWorker for a run.
+func (m *Manager) Start(runID uuid.UUID, failAtStep *int, opts ...WorkerOption) error {
+	m.mu.Lock()
+	if m.closed {
+		m.mu.Unlock()
+		return ErrManagerClosed
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	// If stop was already requested for this run before worker registered:
+	if m.pendingCancel[runID] {
+		delete(m.pendingCancel, runID)
+		cancel()
+	}
+	m.cancels[runID] = cancel
+	m.wg.Add(1)
+
+	combinedOpts := append(append([]WorkerOption{}, m.defaultOpts...), opts...)
+	m.mu.Unlock()
+
+	worker := NewFakeWorker(runID, failAtStep, m.runService, combinedOpts...)
 
 	go func() {
 		defer func() {
-			m.cancels.Delete(runID)
+			m.mu.Lock()
+			delete(m.cancels, runID)
+			m.mu.Unlock()
+			m.wg.Done()
 			slog.Info("worker finished", "run_id", runID)
 		}()
 		worker.Run(ctx)
 	}()
 
 	slog.Info("worker started", "run_id", runID)
+	return nil
 }
 
+// Stop requests cancellation for a run. If worker is not yet registered, records pending cancel.
 func (m *Manager) Stop(runID uuid.UUID) {
-	if cancelFn, ok := m.cancels.Load(runID); ok {
-		cancelFn.(context.CancelFunc)()
-		slog.Info("worker stop requested", "run_id", runID)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if cancel, ok := m.cancels[runID]; ok {
+		cancel()
+		slog.Info("worker stop requested (active cancel called)", "run_id", runID)
+	} else {
+		// Stop requested before worker registered!
+		m.pendingCancel[runID] = true
+		slog.Info("worker stop requested before registration (pending cancel recorded)", "run_id", runID)
 	}
 }
 
+// StopAll cancels all active worker executions.
 func (m *Manager) StopAll() {
-	m.cancels.Range(func(key, value interface{}) bool {
-		value.(context.CancelFunc)()
-		return true
-	})
-	slog.Info("all workers stop requested")
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for runID, cancel := range m.cancels {
+		cancel()
+		slog.Info("worker stop requested via StopAll", "run_id", runID)
+	}
+	slog.Info("all active workers stop requested")
+}
+
+// Close marks the manager as closed, stopping reception of new work.
+func (m *Manager) Close() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.closed = true
+	slog.Info("worker manager closed (no new workers accepted)")
+}
+
+// Wait waits for all registered workers to exit, or returns error if timeout occurs.
+func (m *Manager) Wait(timeout time.Duration) error {
+	done := make(chan struct{})
+	go func() {
+		m.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case <-time.After(timeout):
+		return fmt.Errorf("timed out after %v waiting for workers to exit", timeout)
+	}
+}
+
+// Shutdown gracefully stops all work: stops accepting, cancels all, and waits up to timeout.
+func (m *Manager) Shutdown(timeout time.Duration) error {
+	m.Close()
+	m.StopAll()
+	return m.Wait(timeout)
 }

@@ -96,7 +96,10 @@ func (h *RunHandler) Create(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, http.StatusOK, run)
 	} else {
 		// Start the worker
-		h.manager.Start(run.ID, run.FailAtStep)
+		if err := h.manager.Start(run.ID, run.FailAtStep); err != nil {
+			respondError(w, http.StatusServiceUnavailable, "service is shutting down")
+			return
+		}
 		respondJSON(w, http.StatusCreated, run)
 	}
 }

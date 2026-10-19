@@ -27,6 +27,21 @@ func (s RunStatus) IsActive() bool {
 	return s == RunStatusQueued || s == RunStatusRunning || s == RunStatusStopping
 }
 
+// IsAllowedTransition validates state transitions according to the explicit state machine.
+// Terminal states cannot transition to any other state.
+func IsAllowedTransition(from, to RunStatus) bool {
+	switch from {
+	case RunStatusQueued:
+		return to == RunStatusRunning || to == RunStatusStopping || to == RunStatusStopped || to == RunStatusInterrupted
+	case RunStatusRunning:
+		return to == RunStatusCompleted || to == RunStatusFailed || to == RunStatusStopping || to == RunStatusInterrupted
+	case RunStatusStopping:
+		return to == RunStatusStopped || to == RunStatusInterrupted
+	default:
+		return false
+	}
+}
+
 type Task struct {
 	ID        uuid.UUID       `json:"id"`
 	Name      string          `json:"name"`
@@ -42,6 +57,7 @@ type Run struct {
 	TaskID         uuid.UUID       `json:"task_id"`
 	IdempotencyKey *string         `json:"idempotency_key,omitempty"`
 	ConfigSnapshot json.RawMessage `json:"config_snapshot"`
+	ExecutionInput json.RawMessage `json:"execution_input"`
 	Status         RunStatus       `json:"status"`
 	FinishReason   *string         `json:"finish_reason,omitempty"`
 	FailAtStep     *int            `json:"fail_at_step,omitempty"`

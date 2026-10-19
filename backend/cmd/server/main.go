@@ -126,21 +126,24 @@ func main() {
 	}()
 
 	<-quit
-	slog.Info("shutting down server...")
+	slog.Info("shutting down server gracefully...")
 
-	// Stop all workers first
-	manager.StopAll()
-
-	// Give workers a moment to finish
-	time.Sleep(2 * time.Second)
-
-	// Shutdown HTTP server
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// Step 1: Stop receiving work - shutdown HTTP server
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		slog.Error("server forced to shutdown", "error", err)
+		slog.Error("server HTTP shutdown error", "error", err)
 	}
 
-	slog.Info("server stopped")
+	// Step 2: Stop receiving work in manager & cancel active executions
+	manager.Close()
+	manager.StopAll()
+
+	// Step 3: Wait for all workers to exit (with a wait limit)
+	if err := manager.Wait(5 * time.Second); err != nil {
+		slog.Error("workers wait timeout", "error", err)
+	}
+
+	// Step 4: Database connection pool closes via defer pool.Close()
+	slog.Info("server stopped gracefully")
 }

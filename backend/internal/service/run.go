@@ -26,7 +26,7 @@ func NewRunService(pool *pgxpool.Pool) *RunService {
 
 func (s *RunService) ListByTask(ctx context.Context, taskID uuid.UUID) ([]model.Run, error) {
 	rows, err := s.pool.Query(ctx,
-		`SELECT id, task_id, idempotency_key, config_snapshot, status, finish_reason, 
+		`SELECT id, task_id, idempotency_key, config_snapshot, execution_input, status, finish_reason, 
 		        fail_at_step, started_at, finished_at, created_at, updated_at 
 		 FROM runs WHERE task_id = $1 ORDER BY created_at DESC`, taskID)
 	if err != nil {
@@ -37,7 +37,7 @@ func (s *RunService) ListByTask(ctx context.Context, taskID uuid.UUID) ([]model.
 	var runs []model.Run
 	for rows.Next() {
 		var r model.Run
-		if err := rows.Scan(&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot,
+		if err := rows.Scan(&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
 			&r.Status, &r.FinishReason, &r.FailAtStep, &r.StartedAt, &r.FinishedAt,
 			&r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan run: %w", err)
@@ -53,10 +53,10 @@ func (s *RunService) ListByTask(ctx context.Context, taskID uuid.UUID) ([]model.
 func (s *RunService) Get(ctx context.Context, id uuid.UUID) (*model.Run, error) {
 	var r model.Run
 	err := s.pool.QueryRow(ctx,
-		`SELECT id, task_id, idempotency_key, config_snapshot, status, finish_reason, 
+		`SELECT id, task_id, idempotency_key, config_snapshot, execution_input, status, finish_reason, 
 		        fail_at_step, started_at, finished_at, created_at, updated_at 
 		 FROM runs WHERE id = $1`, id).Scan(
-		&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot,
+		&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
 		&r.Status, &r.FinishReason, &r.FailAtStep, &r.StartedAt, &r.FinishedAt,
 		&r.CreatedAt, &r.UpdatedAt)
 	if err != nil {
@@ -74,11 +74,11 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 	if idempotencyKey != nil && *idempotencyKey != "" {
 		var existing model.Run
 		err := s.pool.QueryRow(ctx,
-			`SELECT id, task_id, idempotency_key, config_snapshot, status, finish_reason, 
+			`SELECT id, task_id, idempotency_key, config_snapshot, execution_input, status, finish_reason, 
 			        fail_at_step, started_at, finished_at, created_at, updated_at 
 			 FROM runs WHERE task_id = $1 AND idempotency_key = $2`,
 			taskID, *idempotencyKey).Scan(
-			&existing.ID, &existing.TaskID, &existing.IdempotencyKey, &existing.ConfigSnapshot,
+			&existing.ID, &existing.TaskID, &existing.IdempotencyKey, &existing.ConfigSnapshot, &existing.ExecutionInput,
 			&existing.Status, &existing.FinishReason, &existing.FailAtStep, &existing.StartedAt,
 			&existing.FinishedAt, &existing.CreatedAt, &existing.UpdatedAt)
 		if err == nil {
@@ -95,16 +95,32 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 		}
 	}
 
-	// Get task to snapshot config
-	var taskConfig json.RawMessage
+	// Get task to snapshot full execution input (objective, scope, config, and parameters)
 	var taskName string
+	var taskObjective string
+	var taskScope json.RawMessage
+	var taskConfig json.RawMessage
 	err := s.pool.QueryRow(ctx,
-		`SELECT name, config FROM tasks WHERE id = $1`, taskID).Scan(&taskName, &taskConfig)
+		`SELECT name, objective, scope, config FROM tasks WHERE id = $1`, taskID).Scan(
+		&taskName, &taskObjective, &taskScope, &taskConfig)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, false, ErrNotFound
 		}
 		return nil, false, fmt.Errorf("get task config: %w", err)
+	}
+
+	executionInputMap := map[string]interface{}{
+		"objective": taskObjective,
+		"scope":     taskScope,
+		"config":    taskConfig,
+		"parameters": map[string]interface{}{
+			"fail_at_step": req.FailAtStep,
+		},
+	}
+	executionInputBytes, err := json.Marshal(executionInputMap)
+	if err != nil {
+		return nil, false, fmt.Errorf("marshal execution input: %w", err)
 	}
 
 	// Create run in transaction
@@ -116,12 +132,12 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 
 	var r model.Run
 	err = tx.QueryRow(ctx,
-		`INSERT INTO runs (task_id, idempotency_key, config_snapshot, status, fail_at_step) 
-		 VALUES ($1, $2, $3, 'queued', $4) 
-		 RETURNING id, task_id, idempotency_key, config_snapshot, status, finish_reason, 
+		`INSERT INTO runs (task_id, idempotency_key, config_snapshot, execution_input, status, fail_at_step) 
+		 VALUES ($1, $2, $3, $4, 'queued', $5) 
+		 RETURNING id, task_id, idempotency_key, config_snapshot, execution_input, status, finish_reason, 
 		          fail_at_step, started_at, finished_at, created_at, updated_at`,
-		taskID, idempotencyKey, taskConfig, req.FailAtStep).Scan(
-		&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot,
+		taskID, idempotencyKey, taskConfig, executionInputBytes, req.FailAtStep).Scan(
+		&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
 		&r.Status, &r.FinishReason, &r.FailAtStep, &r.StartedAt, &r.FinishedAt,
 		&r.CreatedAt, &r.UpdatedAt)
 	if err != nil {
@@ -131,11 +147,11 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 				// Check if conflict is due to concurrent insert with same idempotency key
 				var existing model.Run
 				readErr := s.pool.QueryRow(ctx,
-					`SELECT id, task_id, idempotency_key, config_snapshot, status, finish_reason, 
+					`SELECT id, task_id, idempotency_key, config_snapshot, execution_input, status, finish_reason, 
 					        fail_at_step, started_at, finished_at, created_at, updated_at 
 					 FROM runs WHERE task_id = $1 AND idempotency_key = $2`,
 					taskID, *idempotencyKey).Scan(
-					&existing.ID, &existing.TaskID, &existing.IdempotencyKey, &existing.ConfigSnapshot,
+					&existing.ID, &existing.TaskID, &existing.IdempotencyKey, &existing.ConfigSnapshot, &existing.ExecutionInput,
 					&existing.Status, &existing.FinishReason, &existing.FailAtStep, &existing.StartedAt,
 					&existing.FinishedAt, &existing.CreatedAt, &existing.UpdatedAt)
 				if readErr == nil {
@@ -207,6 +223,10 @@ func (s *RunService) Stop(ctx context.Context, id uuid.UUID) (*model.Run, error)
 
 // TransitionState atomically updates run status and inserts a state_change event.
 func (s *RunService) TransitionState(ctx context.Context, runID uuid.UUID, fromStatus, toStatus model.RunStatus, finishReason *string) (*model.Run, error) {
+	if !model.IsAllowedTransition(fromStatus, toStatus) {
+		return nil, fmt.Errorf("%w: transition from %s to %s is not permitted by state machine rules", ErrInvalidTransition, fromStatus, toStatus)
+	}
+
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
@@ -232,6 +252,10 @@ func (s *RunService) TransitionState(ctx context.Context, runID uuid.UUID, fromS
 		return nil, fmt.Errorf("%w: expected status %s but got %s", ErrInvalidTransition, fromStatus, currentStatus)
 	}
 
+	if !model.IsAllowedTransition(currentStatus, toStatus) {
+		return nil, fmt.Errorf("%w: transition from %s to %s is not permitted by state machine rules", ErrInvalidTransition, currentStatus, toStatus)
+	}
+
 	// Build update query
 	now := time.Now()
 	var r model.Run
@@ -239,30 +263,30 @@ func (s *RunService) TransitionState(ctx context.Context, runID uuid.UUID, fromS
 		err = tx.QueryRow(ctx,
 			`UPDATE runs SET status = $1, finish_reason = $2, finished_at = $3, updated_at = $3 
 			 WHERE id = $4 
-			 RETURNING id, task_id, idempotency_key, config_snapshot, status, finish_reason, 
+			 RETURNING id, task_id, idempotency_key, config_snapshot, execution_input, status, finish_reason, 
 			          fail_at_step, started_at, finished_at, created_at, updated_at`,
 			toStatus, finishReason, now, runID).Scan(
-			&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot,
+			&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
 			&r.Status, &r.FinishReason, &r.FailAtStep, &r.StartedAt, &r.FinishedAt,
 			&r.CreatedAt, &r.UpdatedAt)
 	} else if toStatus == model.RunStatusRunning {
 		err = tx.QueryRow(ctx,
 			`UPDATE runs SET status = $1, started_at = $2, updated_at = $2 
 			 WHERE id = $3 
-			 RETURNING id, task_id, idempotency_key, config_snapshot, status, finish_reason, 
+			 RETURNING id, task_id, idempotency_key, config_snapshot, execution_input, status, finish_reason, 
 			          fail_at_step, started_at, finished_at, created_at, updated_at`,
 			toStatus, now, runID).Scan(
-			&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot,
+			&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
 			&r.Status, &r.FinishReason, &r.FailAtStep, &r.StartedAt, &r.FinishedAt,
 			&r.CreatedAt, &r.UpdatedAt)
 	} else {
 		err = tx.QueryRow(ctx,
 			`UPDATE runs SET status = $1, updated_at = $2 
 			 WHERE id = $3 
-			 RETURNING id, task_id, idempotency_key, config_snapshot, status, finish_reason, 
+			 RETURNING id, task_id, idempotency_key, config_snapshot, execution_input, status, finish_reason, 
 			          fail_at_step, started_at, finished_at, created_at, updated_at`,
 			toStatus, now, runID).Scan(
-			&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot,
+			&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
 			&r.Status, &r.FinishReason, &r.FailAtStep, &r.StartedAt, &r.FinishedAt,
 			&r.CreatedAt, &r.UpdatedAt)
 	}

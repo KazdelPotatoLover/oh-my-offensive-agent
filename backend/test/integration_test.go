@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"sync"
-
 	"testing"
 	"time"
 
@@ -24,17 +24,23 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func getTestDBURL() string {
-	if u := os.Getenv("DATABASE_URL"); u != "" {
-		return u
+const migrationsPath = "../migrations"
+
+func resolveTestDBURL() (string, error) {
+	testURL := os.Getenv("TEST_DATABASE_URL")
+	if testURL == "" {
+		return "", errors.New("TEST_DATABASE_URL is not set: integration tests must only run against an explicitly configured independent test database and will not fall back to DATABASE_URL")
 	}
-	if u := os.Getenv("TEST_DATABASE_URL"); u != "" {
-		return u
-	}
-	return "postgres://postgres:postgres@127.0.0.1:25432/agent_workbench?sslmode=disable"
+	return testURL, nil
 }
 
-const migrationsPath = "../migrations"
+func getTestDBURL(t *testing.T) string {
+	url, err := resolveTestDBURL()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return url
+}
 
 
 type TestEnv struct {
@@ -48,14 +54,14 @@ type TestEnv struct {
 func setupTestEnv(t *testing.T) *TestEnv {
 	ctx := context.Background()
 
-	dbURL := getTestDBURL()
+	dbURL := getTestDBURL(t)
+
 	// Run migrations
 	if err := db.RunMigrations(dbURL, migrationsPath); err != nil {
 		t.Fatalf("failed migrations: %v", err)
 	}
 
 	pool, err := db.Connect(ctx, dbURL)
-
 	if err != nil {
 		t.Fatalf("failed connect to db: %v", err)
 	}
@@ -69,6 +75,8 @@ func setupTestEnv(t *testing.T) *TestEnv {
 	taskService := service.NewTaskService(pool)
 	runService := service.NewRunService(pool)
 	manager := worker.NewManager(pool, runService)
+	// Default fast step delay in tests for snappy execution
+	manager.SetDefaultWorkerOptions(worker.WithStepDelay(20 * time.Millisecond))
 
 	taskHandler := handler.NewTaskHandler(taskService)
 	runHandler := handler.NewRunHandler(runService, taskService, manager)
@@ -99,7 +107,9 @@ func setupTestEnv(t *testing.T) *TestEnv {
 }
 
 func (e *TestEnv) teardown() {
+	e.manager.Close()
 	e.manager.StopAll()
+	_ = e.manager.Wait(3 * time.Second)
 	e.pool.Close()
 }
 
@@ -142,12 +152,11 @@ func TestScenario_NormalCompletion(t *testing.T) {
 	var run model.Run
 	json.NewDecoder(w.Body).Decode(&run)
 
-	// Wait for worker to complete 10 steps (approx 10-11 seconds)
-	t.Logf("Waiting for run %s to complete 10 steps...", run.ID)
-	deadline := time.Now().Add(15 * time.Second)
+	// Wait for worker to complete 10 steps
+	deadline := time.Now().Add(5 * time.Second)
 	var finalRun *model.Run
 	for time.Now().Before(deadline) {
-		time.Sleep(1 * time.Second)
+		time.Sleep(30 * time.Millisecond)
 		r, err := env.runService.Get(context.Background(), run.ID)
 		if err != nil {
 			t.Fatalf("get run failed: %v", err)
@@ -314,10 +323,10 @@ func TestScenario_SpecifiedFailure(t *testing.T) {
 	json.NewDecoder(w.Body).Decode(&run)
 
 	// Wait for failure
-	deadline := time.Now().Add(6 * time.Second)
+	deadline := time.Now().Add(5 * time.Second)
 	var finalRun *model.Run
 	for time.Now().Before(deadline) {
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(30 * time.Millisecond)
 		r, err := env.runService.Get(context.Background(), run.ID)
 		if err != nil {
 			t.Fatalf("get run failed: %v", err)
@@ -343,13 +352,6 @@ func TestScenario_SpecifiedFailure(t *testing.T) {
 		t.Fatalf("get events failed: %v", err)
 	}
 
-	// Expected events:
-	// 1: state_change (queued)
-	// 2: state_change (running)
-	// 3: progress (step 1)
-	// 4: progress (step 2)
-	// 5: state_change (failed)
-	// (step 3 fails before progress 3)
 	lastEvent := events[len(events)-1]
 	if lastEvent.Type != "state_change" {
 		t.Fatalf("expected last event to be state_change, got %s", lastEvent.Type)
@@ -365,19 +367,31 @@ func TestScenario_StopRun(t *testing.T) {
 
 	task := createTestTask(t, env, "Stop Task")
 
-	// Start run
-	req := httptest.NewRequest("POST", fmt.Sprintf("/api/tasks/%s/runs", task.ID), bytes.NewReader([]byte("{}")))
-	w := httptest.NewRecorder()
-	env.router.ServeHTTP(w, req)
-	if w.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	// Start run with 100ms step delay so we can stop it cleanly mid-flight
+	run, _, err := env.runService.Create(context.Background(), task.ID, model.CreateRunRequest{}, nil)
+	if err != nil {
+		t.Fatalf("create run: %v", err)
 	}
 
-	var run model.Run
-	json.NewDecoder(w.Body).Decode(&run)
+	step1Reached := make(chan struct{})
+	err = env.manager.Start(run.ID, nil,
+		worker.WithStepDelay(50*time.Millisecond),
+		worker.WithOnStepHook(func(step int) {
+			if step == 1 {
+				select {
+				case <-step1Reached:
+				default:
+					close(step1Reached)
+				}
+			}
+		}),
+	)
+	if err != nil {
+		t.Fatalf("start worker: %v", err)
+	}
 
-	// Wait 1.5 seconds so it is running and has made 1-2 steps
-	time.Sleep(1500 * time.Millisecond)
+	// Wait deterministically for step 1
+	<-step1Reached
 
 	// Request stop
 	stopReq := httptest.NewRequest("POST", fmt.Sprintf("/api/runs/%s/stop", run.ID), nil)
@@ -398,7 +412,7 @@ func TestScenario_StopRun(t *testing.T) {
 	deadline := time.Now().Add(4 * time.Second)
 	var finalRun *model.Run
 	for time.Now().Before(deadline) {
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(30 * time.Millisecond)
 		r, err := env.runService.Get(context.Background(), run.ID)
 		if err != nil {
 			t.Fatalf("get run failed: %v", err)
@@ -451,8 +465,6 @@ func TestScenario_RestartInterruptedAndHistory(t *testing.T) {
 	defer env.teardown()
 
 	task := createTestTask(t, env, "Restart Recovery Task")
-
-	// Manually insert active runs into DB (simulating previous server crash / shutdown)
 	ctx := context.Background()
 
 	// 1. A queued run
@@ -499,7 +511,7 @@ func TestScenario_RestartInterruptedAndHistory(t *testing.T) {
 		t.Fatalf("expected event 2 to be state_change, got: %+v", events[1])
 	}
 
-	// Now that the previous run is interrupted (terminal), we should be able to start a NEW run on the same task!
+	// Now that the previous run is interrupted (terminal), we can start a NEW run on the same task!
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/tasks/%s/runs", task.ID), bytes.NewReader([]byte("{}")))
 	w := httptest.NewRecorder()
 	env.router.ServeHTTP(w, req)
@@ -533,7 +545,7 @@ func TestScenario_TerminalRunRejectsLateProgressAndReactivation(t *testing.T) {
 
 	task := createTestTask(t, env, "Terminal Invariant Task")
 
-	// Create and fail a run immediately
+	// Create and complete a run
 	r, _, err := env.runService.Create(context.Background(), task.ID, model.CreateRunRequest{}, nil)
 	if err != nil {
 		t.Fatalf("create run: %v", err)
@@ -569,4 +581,451 @@ func TestScenario_TerminalRunRejectsLateProgressAndReactivation(t *testing.T) {
 	}
 
 	t.Logf("Terminal run invariant strictly verified: late progress rejected and no reactivation allowed!")
+}
+
+// 9. 缺少测试配置时拒绝运行验证 (Requirement 4)
+func TestRequirement4_RefusesWithoutTestDatabaseConfig(t *testing.T) {
+	orig := os.Getenv("TEST_DATABASE_URL")
+	defer os.Setenv("TEST_DATABASE_URL", orig)
+
+	os.Unsetenv("TEST_DATABASE_URL")
+
+	_, err := resolveTestDBURL()
+	if err == nil {
+		t.Fatal("expected resolveTestDBURL to return error when TEST_DATABASE_URL is missing")
+	}
+	t.Logf("Requirement 4 verified: %v", err)
+}
+
+// 10. 停止早于 Worker 注册、停止意图保存后的收尾验证 (Requirement 1)
+func TestScenario_StopBeforeWorkerRegistration(t *testing.T) {
+	env := setupTestEnv(t)
+	defer env.teardown()
+
+	task := createTestTask(t, env, "Early Stop Task")
+	ctx := context.Background()
+
+	// Create run in DB without starting manager yet
+	run, _, err := env.runService.Create(ctx, task.ID, model.CreateRunRequest{}, nil)
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	if run.Status != model.RunStatusQueued {
+		t.Fatalf("expected queued status, got %s", run.Status)
+	}
+
+	// 1. User requests stop before worker registration
+	stoppedRun, err := env.runService.Stop(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("stop run: %v", err)
+	}
+	if stoppedRun.Status != model.RunStatusStopping {
+		t.Fatalf("expected status stopping after stop request, got %s", stoppedRun.Status)
+	}
+
+	// Inform manager (which marks pendingCancel)
+	env.manager.Stop(run.ID)
+
+	// 2. Worker is registered/started now
+	err = env.manager.Start(run.ID, nil, worker.WithStepDelay(10*time.Millisecond))
+	if err != nil {
+		t.Fatalf("start worker: %v", err)
+	}
+
+	// Wait for worker to exit
+	err = env.manager.Wait(3 * time.Second)
+	if err != nil {
+		t.Fatalf("wait worker: %v", err)
+	}
+
+	// 3. Verify the run reached stopped terminal status and is NOT permanently stuck in stopping
+	finalRun, err := env.runService.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if finalRun.Status != model.RunStatusStopped {
+		t.Fatalf("expected run to reach terminal status stopped, got: %s", finalRun.Status)
+	}
+	if finalRun.FinishReason == nil || *finalRun.FinishReason != "user requested stop" {
+		t.Fatalf("expected finish_reason 'user requested stop', got: %v", finalRun.FinishReason)
+	}
+
+	// Verify the task slot is released by starting another run
+	newRun, _, err := env.runService.Create(ctx, task.ID, model.CreateRunRequest{}, nil)
+	if err != nil {
+		t.Fatalf("expected to be able to start new run after stopped, got error: %v", err)
+	}
+	if newRun.Status != model.RunStatusQueued {
+		t.Fatalf("expected new run to be queued, got: %s", newRun.Status)
+	}
+
+	t.Log("Requirement 1 verified: stop earlier than worker registration properly converges to stopped terminal state")
+}
+
+// 11. 停止与进度写入竞争时的收尾逻辑验证 (Requirement 1 & 6)
+func TestScenario_StopProgressWriteRace(t *testing.T) {
+	env := setupTestEnv(t)
+	defer env.teardown()
+
+	task := createTestTask(t, env, "Race Stop Task")
+	ctx := context.Background()
+
+	run, _, err := env.runService.Create(ctx, task.ID, model.CreateRunRequest{}, nil)
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	step1Triggered := make(chan struct{})
+	releaseStep1 := make(chan struct{})
+
+	// Start worker with deterministic synchronization hook
+	err = env.manager.Start(run.ID, nil,
+		worker.WithStepDelay(20*time.Millisecond),
+		worker.WithOnStepHook(func(step int) {
+			if step == 1 {
+				select {
+				case <-step1Triggered:
+				default:
+					close(step1Triggered)
+				}
+				<-releaseStep1
+			}
+		}),
+	)
+	if err != nil {
+		t.Fatalf("start worker: %v", err)
+	}
+
+	// Wait deterministically for step 1
+	select {
+	case <-step1Triggered:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for step 1 hook")
+	}
+
+	// Request stop while worker is at step 1
+	stoppedRun, err := env.runService.Stop(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("stop run: %v", err)
+	}
+	if stoppedRun.Status != model.RunStatusStopping {
+		t.Fatalf("expected status stopping, got %s", stoppedRun.Status)
+	}
+	env.manager.Stop(run.ID)
+
+	// Release worker to execute progress write or step 2
+	close(releaseStep1)
+
+	// Wait for worker to exit
+	err = env.manager.Wait(3 * time.Second)
+	if err != nil {
+		t.Fatalf("worker did not exit cleanly: %v", err)
+	}
+
+	// Verify run reached terminal stopped status
+	finalRun, err := env.runService.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if finalRun.Status != model.RunStatusStopped {
+		t.Fatalf("expected status stopped, got: %s", finalRun.Status)
+	}
+
+	// Verify events: ensure no events were written after 'stopped'
+	events, err := env.runService.GetEvents(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("get events: %v", err)
+	}
+	lastEvent := events[len(events)-1]
+	if lastEvent.Type != "state_change" {
+		t.Fatalf("expected last event to be state_change (stopped), got %s", lastEvent.Type)
+	}
+	var payload map[string]interface{}
+	json.Unmarshal(lastEvent.Payload, &payload)
+	if payload["to"] != "stopped" {
+		t.Fatalf("expected last event target to be stopped, got: %v", payload["to"])
+	}
+
+	t.Log("Requirement 1 & 6 verified: stop racing with progress write safely exits and enters stopped terminal state")
+}
+
+// 12. 显式状态转换规则及非法转换禁止验证 (Requirement 2)
+func TestScenario_InvalidStateTransitionsRejected(t *testing.T) {
+	env := setupTestEnv(t)
+	defer env.teardown()
+
+	task := createTestTask(t, env, "State Machine Task")
+	ctx := context.Background()
+
+	run, _, err := env.runService.Create(ctx, task.ID, model.CreateRunRequest{}, nil)
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	// 1. queued -> completed: FORBIDDEN
+	reason := "skip"
+	_, err = env.runService.TransitionState(ctx, run.ID, model.RunStatusQueued, model.RunStatusCompleted, &reason)
+	if !errors.Is(err, service.ErrInvalidTransition) {
+		t.Fatalf("expected ErrInvalidTransition for queued->completed, got: %v", err)
+	}
+
+	// 2. queued -> running: VALID
+	_, err = env.runService.TransitionState(ctx, run.ID, model.RunStatusQueued, model.RunStatusRunning, nil)
+	if err != nil {
+		t.Fatalf("queued->running should succeed, got: %v", err)
+	}
+
+	// 3. running -> queued: FORBIDDEN (cannot rewind)
+	_, err = env.runService.TransitionState(ctx, run.ID, model.RunStatusRunning, model.RunStatusQueued, nil)
+	if !errors.Is(err, service.ErrInvalidTransition) {
+		t.Fatalf("expected ErrInvalidTransition for running->queued, got: %v", err)
+	}
+
+	// 4. running -> completed: VALID
+	doneReason := "done"
+	_, err = env.runService.TransitionState(ctx, run.ID, model.RunStatusRunning, model.RunStatusCompleted, &doneReason)
+	if err != nil {
+		t.Fatalf("running->completed should succeed, got: %v", err)
+	}
+
+	// 5. completed -> running: FORBIDDEN (terminal cannot be reactivated)
+	_, err = env.runService.TransitionState(ctx, run.ID, model.RunStatusCompleted, model.RunStatusRunning, nil)
+	if !errors.Is(err, service.ErrInvalidTransition) && !errors.Is(err, service.ErrTerminalState) {
+		t.Fatalf("expected ErrInvalidTransition or ErrTerminalState for completed->running, got: %v", err)
+	}
+
+	// 6. completed -> queued: FORBIDDEN
+	_, err = env.runService.TransitionState(ctx, run.ID, model.RunStatusCompleted, model.RunStatusQueued, nil)
+	if !errors.Is(err, service.ErrInvalidTransition) && !errors.Is(err, service.ErrTerminalState) {
+		t.Fatalf("expected ErrInvalidTransition or ErrTerminalState for completed->queued, got: %v", err)
+	}
+
+	// 6b. When DB row is terminal, attempting transition from running->failed triggers ErrTerminalState
+	_, err = env.runService.TransitionState(ctx, run.ID, model.RunStatusRunning, model.RunStatusFailed, nil)
+	if !errors.Is(err, service.ErrTerminalState) {
+		t.Fatalf("expected ErrTerminalState when DB row is already terminal, got: %v", err)
+	}
+
+	// Test stopping -> running on a second run
+	run2, _, err := env.runService.Create(ctx, task.ID, model.CreateRunRequest{}, nil)
+	if err != nil {
+		t.Fatalf("create run 2: %v", err)
+	}
+	_, err = env.runService.TransitionState(ctx, run2.ID, model.RunStatusQueued, model.RunStatusStopping, nil)
+	if err != nil {
+		t.Fatalf("queued->stopping should succeed, got: %v", err)
+	}
+
+	// 7. stopping -> running: FORBIDDEN
+	_, err = env.runService.TransitionState(ctx, run2.ID, model.RunStatusStopping, model.RunStatusRunning, nil)
+	if !errors.Is(err, service.ErrInvalidTransition) {
+		t.Fatalf("expected ErrInvalidTransition for stopping->running, got: %v", err)
+	}
+
+	// 8. stopping -> completed: FORBIDDEN
+	_, err = env.runService.TransitionState(ctx, run2.ID, model.RunStatusStopping, model.RunStatusCompleted, &doneReason)
+	if !errors.Is(err, service.ErrInvalidTransition) {
+		t.Fatalf("expected ErrInvalidTransition for stopping->completed, got: %v", err)
+	}
+
+	// stopping -> stopped: VALID
+	stopReason := "stopped"
+	_, err = env.runService.TransitionState(ctx, run2.ID, model.RunStatusStopping, model.RunStatusStopped, &stopReason)
+	if err != nil {
+		t.Fatalf("stopping->stopped should succeed, got: %v", err)
+	}
+
+	// 9. stopped -> running: FORBIDDEN (terminal)
+	_, err = env.runService.TransitionState(ctx, run2.ID, model.RunStatusStopped, model.RunStatusRunning, nil)
+	if !errors.Is(err, service.ErrInvalidTransition) && !errors.Is(err, service.ErrTerminalState) {
+		t.Fatalf("expected ErrInvalidTransition or ErrTerminalState for stopped->running, got: %v", err)
+	}
+
+	t.Log("Requirement 2 verified: explicit state machine transition rules and illegal transition rejections")
+}
+
+// 13. 完整执行输入快照及历史数据完整性验证 (Requirement 3)
+func TestScenario_ExecutionInputSnapshotPreserved(t *testing.T) {
+	env := setupTestEnv(t)
+	defer env.teardown()
+
+	ctx := context.Background()
+
+	// 1. Create a task with specific objective, scope, and config
+	task, err := env.taskService.Create(ctx, model.CreateTaskRequest{
+		Name:      "Snapshot Task",
+		Objective: "Initial Objective",
+		Scope:     json.RawMessage(`{"env":"production","services":["auth","api"]}`),
+		Config:    json.RawMessage(`{"max_depth":3,"timeout_sec":30}`),
+	})
+	if err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+
+	// 2. Create Run 1 with fail_at_step: 4
+	failAt := 4
+	run1, _, err := env.runService.Create(ctx, task.ID, model.CreateRunRequest{FailAtStep: &failAt}, nil)
+	if err != nil {
+		t.Fatalf("create run 1: %v", err)
+	}
+
+	// Inspect execution_input of run1
+	var input1 map[string]interface{}
+	if err := json.Unmarshal(run1.ExecutionInput, &input1); err != nil {
+		t.Fatalf("unmarshal execution_input: %v", err)
+	}
+
+	if input1["objective"] != "Initial Objective" {
+		t.Fatalf("expected objective 'Initial Objective', got: %v", input1["objective"])
+	}
+	params, _ := input1["parameters"].(map[string]interface{})
+	if params["fail_at_step"] != float64(4) {
+		t.Fatalf("expected fail_at_step 4, got: %v", params["fail_at_step"])
+	}
+
+	// Transition run1 to terminal state so task slot is released
+	reason := "completed"
+	_, _ = env.runService.TransitionState(ctx, run1.ID, model.RunStatusQueued, model.RunStatusRunning, nil)
+	_, _ = env.runService.TransitionState(ctx, run1.ID, model.RunStatusRunning, model.RunStatusCompleted, &reason)
+
+	// 3. Modify the Task (change objective, scope, config)
+	newObj := "Modified Objective"
+	newScope := json.RawMessage(`{"env":"staging"}`)
+	newCfg := json.RawMessage(`{"max_depth":10}`)
+	_, err = env.taskService.Update(ctx, task.ID, model.UpdateTaskRequest{
+		Objective: &newObj,
+		Scope:     &newScope,
+		Config:    &newCfg,
+	})
+	if err != nil {
+		t.Fatalf("update task: %v", err)
+	}
+
+	// 4. Verify historical Run 1 input snapshot is STILL UNCHANGED
+	refetchedRun1, err := env.runService.Get(ctx, run1.ID)
+	if err != nil {
+		t.Fatalf("get run 1: %v", err)
+	}
+	var refetchedInput1 map[string]interface{}
+	json.Unmarshal(refetchedRun1.ExecutionInput, &refetchedInput1)
+	if refetchedInput1["objective"] != "Initial Objective" {
+		t.Fatalf("historical Run 1 input objective was corrupted! expected 'Initial Objective', got %v", refetchedInput1["objective"])
+	}
+
+	// 5. Create Run 2 on modified task and verify it captures the new objective
+	run2, _, err := env.runService.Create(ctx, task.ID, model.CreateRunRequest{}, nil)
+	if err != nil {
+		t.Fatalf("create run 2: %v", err)
+	}
+	var input2 map[string]interface{}
+	json.Unmarshal(run2.ExecutionInput, &input2)
+	if input2["objective"] != "Modified Objective" {
+		t.Fatalf("expected Run 2 to have 'Modified Objective', got: %v", input2["objective"])
+	}
+
+	// 6. Test historical missing data handling in migration 004
+	// Insert a simulated legacy run that has no execution_input (or runs the migration UPDATE)
+	var legacyRunID uuid.UUID
+	err = env.pool.QueryRow(ctx,
+		`INSERT INTO runs (task_id, config_snapshot, status, fail_at_step, execution_input) 
+		 VALUES ($1, '{"mode":"legacy"}', 'completed', 2, '{}') RETURNING id`, task.ID).Scan(&legacyRunID)
+	if err != nil {
+		t.Fatalf("insert legacy run: %v", err)
+	}
+
+	// Execute migration 004 update logic on this legacy row
+	_, err = env.pool.Exec(ctx, `
+		UPDATE runs
+		SET execution_input = jsonb_build_object(
+			'objective', '[historical_unavailable]',
+			'scope', jsonb_build_object('_unavailable', true, 'reason', 'not captured prior to migration 004'),
+			'config', COALESCE(config_snapshot, '{}'::jsonb),
+			'parameters', jsonb_build_object('fail_at_step', fail_at_step),
+			'_historical_missing', true,
+			'_note', 'Historical execution input was not captured at run creation time prior to migration 004'
+		) WHERE id = $1`, legacyRunID)
+	if err != nil {
+		t.Fatalf("run migration update: %v", err)
+	}
+
+	legacyRun, err := env.runService.Get(ctx, legacyRunID)
+	if err != nil {
+		t.Fatalf("get legacy run: %v", err)
+	}
+	var legacyInput map[string]interface{}
+	json.Unmarshal(legacyRun.ExecutionInput, &legacyInput)
+	if legacyInput["_historical_missing"] != true {
+		t.Fatalf("expected _historical_missing = true, got %v", legacyInput["_historical_missing"])
+	}
+	if legacyInput["objective"] != "[historical_unavailable]" {
+		t.Fatalf("expected [historical_unavailable], got %v", legacyInput["objective"])
+	}
+
+	t.Log("Requirement 3 verified: execution input snapshot is immutable across task updates, and historical missing data is explicitly marked")
+}
+
+// 14. Worker 管理器等待退出与按序关闭验证 (Requirement 5)
+func TestScenario_WorkerManagerShutdownSequence(t *testing.T) {
+	env := setupTestEnv(t)
+	defer env.teardown()
+
+	ctx := context.Background()
+	task := createTestTask(t, env, "Shutdown Test Task")
+
+	run, _, err := env.runService.Create(ctx, task.ID, model.CreateRunRequest{}, nil)
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	stepTriggered := make(chan struct{})
+	mgr := worker.NewManager(env.pool, env.runService)
+
+	// Start worker that pauses at step 1
+	err = mgr.Start(run.ID, nil,
+		worker.WithStepDelay(100*time.Millisecond),
+		worker.WithOnStepHook(func(step int) {
+			if step == 1 {
+				select {
+				case <-stepTriggered:
+				default:
+					close(stepTriggered)
+				}
+			}
+		}),
+	)
+	if err != nil {
+		t.Fatalf("start worker: %v", err)
+	}
+
+	<-stepTriggered
+
+	// Step 1: Stop receiving work
+	mgr.Close()
+
+	// Verify that starting new work is immediately rejected
+	dummyID := uuid.New()
+	err = mgr.Start(dummyID, nil)
+	if !errors.Is(err, worker.ErrManagerClosed) {
+		t.Fatalf("expected ErrManagerClosed when starting after Close(), got: %v", err)
+	}
+
+	// Step 2: Cancel executions
+	mgr.StopAll()
+
+	// Step 3: Wait for all workers to exit (with wait limit)
+	err = mgr.Wait(3 * time.Second)
+	if err != nil {
+		t.Fatalf("wait for workers failed: %v", err)
+	}
+
+	// Step 4: Verify the run reached stopped terminal status
+	finalRun, err := env.runService.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if finalRun.Status != model.RunStatusStopped {
+		t.Fatalf("expected run to be stopped, got: %s", finalRun.Status)
+	}
+
+	t.Log("Requirement 5 verified: worker manager orderly shutdown: stop receiving work -> cancel execution -> wait exit -> close")
 }
