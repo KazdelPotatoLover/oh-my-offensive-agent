@@ -74,34 +74,37 @@ queued → stopped (if stop requested before worker picks up)
 ### Option 1: Docker Compose (recommended)
 
 ```bash
-docker compose up --build
+docker compose up -d --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to access the dashboard.
+- Frontend Dashboard: [http://localhost:23000](http://localhost:23000)
+- Backend API: [http://localhost:28080](http://localhost:28080)
+- PostgreSQL Port: `25432`
 
 ### Option 2: Local Development
 
 ```bash
 # Start PostgreSQL
-docker compose up db
+docker compose up -d db
 ```
 
 ```bash
 # Backend (terminal 1)
 cd backend
-export DATABASE_URL='postgres://postgres:postgres@localhost:5432/agent_workbench?sslmode=disable'
+export DATABASE_URL='postgres://postgres:postgres@localhost:25432/agent_workbench?sslmode=disable'
+export PORT=28080
+export CORS_ORIGINS=http://localhost:23000
 go run ./cmd/server
 ```
 
 ```bash
 # Frontend (terminal 2)
 cd frontend
-cp .env.local.example .env.local
-npm install
-npm run dev
+export NEXT_PUBLIC_API_URL=http://localhost:28080
+npm run dev -- -p 23000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to access the dashboard.
+Open [http://localhost:23000](http://localhost:23000) to access the dashboard.
 
 ## Verification Scenarios
 
