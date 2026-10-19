@@ -49,24 +49,44 @@ A task can have many runs (retries, re-executions), and each run can have many e
 
 - **At most one active run per task** — enforced via a partial unique index on `(task_id) WHERE status NOT IN ('completed', 'failed', 'stopped', 'interrupted')`. This prevents concurrent execution of the same task.
 - **Idempotency key uniqueness per task** — each `(task_id, idempotency_key)` pair must be unique, enabling safe request retries without creating duplicate runs.
+- **Execution Input Snapshot** — each run preserves an immutable `execution_input` JSON snapshot containing `objective`, `scope`, `config`, and request parameters (`parameters`). Any subsequent edits to the parent Task do not alter historical Run inputs. Legacy records missing original inputs are explicitly marked with `{"_historical_missing": true, "note": "[historical_unavailable]"}`.
 
 ## State Transitions
 
-Runs follow a strict state machine:
+Runs follow a strict state machine validated via `IsAllowedTransition`:
 
 ```
-queued → running → completed
-                 → failed (at configured step)
-                 → stopping → stopped
-        → interrupted (on server restart)
-queued → interrupted (on server restart)
-queued → stopped (if stop requested before worker picks up)
+queued ──┬──> running ──┬──> completed
+         │              ├──> failed (at configured step)
+         │              └──> stopping ──┬──> stopped
+         ├──> stopping ────> stopped    └──> interrupted (on restart)
+         └──> interrupted (on restart)
 ```
+
+### State Transition Rules
+
+| From | To | Allowed | Rationale / Behavior |
+| :--- | :--- | :---: | :--- |
+| `queued` | `running` | Yes | Worker picks up and starts execution |
+| `queued` | `stopping` | Yes | User requests stop before worker registration or while in queue |
+| `queued` | `interrupted` | Yes | Server restarted while run was queued |
+| `queued` | Others | No | Direct jump to terminal states (`completed`, `failed`) is forbidden |
+| `running` | `stopping` | Yes | User requests stop while executing |
+| `running` | `completed` | Yes | All steps completed successfully |
+| `running` | `failed` | Yes | Error or simulated step failure |
+| `running` | `interrupted` | Yes | Server restarted while run was actively running |
+| `running` | `queued` | No | Rewinding state is strictly forbidden |
+| `stopping` | `stopped` | Yes | Worker completes cancellation and cleans up resources |
+| `stopping` | `interrupted` | Yes | Server restarted while run was stopping |
+| `stopping` | Others | No | Stop intent is persistent and cannot be undone |
+| Terminal (`completed`, `failed`, `stopped`, `interrupted`) | Any | No | Terminal states are final and immutable |
 
 ### Rules
 
-- **Terminal states are final** — once a run reaches `completed`, `failed`, `stopped`, or `interrupted`, no further state changes or progress events are accepted.
+- **Terminal states are final** — once a run reaches `completed`, `failed`, `stopped`, or `interrupted`, no further state changes or progress events are accepted (`SELECT ... FOR UPDATE` prevents races).
 - **Transactional consistency** — state changes and their corresponding events are always saved in the same database transaction.
+- **Stop convergence** — stop intent is persistent. Even if a stop is requested before worker registration or races with progress writes, the run converges safely into `stopped`.
+- **Orderly Shutdown** — during shutdown: stop accepting new runs (HTTP 503) -> cancel active runs -> wait for worker exit with timeout -> close database pool.
 - **FakeWorker behavior** — outputs 1 progress event per second for 10 steps (configurable via `total_steps`), then completes. If `fail_at_step` is set, the worker fails at that step instead of completing.
 
 ## Quick Start
@@ -149,22 +169,29 @@ After running multiple runs on a single task, open the task detail view → All 
 
 ### Automated Test Suite & Verification Results
 
-All 8 scenarios are fully verified via automated integration tests against real PostgreSQL:
+All 14 core lifecycle scenarios and Phase 1 hardening boundaries are verified via automated integration tests against an isolated PostgreSQL test database:
 
 ```bash
 cd backend
-go test -v -timeout 60s ./test/...
+# Integration tests strictly require an independent TEST_DATABASE_URL (no silent fallback)
+TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:25432/agent_workbench_test?sslmode=disable" go test -v -timeout 60s ./test/...
 ```
 
 Test Results Summary:
-- `TestScenario_NormalCompletion`: **PASS** (10 progress steps, 13 transactional events with seq 1..13, final status `completed`)
-- `TestScenario_DuplicateStartBlocked`: **PASS** (Attempting to start a second run while one is active returns `409 Conflict` via DB partial unique index `idx_runs_one_active_per_task`)
-- `TestScenario_ConcurrentStart`: **PASS** (5 concurrent requests with identical `Idempotency-Key` race safely and return the exact same run)
-- `TestScenario_IdempotencyConflict`: **PASS** (Same `Idempotency-Key` with differing `fail_at_step` returns `409 Conflict`)
-- `TestScenario_SpecifiedFailure`: **PASS** (`fail_at_step: 3` executes steps 1 and 2, fails at step 3 with reason `failed at step 3 (simulated)`)
-- `TestScenario_StopRun`: **PASS** (Stop request transitions run to `stopping`, worker exits, final status transitions to `stopped` with reason `user requested stop`)
-- `TestScenario_RestartInterruptedAndHistory`: **PASS** (Active runs transitioned to `interrupted` upon restart with event recorded; subsequent new runs execute normally and historical runs are preserved)
-- `TestScenario_TerminalRunRejectsLateProgressAndReactivation`: **PASS** (Terminal runs reject late progress events and disallow transition back to active status)
+1. `TestScenario_NormalCompletion`: **PASS** (10 progress steps, 13 transactional events with seq 1..13, final status `completed`)
+2. `TestScenario_DuplicateStartBlocked`: **PASS** (Attempting to start a second run while one is active returns `409 Conflict` via DB partial unique index `idx_runs_one_active_per_task`)
+3. `TestScenario_ConcurrentStart`: **PASS** (5 concurrent requests with identical `Idempotency-Key` race safely and return the exact same run)
+4. `TestScenario_IdempotencyConflict`: **PASS** (Same `Idempotency-Key` with differing `fail_at_step` returns `409 Conflict`)
+5. `TestScenario_SpecifiedFailure`: **PASS** (`fail_at_step: 3` executes steps 1 and 2, fails at step 3 with reason `failed at step 3 (simulated)`)
+6. `TestScenario_StopRun`: **PASS** (Stop request transitions run to `stopping`, worker exits, final status transitions to `stopped` with reason `user requested stop`)
+7. `TestScenario_RestartInterruptedAndHistory`: **PASS** (Active runs transitioned to `interrupted` upon restart with event recorded; subsequent new runs execute normally and historical runs are preserved)
+8. `TestScenario_TerminalRunRejectsLateProgressAndReactivation`: **PASS** (Terminal runs reject late progress events and disallow transition back to active status)
+9. `TestRequirement4_RefusesWithoutTestDatabaseConfig`: **PASS** (Strictly refuses to run when `TEST_DATABASE_URL` is omitted, preventing inadvertent modification of dev or production DB)
+10. `TestScenario_StopBeforeWorkerRegistration`: **PASS** (Stop intent registered prior to worker startup safely converges to `stopped` without hanging in `stopping`)
+11. `TestScenario_StopProgressWriteRace`: **PASS** (Worker progress writes racing with user stop requests are rejected and run converges cleanly to `stopped`)
+12. `TestScenario_InvalidStateTransitionsRejected`: **PASS** (Explicit state machine rules reject illegal transitions such as `running -> queued` or terminal reactivation)
+13. `TestScenario_ExecutionInputSnapshotPreserved`: **PASS** (Full execution inputs snapshot preserved across task edits; missing historical inputs explicitly marked)
+14. `TestScenario_WorkerManagerShutdownSequence`: **PASS** (Orderly shutdown sequence: stop accepting work -> cancel active runs -> wait for exit -> close pool)
 
 ## API Reference
 
