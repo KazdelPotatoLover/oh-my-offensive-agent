@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS observations;
+ALTER TABLE run_events DROP COLUMN IF EXISTS attempt_id;
+ALTER TABLE run_events DROP COLUMN IF EXISTS work_item_id;
+ALTER TABLE run_events DROP COLUMN IF EXISTS session_id;
+ALTER TABLE agent_tool_calls DROP COLUMN IF EXISTS session_id;
+ALTER TABLE model_calls DROP COLUMN IF EXISTS session_id;
+ALTER TABLE agent_messages DROP COLUMN IF EXISTS session_id;
+DROP TABLE IF EXISTS attempts;
+DROP TABLE IF EXISTS work_dependencies;
+DROP TABLE IF EXISTS work_items;
+DROP TABLE IF EXISTS planner_rounds;
+DROP TABLE IF EXISTS agent_sessions;

@@ -69,17 +69,105 @@ type Run struct {
 }
 
 type RunEvent struct {
-	ID        uuid.UUID       `json:"id"`
-	RunID     uuid.UUID       `json:"run_id"`
-	Seq       int             `json:"seq"`
-	Type      string          `json:"type"`
-	Payload   json.RawMessage `json:"payload"`
-	CreatedAt time.Time       `json:"created_at"`
+	ID          uuid.UUID       `json:"id"`
+	RunID       uuid.UUID       `json:"run_id"`
+	Seq         int             `json:"seq"`
+	Type        string          `json:"type"`
+	Payload     json.RawMessage `json:"payload"`
+	SessionID   *uuid.UUID      `json:"session_id,omitempty"`
+	WorkItemID  *uuid.UUID      `json:"work_item_id,omitempty"`
+	AttemptID   *uuid.UUID      `json:"attempt_id,omitempty"`
+	CreatedAt   time.Time       `json:"created_at"`
+}
+
+type AgentSession struct {
+	ID            uuid.UUID       `json:"id"`
+	RunID         uuid.UUID       `json:"run_id"`
+	Role          string          `json:"role"` // 'planner', 'worker', 'legacy_agent'
+	Round         *int            `json:"round,omitempty"`
+	WorkItemID    *uuid.UUID      `json:"work_item_id,omitempty"`
+	AttemptID     *uuid.UUID      `json:"attempt_id,omitempty"`
+	Status        string          `json:"status"` // 'running', 'completed', 'failed', 'stopped', 'interrupted'
+	InputSnapshot json.RawMessage `json:"input_snapshot"`
+	FinishReason  *string         `json:"finish_reason,omitempty"`
+	CreatedAt     time.Time       `json:"created_at"`
+	UpdatedAt     time.Time       `json:"updated_at"`
+}
+
+type PlannerRound struct {
+	ID            uuid.UUID  `json:"id"`
+	RunID         uuid.UUID  `json:"run_id"`
+	Round         int        `json:"round"`
+	TriggerReason string     `json:"trigger_reason"`
+	SessionID     *uuid.UUID `json:"session_id,omitempty"`
+	PlanSummary   *string    `json:"plan_summary,omitempty"`
+	Status        string     `json:"status"`
+	CreatedAt     time.Time  `json:"created_at"`
+	FinishedAt    *time.Time `json:"finished_at,omitempty"`
+}
+
+type WorkItemStatus string
+
+const (
+	WorkItemStatusPending   WorkItemStatus = "pending"
+	WorkItemStatusRunning   WorkItemStatus = "running"
+	WorkItemStatusCompleted WorkItemStatus = "completed"
+	WorkItemStatusFailed    WorkItemStatus = "failed"
+	WorkItemStatusCancelled WorkItemStatus = "cancelled"
+	WorkItemStatusBlocked   WorkItemStatus = "blocked"
+)
+
+type WorkItem struct {
+	ID               uuid.UUID       `json:"id"`
+	RunID            uuid.UUID       `json:"run_id"`
+	Key              string          `json:"key"`
+	Title            string          `json:"title"`
+	Objective        string          `json:"objective"`
+	WorkType         string          `json:"work_type"`
+	Status           WorkItemStatus  `json:"status"`
+	BlockedReason    *string         `json:"blocked_reason,omitempty"`
+	InputData        json.RawMessage `json:"input_data"`
+	OutputData       json.RawMessage `json:"output_data"`
+	CurrentAttemptID *uuid.UUID      `json:"current_attempt_id,omitempty"`
+	CreatedAt        time.Time       `json:"created_at"`
+	UpdatedAt        time.Time       `json:"updated_at"`
+}
+
+type WorkDependency struct {
+	ID                  uuid.UUID `json:"id"`
+	RunID               uuid.UUID `json:"run_id"`
+	WorkItemID          uuid.UUID `json:"work_item_id"`
+	DependsOnWorkItemID uuid.UUID `json:"depends_on_work_item_id"`
+	CreatedAt           time.Time `json:"created_at"`
+}
+
+type Attempt struct {
+	ID            uuid.UUID  `json:"id"`
+	WorkItemID    uuid.UUID  `json:"work_item_id"`
+	AttemptNumber int        `json:"attempt_number"`
+	SessionID     *uuid.UUID `json:"session_id,omitempty"`
+	Status        string     `json:"status"`
+	StartedAt     time.Time  `json:"started_at"`
+	FinishedAt    *time.Time `json:"finished_at,omitempty"`
+	FinishReason  *string    `json:"finish_reason,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+}
+
+type Observation struct {
+	ID               uuid.UUID       `json:"id"`
+	RunID            uuid.UUID       `json:"run_id"`
+	AttemptID        uuid.UUID       `json:"attempt_id"`
+	ObsType          string          `json:"obs_type"`
+	Content          string          `json:"content"`
+	Data             json.RawMessage `json:"data"`
+	SourceToolCallID uuid.UUID       `json:"source_tool_call_id"`
+	CreatedAt        time.Time       `json:"created_at"`
 }
 
 type AgentMessage struct {
 	ID         uuid.UUID       `json:"id"`
 	RunID      uuid.UUID       `json:"run_id"`
+	SessionID  *uuid.UUID      `json:"session_id,omitempty"`
 	Seq        int             `json:"seq"`
 	Role       string          `json:"role"`
 	Content    string          `json:"content"`
@@ -91,6 +179,7 @@ type AgentMessage struct {
 type ModelCall struct {
 	ID               uuid.UUID  `json:"id"`
 	RunID            uuid.UUID  `json:"run_id"`
+	SessionID        *uuid.UUID `json:"session_id,omitempty"`
 	Round            int        `json:"round"`
 	Status           string     `json:"status"` // started, completed, failed, interrupted
 	FinishReason     *string    `json:"finish_reason,omitempty"`
@@ -107,6 +196,7 @@ type ModelCall struct {
 type AgentToolCall struct {
 	ID           uuid.UUID       `json:"id"`
 	RunID        uuid.UUID       `json:"run_id"`
+	SessionID    *uuid.UUID      `json:"session_id,omitempty"`
 	ModelCallID  *uuid.UUID      `json:"model_call_id,omitempty"`
 	CallID       string          `json:"call_id"`
 	ToolName     string          `json:"tool_name"`
@@ -126,16 +216,22 @@ type BudgetConfig struct {
 	ModelTimeoutSeconds int `json:"model_timeout_seconds"`
 	ToolTimeoutSeconds  int `json:"tool_timeout_seconds"`
 	MaxToolOutputBytes  int `json:"max_tool_output_bytes"`
+	MaxPlannerRounds    int `json:"max_planner_rounds"`
+	MaxWorkItems        int `json:"max_work_items"`
+	MaxParallelWorkers  int `json:"max_parallel_workers"`
 }
 
 func DefaultBudgetConfig() BudgetConfig {
 	return BudgetConfig{
-		MaxModelCalls:       8,
-		MaxToolCalls:        12,
+		MaxModelCalls:       12,
+		MaxToolCalls:        16,
 		RunTimeoutSeconds:   120,
 		ModelTimeoutSeconds: 30,
 		ToolTimeoutSeconds:  5,
 		MaxToolOutputBytes:  8192,
+		MaxPlannerRounds:    8,
+		MaxWorkItems:        12,
+		MaxParallelWorkers:  1,
 	}
 }
 

@@ -99,6 +99,38 @@ func MarkInterruptedRuns(ctx context.Context, pool *pgxpool.Pool) error {
 			return fmt.Errorf("failed to update agent_tool_calls for run %s: %w", r.ID, err)
 		}
 
+		// Mark in-progress agent_sessions as interrupted
+		_, err = tx.Exec(ctx,
+			`UPDATE agent_sessions SET status = 'interrupted', finish_reason = 'server restarted', 
+			 updated_at = now() WHERE run_id = $1 AND status = 'running'`, r.ID)
+		if err != nil {
+			return fmt.Errorf("failed to update agent_sessions for run %s: %w", r.ID, err)
+		}
+
+		// Mark in-progress planner_rounds as failed
+		_, err = tx.Exec(ctx,
+			`UPDATE planner_rounds SET status = 'failed', finished_at = now() 
+			 WHERE run_id = $1 AND status = 'running'`, r.ID)
+		if err != nil {
+			return fmt.Errorf("failed to update planner_rounds for run %s: %w", r.ID, err)
+		}
+
+		// Mark in-progress attempts as interrupted
+		_, err = tx.Exec(ctx,
+			`UPDATE attempts SET status = 'interrupted', finish_reason = 'server restarted', 
+			 finished_at = now() WHERE work_item_id IN (SELECT id FROM work_items WHERE run_id = $1) AND status = 'running'`, r.ID)
+		if err != nil {
+			return fmt.Errorf("failed to update attempts for run %s: %w", r.ID, err)
+		}
+
+		// Mark pending/running work_items as failed/interrupted
+		_, err = tx.Exec(ctx,
+			`UPDATE work_items SET status = 'failed', blocked_reason = 'server restarted', 
+			 updated_at = now() WHERE run_id = $1 AND status IN ('pending', 'running')`, r.ID)
+		if err != nil {
+			return fmt.Errorf("failed to update work_items for run %s: %w", r.ID, err)
+		}
+
 		// Get next seq
 		var nextSeq int
 		err = tx.QueryRow(ctx,

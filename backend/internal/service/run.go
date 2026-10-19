@@ -446,9 +446,45 @@ func (s *RunService) InsertProgressEvent(ctx context.Context, runID uuid.UUID, s
 	return tx.Commit(ctx)
 }
 
+// InsertRunEventWithContext inserts a run event with optional session, work item, and attempt IDs.
+func (s *RunService) InsertRunEventWithContext(ctx context.Context, runID uuid.UUID, sessionID, workItemID, attemptID *uuid.UUID, eventType string, payload json.RawMessage) (*model.RunEvent, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	var nextSeq int
+	err = tx.QueryRow(ctx,
+		`SELECT COALESCE(MAX(seq), 0) + 1 FROM run_events WHERE run_id = $1`, runID).Scan(&nextSeq)
+	if err != nil {
+		return nil, fmt.Errorf("get next seq: %w", err)
+	}
+
+	if payload == nil {
+		payload = json.RawMessage(`{}`)
+	}
+
+	var ev model.RunEvent
+	err = tx.QueryRow(ctx,
+		`INSERT INTO run_events (id, run_id, seq, type, payload, session_id, work_item_id, attempt_id)
+		 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7)
+		 RETURNING id, run_id, seq, type, payload, session_id, work_item_id, attempt_id, created_at`,
+		runID, nextSeq, eventType, payload, sessionID, workItemID, attemptID).Scan(
+		&ev.ID, &ev.RunID, &ev.Seq, &ev.Type, &ev.Payload, &ev.SessionID, &ev.WorkItemID, &ev.AttemptID, &ev.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("insert run_event: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit run_event: %w", err)
+	}
+	return &ev, nil
+}
+
 func (s *RunService) GetEvents(ctx context.Context, runID uuid.UUID) ([]model.RunEvent, error) {
 	rows, err := s.pool.Query(ctx,
-		`SELECT id, run_id, seq, type, payload, created_at 
+		`SELECT id, run_id, seq, type, payload, session_id, work_item_id, attempt_id, created_at 
 		 FROM run_events WHERE run_id = $1 ORDER BY seq ASC`, runID)
 	if err != nil {
 		return nil, fmt.Errorf("query events: %w", err)
@@ -458,7 +494,7 @@ func (s *RunService) GetEvents(ctx context.Context, runID uuid.UUID) ([]model.Ru
 	var events []model.RunEvent
 	for rows.Next() {
 		var e model.RunEvent
-		if err := rows.Scan(&e.ID, &e.RunID, &e.Seq, &e.Type, &e.Payload, &e.CreatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.RunID, &e.Seq, &e.Type, &e.Payload, &e.SessionID, &e.WorkItemID, &e.AttemptID, &e.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan event: %w", err)
 		}
 		events = append(events, e)
