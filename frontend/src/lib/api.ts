@@ -9,6 +9,15 @@ import {
   Observation,
   AgentSession,
   PlannerRound,
+  Asset,
+  AssetSummary,
+  WorkItemDetail,
+  AssetDetailsResponse,
+  AssetsResponse,
+  RunAssetsResponse,
+  WorkItemDetailsResponse,
+  AssetDiscoveryDetail,
+  DiscoveriesResponse,
   CreateTaskInput,
   UpdateTaskInput,
   CreateRunInput,
@@ -220,5 +229,34 @@ export const api = {
   async getRunPlannerRounds(runId: string): Promise<PlannerRound[]> {
     const data = await request<PlannerRoundsResponse>(`/api/runs/${runId}/planner_rounds`);
     return data.planner_rounds || [];
+  },
+
+  // Phase 4: Assets & Traceability
+  async getAssets(): Promise<AssetSummary[]> {
+    const data = await request<AssetsResponse>('/api/assets');
+    return data.assets || [];
+  },
+
+  async getAsset(assetId: string): Promise<Asset> {
+    return request<Asset>(`/api/assets/${assetId}`);
+  },
+
+  async getAssetDetails(assetId: string): Promise<AssetDetailsResponse> {
+    return request<AssetDetailsResponse>(`/api/assets/${assetId}/details`);
+  },
+
+  async getRunAssets(runId: string): Promise<Asset[]> {
+    const data = await request<RunAssetsResponse>(`/api/runs/${runId}/assets`);
+    return data.assets || [];
+  },
+
+  async getRunWorkItemDetails(runId: string): Promise<WorkItemDetail[]> {
+    const data = await request<WorkItemDetailsResponse>(`/api/runs/${runId}/work_items/details`);
+    return data.work_items || [];
+  },
+
+  async getRunDiscoveries(runId: string): Promise<AssetDiscoveryDetail[]> {
+    const data = await request<DiscoveriesResponse>(`/api/runs/${runId}/discoveries`);
+    return data.discoveries || [];
   },
 };

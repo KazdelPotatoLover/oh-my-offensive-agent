@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/service"
@@ -15,6 +16,7 @@ import (
 // SubmitPlanTool allows the Planner to submit planned work items and dependencies.
 type SubmitPlanTool struct {
 	runID      uuid.UUID
+	roundID    *uuid.UUID
 	runService *service.RunService
 	onPlan     func(items []model.WorkItem)
 }
@@ -27,12 +29,21 @@ func NewSubmitPlanTool(runID uuid.UUID, runService *service.RunService, onPlan f
 	}
 }
 
+func NewSubmitPlanToolWithRound(runID uuid.UUID, roundID *uuid.UUID, runService *service.RunService, onPlan func([]model.WorkItem)) *SubmitPlanTool {
+	return &SubmitPlanTool{
+		runID:      runID,
+		roundID:    roundID,
+		runService: runService,
+		onPlan:     onPlan,
+	}
+}
+
 func (t *SubmitPlanTool) Name() string {
 	return "submit_plan"
 }
 
 func (t *SubmitPlanTool) Description() string {
-	return "Submit a structured plan consisting of work items and their dependency relationships."
+	return "Submit a structured plan consisting of work items, dependencies, and target assets."
 }
 
 func (t *SubmitPlanTool) Parameters() json.RawMessage {
@@ -55,6 +66,16 @@ func (t *SubmitPlanTool) Parameters() json.RawMessage {
 							"type": "array",
 							"items": {"type": "string"},
 							"description": "Keys of prerequisite work items that must be completed before this item can start"
+						},
+						"asset_ids": {
+							"type": "array",
+							"items": {"type": "string"},
+							"description": "UUIDs of target assets in scope for this work item"
+						},
+						"source_observation_ids": {
+							"type": "array",
+							"items": {"type": "string"},
+							"description": "UUIDs of prior observations that triggered this work item"
 						}
 					},
 					"required": ["key", "title", "objective"]
@@ -92,7 +113,13 @@ func (t *SubmitPlanTool) Execute(ctx context.Context, argumentsJSON []byte) (str
 		return "", err
 	}
 
-	created, err := t.runService.SubmitPlan(ctx, t.runID, payload.Items)
+	var created []model.WorkItem
+	var err error
+	if t.roundID != nil {
+		created, err = t.runService.SubmitPlanWithRound(ctx, t.runID, t.roundID, payload.Items)
+	} else {
+		created, err = t.runService.SubmitPlan(ctx, t.runID, payload.Items)
+	}
 	if err != nil {
 		return "", err
 	}
@@ -196,6 +223,7 @@ func (t *SuggestCompletionTool) Execute(ctx context.Context, argumentsJSON []byt
 type RecordObservationTool struct {
 	runID      uuid.UUID
 	attemptID  uuid.UUID
+	sessionID  uuid.UUID
 	runService *service.RunService
 }
 
@@ -203,6 +231,15 @@ func NewRecordObservationTool(runID, attemptID uuid.UUID, runService *service.Ru
 	return &RecordObservationTool{
 		runID:      runID,
 		attemptID:  attemptID,
+		runService: runService,
+	}
+}
+
+func NewRecordObservationToolWithSession(runID, attemptID, sessionID uuid.UUID, runService *service.RunService) *RecordObservationTool {
+	return &RecordObservationTool{
+		runID:      runID,
+		attemptID:  attemptID,
+		sessionID:  sessionID,
 		runService: runService,
 	}
 }
@@ -222,7 +259,8 @@ func (t *RecordObservationTool) Parameters() json.RawMessage {
 			"obs_type": {"type": "string", "description": "Type of observation, e.g. http_status, page_title, server_header"},
 			"content": {"type": "string", "description": "Text description of the observation"},
 			"data": {"type": "object", "description": "Structured data extracted from tool output"},
-			"source_tool_call_id": {"type": "string", "description": "The exact call_id or tool_call database UUID representing the underlying evidence"}
+			"source_tool_call_id": {"type": "string", "description": "The exact call_id or tool_call database UUID representing the underlying evidence"},
+			"asset_id": {"type": "string", "description": "Optional UUID of the target asset"}
 		},
 		"required": ["obs_type", "content", "source_tool_call_id"]
 	}`)
@@ -233,12 +271,18 @@ func (t *RecordObservationTool) Validate(argumentsJSON []byte) error {
 		ObsType          string `json:"obs_type"`
 		Content          string `json:"content"`
 		SourceToolCallID string `json:"source_tool_call_id"`
+		AssetID          string `json:"asset_id"`
 	}
 	if err := json.Unmarshal(argumentsJSON, &payload); err != nil {
 		return err
 	}
 	if payload.ObsType == "" || payload.Content == "" || payload.SourceToolCallID == "" {
 		return errors.New("obs_type, content, and source_tool_call_id are required")
+	}
+	if strings.TrimSpace(payload.AssetID) != "" {
+		if _, err := uuid.Parse(strings.TrimSpace(payload.AssetID)); err != nil {
+			return fmt.Errorf("invalid asset_id: must be a valid UUID: %w", err)
+		}
 	}
 	return nil
 }
@@ -249,6 +293,7 @@ func (t *RecordObservationTool) Execute(ctx context.Context, argumentsJSON []byt
 		Content          string                 `json:"content"`
 		Data             map[string]interface{} `json:"data"`
 		SourceToolCallID string                 `json:"source_tool_call_id"`
+		AssetID          string                 `json:"asset_id"`
 	}
 	if err := json.Unmarshal(argumentsJSON, &payload); err != nil {
 		return "", err
@@ -260,31 +305,114 @@ func (t *RecordObservationTool) Execute(ctx context.Context, argumentsJSON []byt
 	if err == nil {
 		tcUUID = parsed
 	} else {
-		// Look up by call_id for this run
-		tools, listErr := t.runService.ListAgentToolCalls(ctx, t.runID)
-		if listErr != nil {
-			return "", listErr
-		}
-		found := false
-		for _, tc := range tools {
-			if tc.CallID == payload.SourceToolCallID {
-				tcUUID = tc.ID
-				found = true
-				break
+		// Look up by call_id for THIS ATTEMPT'S SESSION first!
+		if t.sessionID != uuid.Nil {
+			tc, listErr := t.runService.GetAgentToolCallBySessionAndCallID(ctx, t.sessionID, payload.SourceToolCallID)
+			if listErr != nil {
+				return "", service.ErrInvalidObservationSource
 			}
-		}
-		if !found {
-			return "", service.ErrInvalidObservationSource
+			tcUUID = tc.ID
+		} else {
+			// Fallback: look up by call_id for this run
+			tools, listErr := t.runService.ListAgentToolCalls(ctx, t.runID)
+			if listErr != nil {
+				return "", listErr
+			}
+			found := false
+			for _, tc := range tools {
+				if tc.CallID == payload.SourceToolCallID {
+					tcUUID = tc.ID
+					found = true
+					break
+				}
+			}
+			if !found {
+				return "", service.ErrInvalidObservationSource
+			}
 		}
 	}
 
+	var parsedAssetID *uuid.UUID
+	trimmedAssetID := strings.TrimSpace(payload.AssetID)
+	if trimmedAssetID != "" {
+		aid, err := uuid.Parse(trimmedAssetID)
+		if err != nil {
+			return "", fmt.Errorf("invalid asset_id: must be a valid UUID: %w", err)
+		}
+		parsedAssetID = &aid
+	}
+
 	dataBytes, _ := json.Marshal(payload.Data)
-	obs, err := t.runService.CreateObservation(ctx, t.runID, t.attemptID, payload.ObsType, payload.Content, dataBytes, tcUUID)
+	obs, err := t.runService.CreateObservationWithAsset(ctx, t.runID, t.attemptID, payload.ObsType, payload.Content, dataBytes, tcUUID, parsedAssetID)
 	if err != nil {
 		return "", err
 	}
 
 	return fmt.Sprintf(`{"status":"recorded","observation_id":"%s"}`, obs.ID), nil
+}
+
+// ListRunAssetsTool allows the Planner to query all assets in scope for this run.
+type ListRunAssetsTool struct {
+	runID      uuid.UUID
+	runService *service.RunService
+}
+
+func NewListRunAssetsTool(runID uuid.UUID, runService *service.RunService) *ListRunAssetsTool {
+	return &ListRunAssetsTool{
+		runID:      runID,
+		runService: runService,
+	}
+}
+
+func (t *ListRunAssetsTool) Name() string {
+	return "list_run_assets"
+}
+
+func (t *ListRunAssetsTool) Description() string {
+	return "List all assets in scope for the current run, including their IDs, keys, and descriptions."
+}
+
+func (t *ListRunAssetsTool) Parameters() json.RawMessage {
+	return json.RawMessage(`{
+		"type": "object",
+		"properties": {},
+		"additionalProperties": false
+	}`)
+}
+
+func (t *ListRunAssetsTool) Validate(argumentsJSON []byte) error {
+	return nil
+}
+
+func (t *ListRunAssetsTool) Execute(ctx context.Context, argumentsJSON []byte) (string, error) {
+	assets, err := t.runService.ListAssetsByRun(ctx, t.runID)
+	if err != nil {
+		return "", err
+	}
+	type assetItem struct {
+		ID          string `json:"id"`
+		Namespace   string `json:"namespace"`
+		Kind        string `json:"kind"`
+		ExternalKey string `json:"external_key"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+	items := make([]assetItem, 0, len(assets))
+	for _, a := range assets {
+		items = append(items, assetItem{
+			ID:          a.ID.String(),
+			Namespace:   a.Namespace,
+			Kind:        a.Kind,
+			ExternalKey: a.ExternalKey,
+			Name:        a.Name,
+			Description: a.Description,
+		})
+	}
+	b, _ := json.Marshal(map[string]interface{}{
+		"assets": items,
+		"count":  len(items),
+	})
+	return string(b), nil
 }
 
 // ReadObservationsTool allows aggregation workers to inspect observations from previous items.

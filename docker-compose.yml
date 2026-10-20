@@ -18,6 +18,15 @@ services:
       timeout: 3s
       retries: 10
 
+  fixture:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.fixture
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      FIXTURE_PORT: '${FIXTURE_PORT:-29090}'
+
   backend:
     build:
       context: ./backend
@@ -28,9 +37,12 @@ services:
       PORT: '${BACKEND_PORT:-28080}'
       CORS_ORIGINS: http://localhost:${FRONTEND_PORT:-23000},http://127.0.0.1:${FRONTEND_PORT:-23000}
       MIGRATIONS_PATH: /app/migrations
+      FIXTURE_PORT: '${FIXTURE_PORT:-29090}'
     depends_on:
       db:
         condition: service_healthy
+      fixture:
+        condition: service_started
 
   frontend:
     build:

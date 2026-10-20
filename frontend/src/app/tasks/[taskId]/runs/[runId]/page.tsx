@@ -4,9 +4,64 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Run, RunEvent, AgentMessage, ModelCall, AgentToolCall, WorkItem, Observation, AgentSession, PlannerRound } from '@/lib/types';
+import { Run, RunEvent, AgentMessage, ModelCall, AgentToolCall, WorkItem, Observation, AgentSession, PlannerRound, Asset, WorkItemDetail, AssetDiscoveryDetail } from '@/lib/types';
 import { RunStatusBadge } from '@/components/RunStatusBadge';
 import { EventTimeline } from '@/components/EventTimeline';
+
+interface ParsedHttpEndpointOutput {
+  request?: {
+    method?: string;
+    url?: string;
+    asset_id?: string;
+    started_at?: string;
+  };
+  response?: {
+    status_code?: number;
+    headers?: Record<string, string>;
+    body?: string;
+    received_at?: string;
+    duration_ms?: number;
+  };
+  integrity?: {
+    saved_bytes?: number;
+    is_truncated?: boolean;
+    note?: string;
+  };
+  error?: {
+    type?: string;
+    message?: string;
+  };
+}
+
+function parseHttpOutput(output?: string): ParsedHttpEndpointOutput | null {
+  if (!output) return null;
+  try {
+    const data = JSON.parse(output);
+    if (data && typeof data === 'object' && (data.request || data.response || data.integrity || data.error)) {
+      return data;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function getStatusCodeBadge(code?: number) {
+  if (!code) return null;
+  let color = 'bg-gray-800 text-gray-300 border-gray-700';
+  if (code >= 200 && code < 300) {
+    color = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+  } else if (code >= 300 && code < 400) {
+    color = 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+  } else if (code >= 400) {
+    color = 'bg-red-500/10 text-red-400 border-red-500/30';
+  }
+  return (
+    <span className={`px-2 py-0.5 rounded text-xs font-mono font-bold border ${color}`}>
+      {code}
+    </span>
+  );
+}
 
 export default function RunDetailPage() {
   const params = useParams();
@@ -19,16 +74,19 @@ export default function RunDetailPage() {
   const [modelCalls, setModelCalls] = useState<ModelCall[]>([]);
   const [toolCalls, setToolCalls] = useState<AgentToolCall[]>([]);
   const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+  const [workItemDetails, setWorkItemDetails] = useState<WorkItemDetail[]>([]);
   const [observations, setObservations] = useState<Observation[]>([]);
   const [sessions, setSessions] = useState<AgentSession[]>([]);
   const [plannerRounds, setPlannerRounds] = useState<PlannerRound[]>([]);
+  const [runAssets, setRunAssets] = useState<Asset[]>([]);
+  const [discoveries, setDiscoveries] = useState<AssetDiscoveryDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [stopping, setStopping] = useState(false);
   const [stopError, setStopError] = useState<string | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'work_items' | 'observations' | 'sessions' | 'timeline' | 'model_calls' | 'tool_calls' | 'messages'>('work_items');
+  const [activeTab, setActiveTab] = useState<'work_items' | 'discoveries' | 'observations' | 'sessions' | 'timeline' | 'model_calls' | 'tool_calls' | 'messages'>('work_items');
 
   const loadRunData = useCallback(async (isInitial = false) => {
     if (isInitial) setLoading(true);
@@ -41,9 +99,12 @@ export default function RunDetailPage() {
         modelCallsData,
         toolCallsData,
         workItemsData,
+        workItemDetailsData,
         observationsData,
         sessionsData,
         plannerRoundsData,
+        runAssetsData,
+        discoveriesData,
       ] = await Promise.all([
         api.getRun(runId),
         api.getRunEvents(runId),
@@ -51,9 +112,12 @@ export default function RunDetailPage() {
         api.getRunModelCalls(runId).catch(() => []),
         api.getRunToolCalls(runId).catch(() => []),
         api.getRunWorkItems(runId).catch(() => []),
+        api.getRunWorkItemDetails(runId).catch(() => []),
         api.getRunObservations(runId).catch(() => []),
         api.getRunSessions(runId).catch(() => []),
         api.getRunPlannerRounds(runId).catch(() => []),
+        api.getRunAssets(runId).catch(() => []),
+        api.getRunDiscoveries(runId).catch(() => []),
       ]);
       setRun(runData);
       setEvents(eventsData);
@@ -61,13 +125,20 @@ export default function RunDetailPage() {
       setModelCalls(modelCallsData);
       setToolCalls(toolCallsData);
       setWorkItems(workItemsData);
+      setWorkItemDetails(workItemDetailsData);
       setObservations(observationsData);
       setSessions(sessionsData);
       setPlannerRounds(plannerRoundsData);
+      setRunAssets(runAssetsData);
+      setDiscoveries(discoveriesData);
 
-      // If no work items exist and timeline was default, set appropriately
-      if (isInitial && workItemsData.length === 0) {
-        setActiveTab('timeline');
+      // Default active tab selection
+      if (isInitial) {
+        if (discoveriesData.length > 0 || (runData?.execution_input as any)?.discovery_policy) {
+          setActiveTab('discoveries');
+        } else if (workItemsData.length === 0) {
+          setActiveTab('timeline');
+        }
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -105,9 +176,11 @@ export default function RunDetailPage() {
           updatedModelCalls,
           updatedToolCalls,
           updatedWorkItems,
+          updatedWorkItemDetails,
           updatedObservations,
           updatedSessions,
           updatedPlannerRounds,
+          updatedRunAssets,
         ] = await Promise.all([
           api.getRun(runId),
           api.getRunEvents(runId),
@@ -115,9 +188,11 @@ export default function RunDetailPage() {
           api.getRunModelCalls(runId).catch(() => []),
           api.getRunToolCalls(runId).catch(() => []),
           api.getRunWorkItems(runId).catch(() => []),
+          api.getRunWorkItemDetails(runId).catch(() => []),
           api.getRunObservations(runId).catch(() => []),
           api.getRunSessions(runId).catch(() => []),
           api.getRunPlannerRounds(runId).catch(() => []),
+          api.getRunAssets(runId).catch(() => []),
         ]);
         setRun(updatedRun);
         setEvents(updatedEvents);
@@ -125,9 +200,11 @@ export default function RunDetailPage() {
         setModelCalls(updatedModelCalls);
         setToolCalls(updatedToolCalls);
         setWorkItems(updatedWorkItems);
+        setWorkItemDetails(updatedWorkItemDetails);
         setObservations(updatedObservations);
         setSessions(updatedSessions);
         setPlannerRounds(updatedPlannerRounds);
+        setRunAssets(updatedRunAssets);
       } catch {
         // Suppress polling error to avoid UI flicker
       } finally {
@@ -283,6 +360,34 @@ export default function RunDetailPage() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Scope Assets */}
+      {runAssets.length > 0 && (
+        <div className="p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-xl space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
+              <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              Assets In Scope ({runAssets.length})
+            </span>
+            <span className="text-[11px] text-gray-400">Click asset to view full history & observations</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {runAssets.map((a) => (
+              <Link
+                key={a.id}
+                href={`/assets/${a.id}`}
+                className="px-3 py-1 rounded-lg bg-gray-900 border border-gray-700/80 hover:border-indigo-500 text-xs font-mono text-gray-200 hover:text-indigo-300 transition-all flex items-center gap-2 group shadow-sm"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 group-hover:scale-125 transition-transform" />
+                <span className="font-sans font-medium">{a.name}</span>
+                <span className="text-gray-500 font-mono text-[11px]">({a.external_key})</span>
+              </Link>
+            ))}
+          </div>
         </div>
       )}
 
@@ -468,6 +573,26 @@ export default function RunDetailPage() {
       {/* Tabs for Timeline / Orchestration / Agent Details */}
       <div className="space-y-4">
         <div className="flex border-b border-gray-800 space-x-6 overflow-x-auto pb-px">
+          {(discoveries.length > 0 || (run?.execution_input as any)?.discovery_policy) && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('discoveries')}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center space-x-2 whitespace-nowrap ${
+                activeTab === 'discoveries'
+                  ? 'border-indigo-500 text-indigo-400'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
+                <span>页面链接发现 (Discovery)</span>
+              </span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono">
+                {discoveries.length}
+              </span>
+            </button>
+          )}
+
           {workItems.length > 0 && (
             <button
               type="button"
@@ -585,68 +710,371 @@ export default function RunDetailPage() {
         </div>
 
         {/* Tab Content */}
+        {activeTab === 'discoveries' && (
+          <div className="space-y-6">
+            {/* Policy & Seeds Banner */}
+            {(() => {
+              const execInput = run?.execution_input as any;
+              const policy = execInput?.discovery_policy;
+              const seeds = execInput?.scope?.seeds as string[] | undefined;
+
+              return (
+                <div className="p-5 bg-gray-900 border border-gray-800 rounded-xl space-y-4">
+                  <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
+                      <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                        自动发现策略与种子边界 (Discovery Bounds)
+                      </h3>
+                    </div>
+                    <span className="text-xs font-mono text-gray-400 bg-gray-950 px-2.5 py-1 rounded border border-gray-800">
+                      Mode: discovery
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                    <div className="p-3 bg-gray-950/70 border border-gray-800/80 rounded-lg space-y-1.5">
+                      <span className="font-semibold text-emerald-400 block">🌱 初始种子资产 (Seeds):</span>
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {(seeds || ['/']).map((s) => (
+                          <span key={s} className="font-mono bg-emerald-500/10 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
+                            {s} (首页)
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-gray-500 pt-1">
+                        Run 创建初始仅关联此种子资产；全局历史资产严格隔离，不预先填入。
+                      </p>
+                    </div>
+
+                    <div className="p-3 bg-gray-950/70 border border-gray-800/80 rounded-lg space-y-1.5 font-mono">
+                      <span className="font-semibold text-indigo-400 block font-sans">🛡️ 允许发现策略 (Discovery Policy):</span>
+                      <div className="text-gray-300 space-y-0.5 text-[11px]">
+                        <div>Origin: <span className="text-gray-400">{policy?.origin || 'http://127.0.0.1:29090'}</span></div>
+                        <div>Method: <span className="text-gray-400">{policy?.allowed_methods?.join(', ') || 'GET'}</span></div>
+                        <div>Allowed Paths: <span className="text-indigo-300 font-semibold">{policy?.allowed_paths?.join(', ') || '/, /login, /health'}</span></div>
+                      </div>
+                      <p className="text-[11px] text-gray-500 font-sans pt-1">
+                        超出上述精确路径范围或非允许协议/域名的候选链接，一律在发包前拦截拒绝。
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Hierarchical Tree of Discovered Endpoints */}
+            <div className="p-5 bg-gray-900 border border-gray-800 rounded-xl space-y-4">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                </svg>
+                <span>发现链路拓扑 (Discovery Provenance Tree)</span>
+              </h3>
+
+              <div className="p-4 bg-gray-950 rounded-xl border border-gray-800/80 space-y-3 font-mono text-xs">
+                {/* Root Home Seed */}
+                <div className="flex items-center gap-2 text-white font-semibold">
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px]">
+                    SEED 入口
+                  </span>
+                  <span>首页 / (Local Fixture Home)</span>
+                </div>
+
+                {/* Level 1 Discoveries (e.g. /login) */}
+                {discoveries
+                  .filter((d) => (d.source_asset_name && d.source_asset_name.includes('Home')) || (d.source_asset_key && d.source_asset_key.endsWith('/')))
+                  .map((d1) => (
+                    <div key={d1.id} className="ml-6 pl-4 border-l-2 border-indigo-500/40 space-y-3">
+                      <div className="flex items-center gap-2 text-indigo-300">
+                        <span className="text-indigo-400 font-bold">↳</span>
+                        <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[11px]">
+                          发现端点
+                        </span>
+                        <Link href={`/assets/${d1.target_asset_id}`} className="underline hover:text-white font-semibold">
+                          {d1.target_asset_name || d1.target_asset_key}
+                        </Link>
+                        <span className="text-gray-500 text-[11px]">
+                          (via <code className="text-gray-300 bg-gray-900 px-1 rounded">{d1.raw_href}</code>)
+                        </span>
+                      </div>
+
+                      {/* Level 2 Discoveries (e.g. /health from /login) */}
+                      {discoveries
+                        .filter((d2) => d2.source_asset_id === d1.target_asset_id)
+                        .map((d2) => (
+                          <div key={d2.id} className="ml-6 pl-4 border-l-2 border-purple-500/40">
+                            <div className="flex items-center gap-2 text-purple-300">
+                              <span className="text-purple-400 font-bold">↳</span>
+                              <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[11px]">
+                                深入发现
+                              </span>
+                              <Link href={`/assets/${d2.target_asset_id}`} className="underline hover:text-white font-semibold">
+                                {d2.target_asset_name || d2.target_asset_key}
+                              </Link>
+                              <span className="text-gray-500 text-[11px]">
+                                (via <code className="text-gray-300 bg-gray-900 px-1 rounded">{d2.raw_href}</code>)
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  ))}
+
+                {discoveries.length === 0 && (
+                  <p className="text-gray-500 italic text-[11px] pt-1">
+                    尚未提取到任何链接或页面中不包含更多未处理的合法链接。
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Discoveries Provenance Table */}
+            <div className="p-5 bg-gray-900 border border-gray-800 rounded-xl space-y-4">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+                <span>已登记发现明细 (Asset Discovery Records) ({discoveries.length})</span>
+              </h3>
+
+              {discoveries.length === 0 ? (
+                <div className="p-6 text-center text-gray-500 border border-gray-800/80 rounded-lg text-xs">
+                  暂无新资产发现记录。
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-800 text-gray-400 font-semibold uppercase tracking-wider">
+                        <th className="py-2.5 px-3">发现目标资产</th>
+                        <th className="py-2.5 px-3">来源前置页面</th>
+                        <th className="py-2.5 px-3 font-mono">原始 Href</th>
+                        <th className="py-2.5 px-3 font-mono">来源 ToolCall</th>
+                        <th className="py-2.5 px-3">发现时间</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800/60 font-mono">
+                      {discoveries.map((d) => (
+                        <tr key={d.id} className="hover:bg-gray-850/50 transition-colors">
+                          <td className="py-2.5 px-3">
+                            <Link href={`/assets/${d.target_asset_id}`} className="text-indigo-400 hover:text-indigo-200 underline font-semibold">
+                              {d.target_asset_name || d.target_asset_key}
+                            </Link>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <Link href={`/assets/${d.source_asset_id}`} className="text-gray-300 hover:text-white underline">
+                              {d.source_asset_name || d.source_asset_key}
+                            </Link>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className="bg-gray-950 px-2 py-0.5 rounded text-amber-300 border border-gray-800">
+                              {d.raw_href}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-gray-400 text-[11px]">
+                            {d.source_tool_call_id.slice(0, 8)}...
+                          </td>
+                          <td className="py-2.5 px-3 text-gray-400 font-sans text-[11px]">
+                            {new Date(d.discovered_at).toLocaleTimeString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Rejections & Filtered Candidates Section */}
+            {(() => {
+              const extractCalls = toolCalls.filter((tc) => tc.tool_name === 'extract_endpoint_links');
+              const allRejections: Array<{ callId: string; rawHref: string; reason: string }> = [];
+
+              extractCalls.forEach((tc) => {
+                try {
+                  const out = JSON.parse(tc.output);
+                  if (out?.rejected && Array.isArray(out.rejected)) {
+                    out.rejected.forEach((r: any) => {
+                      allRejections.push({
+                        callId: tc.id,
+                        rawHref: r.raw_href,
+                        reason: r.reason,
+                      });
+                    });
+                  }
+                } catch {}
+              });
+
+              return (
+                <div className="p-5 bg-gray-900 border border-gray-800 rounded-xl space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                      <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                      </svg>
+                      <span>候选链接过滤与拒绝明细 (Candidate Filter & Rejection Log) ({allRejections.length})</span>
+                    </h3>
+                    <span className="text-[11px] text-gray-500 font-sans">
+                      发包前本地校验与阻断，零越界流量
+                    </span>
+                  </div>
+
+                  {allRejections.length === 0 ? (
+                    <div className="p-6 text-center text-gray-500 border border-gray-800/80 rounded-lg text-xs">
+                      无被拒绝的候选链接。
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {allRejections.map((rej, idx) => (
+                        <div
+                          key={idx}
+                          className="p-3 bg-gray-950/80 border border-red-500/20 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 text-[10px] font-bold font-mono">
+                              REJECTED
+                            </span>
+                            <code className="text-amber-300 font-mono text-xs truncate max-w-xs sm:max-w-md">
+                              {rej.rawHref}
+                            </code>
+                          </div>
+                          <div className="text-gray-400 text-[11px] italic text-right">
+                            {rej.reason}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* Tab Content */}
         {activeTab === 'work_items' && (
           <div className="space-y-4">
-            {workItems.length === 0 ? (
+            {(workItemDetails.length > 0 ? workItemDetails : workItems).length === 0 ? (
               <div className="p-8 text-center text-gray-500 border border-gray-800 rounded-xl">
                 No work items created yet.
               </div>
             ) : (
-              workItems.map((item) => (
-                <div key={item.id} className="p-5 bg-gray-900 border border-gray-800 rounded-xl space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <span className="font-mono font-semibold text-white text-base">
-                        {item.title}
-                      </span>
-                      <span className="font-mono text-xs text-gray-400 bg-gray-950 px-2 py-0.5 rounded border border-gray-800">
-                        {item.key}
-                      </span>
-                      <span className="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                        {item.work_type}
+              (workItemDetails.length > 0 ? workItemDetails : workItems).map((item) => {
+                const detail = workItemDetails.find((d) => d.id === item.id) || (item as any);
+                return (
+                  <div key={item.id} className="p-5 bg-gray-900 border border-gray-800 rounded-xl space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <span className="font-mono font-semibold text-white text-base">
+                          {item.title}
+                        </span>
+                        <span className="font-mono text-xs text-gray-400 bg-gray-950 px-2 py-0.5 rounded border border-gray-800">
+                          {item.key}
+                        </span>
+                        <span className="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                          {item.work_type}
+                        </span>
+                        {detail.created_round_num !== undefined && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                            Round {detail.created_round_num}
+                          </span>
+                        )}
+                      </div>
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center gap-1.5 ${
+                        item.status === 'completed' ? 'bg-green-500/10 text-green-400 border border-green-500/30' :
+                        item.status === 'running' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30 animate-pulse' :
+                        item.status === 'blocked' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' :
+                        item.status === 'failed' ? 'bg-red-500/10 text-red-400 border border-red-500/30' :
+                        'bg-gray-800 text-gray-400'
+                      }`}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                        {item.status.toUpperCase()}
                       </span>
                     </div>
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center gap-1.5 ${
-                      item.status === 'completed' ? 'bg-green-500/10 text-green-400 border border-green-500/30' :
-                      item.status === 'running' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30 animate-pulse' :
-                      item.status === 'blocked' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' :
-                      item.status === 'failed' ? 'bg-red-500/10 text-red-400 border border-red-500/30' :
-                      'bg-gray-800 text-gray-400'
-                    }`}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                      {item.status.toUpperCase()}
-                    </span>
-                  </div>
 
-                  <p className="text-sm text-gray-300 font-sans leading-relaxed">
-                    {item.objective}
-                  </p>
+                    <p className="text-sm text-gray-300 font-sans leading-relaxed">
+                      {item.objective}
+                    </p>
 
-                  {item.blocked_reason && (
-                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-300 text-xs">
-                      <strong>Blocked Reason:</strong> {item.blocked_reason}
-                    </div>
-                  )}
-
-                  <div className="flex flex-wrap items-center gap-4 text-xs text-gray-400 pt-1 border-t border-gray-800/80">
-                    {item.current_attempt_id && (
-                      <span className="font-mono">
-                        Attempt: <span className="text-gray-200">{item.current_attempt_id.slice(0, 8)}</span>
-                      </span>
+                    {/* Traceability: Target Assets */}
+                    {detail.target_assets && detail.target_assets.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                        <span className="font-semibold text-gray-400">Target Assets:</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {detail.target_assets.map((ta: any) => (
+                            <Link
+                              key={ta.id}
+                              href={`/assets/${ta.id}`}
+                              className="font-mono text-[11px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 hover:text-white border border-indigo-500/20 hover:border-indigo-400 transition-colors"
+                            >
+                              {ta.name} ({ta.external_key})
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
                     )}
-                    <span>Created: {new Date(item.created_at).toLocaleTimeString()}</span>
-                  </div>
 
-                  {item.output_data && Object.keys(item.output_data).length > 0 && (
-                    <div className="pt-2">
-                      <span className="text-[11px] text-gray-400 font-semibold block mb-1">Output Data:</span>
-                      <pre className="p-2.5 bg-gray-950 border border-gray-800 rounded text-xs font-mono text-emerald-300 overflow-x-auto max-h-48">
-                        {JSON.stringify(item.output_data, null, 2)}
-                      </pre>
+                    {/* Traceability: Source Observations */}
+                    {detail.source_observations && detail.source_observations.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-amber-400/90">
+                        <span className="font-semibold">Causal Source Obs:</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {detail.source_observations.map((so: any) => (
+                            <span
+                              key={so.id}
+                              className="font-mono text-[11px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30"
+                            >
+                              [{so.obs_type}] {so.content.slice(0, 30)}...
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Dependencies */}
+                    {detail.dependencies && detail.dependencies.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                        <span className="font-semibold text-gray-400">Prerequisites:</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {detail.dependencies.map((dep: any) => (
+                            <span
+                              key={dep.id}
+                              className="font-mono text-[11px] px-2 py-0.5 rounded bg-gray-950 text-gray-300 border border-gray-800"
+                            >
+                              {dep.key}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {item.blocked_reason && (
+                      <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-300 text-xs">
+                        <strong>Blocked Reason:</strong> {item.blocked_reason}
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-gray-400 pt-1 border-t border-gray-800/80">
+                      {item.current_attempt_id && (
+                        <span className="font-mono">
+                          Attempt: <span className="text-gray-200">{item.current_attempt_id.slice(0, 8)}</span>
+                        </span>
+                      )}
+                      <span>Created: {new Date(item.created_at).toLocaleTimeString()}</span>
                     </div>
-                  )}
-                </div>
-              ))
+
+                    {item.output_data && Object.keys(item.output_data).length > 0 && (
+                      <div className="pt-2">
+                        <span className="text-[11px] text-gray-400 font-semibold block mb-1">Output Data:</span>
+                        <pre className="p-2.5 bg-gray-950 border border-gray-800 rounded text-xs font-mono text-emerald-300 overflow-x-auto max-h-48">
+                          {JSON.stringify(item.output_data, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
         )}
@@ -661,13 +1089,24 @@ export default function RunDetailPage() {
               observations.map((obs) => (
                 <div key={obs.id} className="p-4 bg-gray-900 border border-emerald-500/20 rounded-xl space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="flex items-center space-x-2.5">
+                    <div className="flex flex-wrap items-center gap-2.5">
                       <span className="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
                         {obs.obs_type}
                       </span>
                       <span className="font-mono text-xs text-gray-500">
                         {obs.id.slice(0, 8)}
                       </span>
+                      {obs.asset_id && (
+                        <Link
+                          href={`/assets/${obs.asset_id}`}
+                          className="px-2 py-0.5 text-xs font-mono rounded bg-indigo-500/10 text-indigo-300 hover:text-white border border-indigo-500/20 transition-colors flex items-center gap-1"
+                        >
+                          <span>Asset:</span>
+                          <span className="underline">
+                            {runAssets.find((a) => a.id === obs.asset_id)?.name || obs.asset_id.slice(0, 8)}
+                          </span>
+                        </Link>
+                      )}
                     </div>
                     <div className="flex items-center space-x-2 text-xs">
                       <span className="text-gray-400">Source Evidence:</span>
@@ -682,10 +1121,35 @@ export default function RunDetailPage() {
                   </p>
 
                   {obs.data && Object.keys(obs.data).length > 0 && (
-                    <div className="pt-1">
-                      <pre className="p-2 bg-gray-950 border border-gray-800 rounded text-xs font-mono text-gray-300 overflow-x-auto">
-                        {JSON.stringify(obs.data, null, 2)}
-                      </pre>
+                    <div className="space-y-2 pt-1">
+                      {(Boolean(obs.data.model_extracted) || Boolean(obs.data.http_evidence)) ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {Boolean(obs.data.model_extracted) && (
+                            <div className="p-3 bg-gray-950 border border-indigo-500/30 rounded-lg space-y-1.5">
+                              <span className="text-[11px] font-semibold text-indigo-400 uppercase tracking-wider block">
+                                🤖 模型提炼内容 (Model Extracted)
+                              </span>
+                              <pre className="text-xs font-mono text-indigo-200 overflow-x-auto whitespace-pre-wrap">
+                                {JSON.stringify(obs.data.model_extracted, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                          {Boolean(obs.data.http_evidence) && (
+                            <div className="p-3 bg-gray-950 border border-emerald-500/30 rounded-lg space-y-1.5">
+                              <span className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider block">
+                                🌐 底层真实 HTTP 证据 (Raw Evidence)
+                              </span>
+                              <pre className="text-xs font-mono text-emerald-200 overflow-x-auto whitespace-pre-wrap">
+                                {JSON.stringify(obs.data.http_evidence, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <pre className="p-2 bg-gray-950 border border-gray-800 rounded text-xs font-mono text-gray-300 overflow-x-auto">
+                          {JSON.stringify(obs.data, null, 2)}
+                        </pre>
+                      )}
                     </div>
                   )}
 
@@ -835,10 +1299,93 @@ export default function RunDetailPage() {
 
                   {tc.output && (
                     <div>
-                      <span className="text-[11px] text-gray-400 font-semibold block mb-1">Output:</span>
-                      <pre className="p-2.5 bg-gray-950 border border-gray-800 rounded text-xs font-mono text-emerald-300 overflow-x-auto max-h-60">
-                        {tc.output}
-                      </pre>
+                      {tc.tool_name === 'get_endpoint' ? (() => {
+                        const httpData = parseHttpOutput(tc.output);
+                        if (!httpData) {
+                          return (
+                            <div>
+                              <span className="text-[11px] text-gray-400 font-semibold block mb-1">Output:</span>
+                              <pre className="p-2.5 bg-gray-950 border border-gray-800 rounded text-xs font-mono text-emerald-300 overflow-x-auto max-h-60">
+                                {tc.output}
+                              </pre>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="space-y-3">
+                            <span className="text-[11px] text-gray-400 font-semibold block">HTTP Request & Evidence:</span>
+                            {/* HTTP Request & Response Status bar */}
+                            <div className="p-3 bg-gray-950 rounded-lg border border-gray-800 flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs font-bold font-mono rounded">
+                                  {httpData.request?.method || 'GET'}
+                                </span>
+                                <span className="text-xs font-mono text-gray-200 break-all">
+                                  {httpData.request?.url}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {httpData.response?.status_code && getStatusCodeBadge(httpData.response.status_code)}
+                                {httpData.response?.duration_ms !== undefined && (
+                                  <span className="text-xs font-mono text-gray-400 bg-gray-900 px-2 py-0.5 rounded border border-gray-800">
+                                    {httpData.response.duration_ms} ms
+                                  </span>
+                                )}
+                                {httpData.integrity?.is_truncated && (
+                                  <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[11px] font-semibold rounded border border-amber-500/30 flex items-center gap-1">
+                                    <span>⚠️</span>
+                                    <span>响应已被截断至 64 KiB</span>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Response Headers */}
+                            {httpData.response?.headers && Object.keys(httpData.response.headers).length > 0 && (
+                              <div>
+                                <span className="text-[11px] text-gray-400 font-semibold block mb-1">Response Headers:</span>
+                                <div className="p-2.5 bg-gray-950 border border-gray-800 rounded text-xs font-mono text-gray-300 space-y-1 max-h-40 overflow-y-auto">
+                                  {Object.entries(httpData.response.headers).map(([k, v]) => (
+                                    <div key={k} className="flex gap-2">
+                                      <span className="text-indigo-400 shrink-0">{k}:</span>
+                                      <span className="text-gray-300 break-all">{v}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Response Body Preview */}
+                            {httpData.response?.body !== undefined && (
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-[11px] text-gray-400 font-semibold">Response Body Preview:</span>
+                                  <span className="text-[11px] text-gray-500 font-mono">
+                                    Saved {httpData.integrity?.saved_bytes ?? 0} bytes
+                                  </span>
+                                </div>
+                                <pre className="p-2.5 bg-gray-950 border border-gray-800 rounded text-xs font-mono text-emerald-300 overflow-x-auto max-h-60 whitespace-pre-wrap break-all">
+                                  {httpData.response.body || '<empty body>'}
+                                </pre>
+                              </div>
+                            )}
+
+                            {/* Error Info if any */}
+                            {httpData.error && (
+                              <div className="p-2.5 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-xs font-mono">
+                                <span className="font-semibold">[{httpData.error.type}]</span> {httpData.error.message}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })() : (
+                        <div>
+                          <span className="text-[11px] text-gray-400 font-semibold block mb-1">Output:</span>
+                          <pre className="p-2.5 bg-gray-950 border border-gray-800 rounded text-xs font-mono text-emerald-300 overflow-x-auto max-h-60">
+                            {tc.output}
+                          </pre>
+                        </div>
+                      )}
                     </div>
                   )}
 

@@ -29,6 +29,12 @@ export function Navbar() {
             >
               Tasks
             </Link>
+            <Link
+              href="/assets"
+              className="text-gray-300 hover:text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors"
+            >
+              Assets
+            </Link>
           </nav>
         </div>
       </div>

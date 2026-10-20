@@ -1,0 +1,24 @@
+=== RUN   TestReview_HTTPIncompleteBodyMustNotSucceed
+2026/10/20 09:14:40 INFO created run run_id=e1472d29-e0df-4e80-a0e4-901c1eee96cd task_id=c8185058-fdba-4102-bd9b-bc48e5476dc4 task_name="Review HTTP boundary"
+2026/10/20 09:14:40 INFO run state transition run_id=e1472d29-e0df-4e80-a0e4-901c1eee96cd from=queued to=running
+    review_phase5_regression_test.go:57: incomplete response body falsely returned success: {"error":null,"integrity":{"is_truncated":false,"note":"","saved_bytes":5},"request":{"asset_id":"1bdd3d17-43a4-4bd0-9e9f-9d33aac53dbc","method":"GET","started_at":"2026-10-20T01:14:40.80109875Z","url":"http://127.0.0.1:45019/health"},"response":{"body":"short","duration_ms":1,"headers":{"Content-Length":"100","Content-Type":"text/plain","Date":"Tue, 20 Oct 2026 01:14:40 GMT"},"received_at":"2026-10-20T01:14:40.802488934Z","status_code":200}}
+2026/10/20 09:14:40 INFO worker manager closed (no new workers accepted)
+2026/10/20 09:14:40 INFO all active workers stop requested
+--- FAIL: TestReview_HTTPIncompleteBodyMustNotSucceed (0.89s)
+=== RUN   TestReview_HTTPCancelAfterHeadersMustNotSucceed
+2026/10/20 09:14:41 INFO created run run_id=2785a627-0b9e-44a7-a86d-d213821e3166 task_id=44ec2ff9-c246-44a8-b506-20e1e1ec146d task_name="Review HTTP boundary"
+2026/10/20 09:14:41 INFO run state transition run_id=2785a627-0b9e-44a7-a86d-d213821e3166 from=queued to=running
+    review_phase5_regression_test.go:73: cancellation during body read falsely returned success: {"error":null,"integrity":{"is_truncated":false,"note":"","saved_bytes":6},"request":{"asset_id":"f889e02e-4b29-4b32-99fb-d4151c0b6dfd","method":"GET","started_at":"2026-10-20T01:14:41.177528952Z","url":"http://127.0.0.1:46145/health"},"response":{"body":"prefix","duration_ms":1,"headers":{"Content-Type":"text/plain","Date":"Tue, 20 Oct 2026 01:14:41 GMT"},"received_at":"2026-10-20T01:14:41.178552669Z","status_code":200}}
+2026/10/20 09:14:41 INFO worker manager closed (no new workers accepted)
+2026/10/20 09:14:41 INFO all active workers stop requested
+--- FAIL: TestReview_HTTPCancelAfterHeadersMustNotSucceed (0.47s)
+=== RUN   TestReview_HTTPRawEvidenceMustSurviveModelOutputBudget
+2026/10/20 09:14:41 INFO created run run_id=3e885bb0-2a6d-4aa3-8ee0-252d0379fb96 task_id=cdd938c9-115a-44ac-9cef-00e4160ef9ce task_name="Review HTTP boundary"
+2026/10/20 09:14:41 INFO run state transition run_id=3e885bb0-2a6d-4aa3-8ee0-252d0379fb96 from=queued to=running
+    review_phase5_regression_test.go:98: stored raw evidence became invalid JSON after model budget truncation: direct_bytes=66015 stored_bytes=8237 budget=8192
+2026/10/20 09:14:41 INFO worker manager closed (no new workers accepted)
+2026/10/20 09:14:41 INFO all active workers stop requested
+--- FAIL: TestReview_HTTPRawEvidenceMustSurviveModelOutputBudget (0.44s)
+FAIL
+FAIL	agent-workbench/backend/test	1.808s
+FAIL

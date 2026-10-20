@@ -67,7 +67,7 @@ func setupTestEnv(t *testing.T) *TestEnv {
 	}
 
 	// Clean tables
-	_, err = pool.Exec(ctx, "TRUNCATE tasks CASCADE")
+	_, err = pool.Exec(ctx, "TRUNCATE tasks, assets CASCADE")
 	if err != nil {
 		t.Fatalf("failed truncate: %v", err)
 	}
@@ -117,7 +117,7 @@ func createTestTask(t *testing.T, env *TestEnv, name string) model.Task {
 	body, _ := json.Marshal(map[string]interface{}{
 		"name":      name,
 		"objective": "Test objective for " + name,
-		"scope":     map[string]interface{}{"targets": []string{"127.0.0.1"}},
+		"scope":     map[string]interface{}{"targets": []string{"127.0.0.1"}, "endpoints": []string{"sample_home", "sample_login", "sample_health"}},
 		"config":    map[string]interface{}{"mode": "aggressive"},
 	})
 	req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(body))

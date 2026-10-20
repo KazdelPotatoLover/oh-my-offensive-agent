@@ -1,5 +1,6 @@
 # Go
 backend/server
+backend/fixture
 backend/tmp/
 backend/vendor/
 
@@ -7,6 +8,7 @@ backend/vendor/
 frontend/node_modules/
 frontend/.next/
 frontend/out/
+frontend/tsconfig.tsbuildinfo
 
 # Environment
 .env

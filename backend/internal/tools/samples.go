@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 type SampleData struct {
@@ -127,10 +129,20 @@ func (t *ListSamplesTool) Execute(ctx context.Context, argumentsJSON []byte) (st
 }
 
 // ReadSampleTool implements the read_sample tool.
-type ReadSampleTool struct{}
+type ReadSampleTool struct {
+	runID      uuid.UUID
+	scopeCheck func(ctx context.Context, sampleID string) (bool, error)
+}
 
 func NewReadSampleTool() *ReadSampleTool {
 	return &ReadSampleTool{}
+}
+
+func NewReadSampleToolWithScope(runID uuid.UUID, scopeCheck func(ctx context.Context, sampleID string) (bool, error)) *ReadSampleTool {
+	return &ReadSampleTool{
+		runID:      runID,
+		scopeCheck: scopeCheck,
+	}
 }
 
 func (t *ReadSampleTool) Name() string {
@@ -203,6 +215,16 @@ func (t *ReadSampleTool) Execute(ctx context.Context, argumentsJSON []byte) (str
 	var args ReadSampleArgs
 	if err := json.Unmarshal(argumentsJSON, &args); err != nil {
 		return "", err
+	}
+
+	if t.scopeCheck != nil {
+		allowed, err := t.scopeCheck(ctx, args.SampleID)
+		if err != nil {
+			return "", err
+		}
+		if !allowed {
+			return "", fmt.Errorf("sample '%s' is outside the scope of run %s", args.SampleID, t.runID)
+		}
 	}
 
 	sample, ok := BuiltinSamples[args.SampleID]

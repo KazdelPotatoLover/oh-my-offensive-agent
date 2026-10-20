@@ -53,19 +53,20 @@ type Task struct {
 }
 
 type Run struct {
-	ID             uuid.UUID       `json:"id"`
-	TaskID         uuid.UUID       `json:"task_id"`
-	IdempotencyKey *string         `json:"idempotency_key,omitempty"`
-	ConfigSnapshot json.RawMessage `json:"config_snapshot"`
-	ExecutionInput json.RawMessage `json:"execution_input"`
-	Status         RunStatus       `json:"status"`
-	FinishReason   *string         `json:"finish_reason,omitempty"`
-	FailAtStep     *int            `json:"fail_at_step,omitempty"`
-	FinalOutput    *string         `json:"final_output,omitempty"`
-	StartedAt      *time.Time      `json:"started_at,omitempty"`
-	FinishedAt     *time.Time      `json:"finished_at,omitempty"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
+	ID                 uuid.UUID       `json:"id"`
+	TaskID             uuid.UUID       `json:"task_id"`
+	IdempotencyKey     *string         `json:"idempotency_key,omitempty"`
+	ConfigSnapshot     json.RawMessage `json:"config_snapshot"`
+	ExecutionInput     json.RawMessage `json:"execution_input"`
+	ScopePolicyVersion string          `json:"scope_policy_version"`
+	Status             RunStatus       `json:"status"`
+	FinishReason       *string         `json:"finish_reason,omitempty"`
+	FailAtStep         *int            `json:"fail_at_step,omitempty"`
+	FinalOutput        *string         `json:"final_output,omitempty"`
+	StartedAt          *time.Time      `json:"started_at,omitempty"`
+	FinishedAt         *time.Time      `json:"finished_at,omitempty"`
+	CreatedAt          time.Time       `json:"created_at"`
+	UpdatedAt          time.Time       `json:"updated_at"`
 }
 
 type RunEvent struct {
@@ -118,19 +119,20 @@ const (
 )
 
 type WorkItem struct {
-	ID               uuid.UUID       `json:"id"`
-	RunID            uuid.UUID       `json:"run_id"`
-	Key              string          `json:"key"`
-	Title            string          `json:"title"`
-	Objective        string          `json:"objective"`
-	WorkType         string          `json:"work_type"`
-	Status           WorkItemStatus  `json:"status"`
-	BlockedReason    *string         `json:"blocked_reason,omitempty"`
-	InputData        json.RawMessage `json:"input_data"`
-	OutputData       json.RawMessage `json:"output_data"`
-	CurrentAttemptID *uuid.UUID      `json:"current_attempt_id,omitempty"`
-	CreatedAt        time.Time       `json:"created_at"`
-	UpdatedAt        time.Time       `json:"updated_at"`
+	ID                       uuid.UUID       `json:"id"`
+	RunID                    uuid.UUID       `json:"run_id"`
+	Key                      string          `json:"key"`
+	Title                    string          `json:"title"`
+	Objective                string          `json:"objective"`
+	WorkType                 string          `json:"work_type"`
+	Status                   WorkItemStatus  `json:"status"`
+	BlockedReason            *string         `json:"blocked_reason,omitempty"`
+	InputData                json.RawMessage `json:"input_data"`
+	OutputData               json.RawMessage `json:"output_data"`
+	CurrentAttemptID         *uuid.UUID      `json:"current_attempt_id,omitempty"`
+	CreatedByPlannerRoundID  *uuid.UUID      `json:"created_by_planner_round_id,omitempty"`
+	CreatedAt                time.Time       `json:"created_at"`
+	UpdatedAt                time.Time       `json:"updated_at"`
 }
 
 type WorkDependency struct {
@@ -157,6 +159,7 @@ type Observation struct {
 	ID               uuid.UUID       `json:"id"`
 	RunID            uuid.UUID       `json:"run_id"`
 	AttemptID        uuid.UUID       `json:"attempt_id"`
+	AssetID          *uuid.UUID      `json:"asset_id,omitempty"`
 	ObsType          string          `json:"obs_type"`
 	Content          string          `json:"content"`
 	Data             json.RawMessage `json:"data"`
@@ -223,8 +226,8 @@ type BudgetConfig struct {
 
 func DefaultBudgetConfig() BudgetConfig {
 	return BudgetConfig{
-		MaxModelCalls:       12,
-		MaxToolCalls:        16,
+		MaxModelCalls:       30,
+		MaxToolCalls:        30,
 		RunTimeoutSeconds:   120,
 		ModelTimeoutSeconds: 30,
 		ToolTimeoutSeconds:  5,
@@ -251,8 +254,115 @@ type UpdateTaskRequest struct {
 
 type CreateRunRequest struct {
 	FailAtStep   *int          `json:"fail_at_step,omitempty"`
-	Executor     *string       `json:"executor,omitempty"`      // "fake" or "agent"
+	Executor     *string       `json:"executor,omitempty"`      // "fake" or "agent" or "orchestrator"
 	Provider     *string       `json:"provider,omitempty"`      // "mock" or "openai"
-	MockScenario *string       `json:"mock_scenario,omitempty"` // e.g. "normal", "multi_tool", etc.
+	MockScenario *string       `json:"mock_scenario,omitempty"` // e.g. "normal", "multi_tool", "orchestration", "traceability"
 	Budget       *BudgetConfig `json:"budget,omitempty"`
 }
+
+// --- Phase 4: Assets & Traceability Models ---
+
+type Asset struct {
+	ID          uuid.UUID       `json:"id"`
+	Namespace   string          `json:"namespace"`
+	Kind        string          `json:"kind"`
+	ExternalKey string          `json:"external_key"`
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	Metadata    json.RawMessage `json:"metadata"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
+}
+
+type RunAsset struct {
+	ID        uuid.UUID       `json:"id"`
+	RunID     uuid.UUID       `json:"run_id"`
+	AssetID   uuid.UUID       `json:"asset_id"`
+	Snapshot  json.RawMessage `json:"snapshot"`
+	CreatedAt time.Time       `json:"created_at"`
+}
+
+type WorkItemAsset struct {
+	ID         uuid.UUID `json:"id"`
+	WorkItemID uuid.UUID `json:"work_item_id"`
+	AssetID    uuid.UUID `json:"asset_id"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+type WorkItemSource struct {
+	ID                  uuid.UUID `json:"id"`
+	WorkItemID          uuid.UUID `json:"work_item_id"`
+	SourceObservationID uuid.UUID `json:"source_observation_id"`
+	CreatedAt           time.Time `json:"created_at"`
+}
+
+// AssetSummary represents an asset with its usage statistics across runs and observations
+type AssetSummary struct {
+	Asset
+	RunCount         int `json:"run_count"`
+	ObservationCount int `json:"observation_count"`
+	WorkItemCount    int `json:"work_item_count"`
+}
+
+// WorkItemDetail represents a work item enriched with target assets, source observations, and dependencies
+type WorkItemDetail struct {
+	WorkItem
+	TargetAssets       []Asset         `json:"target_assets"`
+	SourceObservations []Observation   `json:"source_observations"`
+	Dependencies       []WorkItem      `json:"dependencies"`
+	CreatedRoundNum    *int            `json:"created_round_num,omitempty"`
+}
+
+// ObservationDetail represents an observation enriched with its underlying tool call evidence
+type ObservationDetail struct {
+	Observation
+	ToolCall *AgentToolCall `json:"tool_call,omitempty"`
+}
+
+// AssetRunHistory represents the work items and observations for an asset within a specific Run
+type AssetRunHistory struct {
+	RunID        uuid.UUID              `json:"run_id"`
+	TaskID       uuid.UUID              `json:"task_id"`
+	TaskName     string                 `json:"task_name"`
+	RunStatus    RunStatus              `json:"run_status"`
+	StartedAt    *time.Time             `json:"started_at,omitempty"`
+	FinishedAt   *time.Time             `json:"finished_at,omitempty"`
+	DiscoveredBy *AssetDiscoveryDetail  `json:"discovered_by,omitempty"`
+	WorkItems    []WorkItemDetail       `json:"work_items"`
+	Observations []ObservationDetail    `json:"observations"`
+}
+
+// AssetDetailsResponse represents the detailed view of an asset grouped by Run
+type AssetDetailsResponse struct {
+	Asset      Asset             `json:"asset"`
+	RunHistory []AssetRunHistory `json:"run_history"`
+}
+
+type DiscoveryPolicy struct {
+	Mode              string   `json:"mode,omitempty"`                // "exact_paths" or "same_origin_html"
+	Origin            string   `json:"origin"`
+	AllowedMethods    []string `json:"allowed_methods"`
+	AllowedPaths      []string `json:"allowed_paths,omitempty"`
+	MaxPages          int      `json:"max_pages,omitempty"`           // default 20
+	MaxDepth          int      `json:"max_depth,omitempty"`           // default 2
+	RequestIntervalMs int      `json:"request_interval_ms,omitempty"` // default 500ms
+}
+
+type AssetDiscovery struct {
+	ID               uuid.UUID `json:"id"`
+	RunID            uuid.UUID `json:"run_id"`
+	SourceAssetID    uuid.UUID `json:"source_asset_id"`
+	SourceToolCallID uuid.UUID `json:"source_tool_call_id"`
+	TargetAssetID    uuid.UUID `json:"target_asset_id"`
+	RawHref          string    `json:"raw_href"`
+	DiscoveredAt     time.Time `json:"discovered_at"`
+}
+
+type AssetDiscoveryDetail struct {
+	AssetDiscovery
+	SourceAssetName string `json:"source_asset_name,omitempty"`
+	SourceAssetKey  string `json:"source_asset_key,omitempty"`
+	TargetAssetName string `json:"target_asset_name,omitempty"`
+	TargetAssetKey  string `json:"target_asset_key,omitempty"`
+}
+

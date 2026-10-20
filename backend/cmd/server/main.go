@@ -66,6 +66,7 @@ func main() {
 	// Initialize handlers
 	taskHandler := handler.NewTaskHandler(taskService)
 	runHandler := handler.NewRunHandler(runService, taskService, manager)
+	assetHandler := handler.NewAssetHandler(runService)
 
 	// Set up router
 	r := chi.NewRouter()
@@ -84,6 +85,11 @@ func main() {
 
 	// Routes
 	r.Route("/api", func(r chi.Router) {
+		// Assets
+		r.Get("/assets", assetHandler.List)
+		r.Get("/assets/{assetID}", assetHandler.Get)
+		r.Get("/assets/{assetID}/details", assetHandler.GetDetails)
+
 		// Tasks
 		r.Get("/tasks", taskHandler.List)
 		r.Post("/tasks", taskHandler.Create)
@@ -103,9 +109,12 @@ func main() {
 		r.Get("/runs/{runID}/model_calls", runHandler.GetModelCalls)
 		r.Get("/runs/{runID}/tool_calls", runHandler.GetToolCalls)
 		r.Get("/runs/{runID}/work_items", runHandler.GetWorkItems)
+		r.Get("/runs/{runID}/work_items/details", runHandler.GetWorkItemDetails)
 		r.Get("/runs/{runID}/observations", runHandler.GetObservations)
 		r.Get("/runs/{runID}/sessions", runHandler.GetSessions)
 		r.Get("/runs/{runID}/planner_rounds", runHandler.GetPlannerRounds)
+		r.Get("/runs/{runID}/assets", runHandler.GetRunAssets)
+		r.Get("/runs/{runID}/discoveries", runHandler.GetDiscoveries)
 	})
 
 	// Health check

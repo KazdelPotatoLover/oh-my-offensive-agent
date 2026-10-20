@@ -1,0 +1,2009 @@
+{
+  "task_id": "dc4592ae-e5bf-46fc-bac9-bc68fdc11869",
+  "task_url": "http://localhost:23000/tasks/dc4592ae-e5bf-46fc-bac9-bc68fdc11869",
+  "original_fixture_version": "2.0.0",
+  "requests_before": {
+    "counts_by_path": {
+      "/health": 11,
+      "/login": 2
+    },
+    "total_requests": 13,
+    "version": "2.0.0"
+  },
+  "run_ids": [
+    "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+    "0b07c676-4e9d-4847-a390-35cb0a0a5bbb"
+  ],
+  "runs": [
+    {
+      "expected_version": "review-v1",
+      "run": {
+        "id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+        "task_id": "dc4592ae-e5bf-46fc-bac9-bc68fdc11869",
+        "config_snapshot": {},
+        "execution_input": {
+          "scope": {
+            "endpoints": [
+              "/health"
+            ]
+          },
+          "budget": {
+            "max_tool_calls": 30,
+            "max_work_items": 12,
+            "max_model_calls": 30,
+            "max_planner_rounds": 8,
+            "run_timeout_seconds": 120,
+            "max_parallel_workers": 1,
+            "tool_timeout_seconds": 5,
+            "max_tool_output_bytes": 8192,
+            "model_timeout_seconds": 30
+          },
+          "config": {},
+          "objective": "读取本地 /health，记录版本号、HTTP 状态和证据，比较两次运行。",
+          "parameters": {
+            "fail_at_step": null
+          },
+          "agent_config": {
+            "budget": {
+              "max_tool_calls": 30,
+              "max_work_items": 12,
+              "max_model_calls": 30,
+              "max_planner_rounds": 8,
+              "run_timeout_seconds": 120,
+              "max_parallel_workers": 1,
+              "tool_timeout_seconds": 5,
+              "max_tool_output_bytes": 8192,
+              "model_timeout_seconds": 30
+            },
+            "executor": "orchestrator",
+            "provider": "mock",
+            "mock_scenario": "http_traceability",
+            "tools_version": "v1",
+            "prompt_version": "v1"
+          }
+        },
+        "scope_policy_version": "v1",
+        "status": "completed",
+        "finish_reason": "completed",
+        "final_output": "All target HTTP endpoints were verified via real GET requests. Verified real HTTP status codes and response bodies from local fixture application. Evidence observation: 29352f2c-15c1-4ac6-b58e-8429d376d24f.",
+        "started_at": "2026-10-20T01:14:02.336853Z",
+        "finished_at": "2026-10-20T01:14:02.735514Z",
+        "created_at": "2026-10-20T01:14:02.326048Z",
+        "updated_at": "2026-10-20T01:14:02.735514Z"
+      },
+      "tool_calls": {
+        "tool_calls": [
+          {
+            "id": "6390f86e-8978-4479-8a90-66e9f57efcd8",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "session_id": "aaf7eccf-7f89-49a3-b45a-190f78f11482",
+            "model_call_id": "287f4a6d-408b-418c-a879-9bae3eb37df7",
+            "call_id": "call_submit_plan_http",
+            "tool_name": "submit_plan",
+            "arguments": {
+              "items": [
+                {
+                  "key": "inspect_http_home",
+                  "title": "Inspect HTTP Home",
+                  "asset_ids": [
+                    "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9"
+                  ],
+                  "objective": "Fetch root page",
+                  "work_type": "inspect_http_endpoint",
+                  "input_data": {
+                    "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9"
+                  }
+                },
+                {
+                  "key": "inspect_http_health",
+                  "title": "Inspect HTTP Health",
+                  "asset_ids": [
+                    "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9"
+                  ],
+                  "objective": "Fetch health status",
+                  "work_type": "inspect_http_endpoint",
+                  "input_data": {
+                    "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9"
+                  }
+                },
+                {
+                  "key": "aggregate_summary",
+                  "title": "Aggregate HTTP Findings",
+                  "asset_ids": [
+                    "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+                    "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9"
+                  ],
+                  "objective": "Summarize observations",
+                  "work_type": "aggregate_summary",
+                  "dependencies": [
+                    "inspect_http_home",
+                    "inspect_http_health"
+                  ]
+                }
+              ],
+              "summary": "Plan to inspect all configured HTTP fixture endpoints and aggregate observations"
+            },
+            "output": "{\"created_count\":3,\"message\":\"Plan submitted successfully with 3 work items\",\"status\":\"success\"}",
+            "status": "success",
+            "started_at": "2026-10-20T01:14:02.378537Z",
+            "finished_at": "2026-10-20T01:14:02.390381Z",
+            "created_at": "2026-10-20T01:14:02.3729Z"
+          },
+          {
+            "id": "2be4efb2-d697-4b1e-87bb-73da12c3054f",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "session_id": "eccd1e04-d129-430e-ae4e-0ce6225f8b86",
+            "model_call_id": "145046de-39d4-4e3f-8f58-2d7e70e5bbb8",
+            "call_id": "call_get_f9cf3404",
+            "tool_name": "get_endpoint",
+            "arguments": {
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9"
+            },
+            "output": "{\"error\":null,\"integrity\":{\"is_truncated\":false,\"note\":\"\",\"saved_bytes\":37},\"request\":{\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"method\":\"GET\",\"started_at\":\"2026-10-20T01:14:02.451166397Z\",\"url\":\"http://127.0.0.1:29090/health\"},\"response\":{\"body\":\"{\\\"status\\\":\\\"UP\\\",\\\"version\\\":\\\"review-v1\\\"}\",\"duration_ms\":0,\"headers\":{\"Content-Length\":\"37\",\"Content-Type\":\"application/json\",\"Date\":\"Tue, 20 Oct 2026 01:14:02 GMT\",\"X-Fixture-App\":\"local-fixture-v1\"},\"received_at\":\"2026-10-20T01:14:02.451973753Z\",\"status_code\":200}}",
+            "status": "success",
+            "started_at": "2026-10-20T01:14:02.449364Z",
+            "finished_at": "2026-10-20T01:14:02.452047Z",
+            "created_at": "2026-10-20T01:14:02.444071Z"
+          },
+          {
+            "id": "05d9705c-0a7b-4c25-b836-2a553392ba1f",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "session_id": "eccd1e04-d129-430e-ae4e-0ce6225f8b86",
+            "model_call_id": "c1eaddde-2ea5-4412-b795-8430077250dc",
+            "call_id": "call_obs_f9cf3404",
+            "tool_name": "record_observation",
+            "arguments": {
+              "data": {
+                "version": "review-v1",
+                "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+                "status_code": 200
+              },
+              "content": "Health check reported version review-v1",
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+              "obs_type": "service_version",
+              "source_tool_call_id": "call_get_f9cf3404"
+            },
+            "output": "{\"status\":\"recorded\",\"observation_id\":\"29352f2c-15c1-4ac6-b58e-8429d376d24f\"}",
+            "status": "success",
+            "started_at": "2026-10-20T01:14:02.479842Z",
+            "finished_at": "2026-10-20T01:14:02.489103Z",
+            "created_at": "2026-10-20T01:14:02.474755Z"
+          },
+          {
+            "id": "ff7fdc24-f326-4026-8d98-824f23119d7c",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "session_id": "4412cf68-459c-4053-98f3-38fdd6bd32e7",
+            "model_call_id": "3146713e-6976-4144-8f0a-7915ba324ccd",
+            "call_id": "call_get_f9cf3404",
+            "tool_name": "get_endpoint",
+            "arguments": {
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9"
+            },
+            "output": "{\"error\":null,\"integrity\":{\"is_truncated\":false,\"note\":\"\",\"saved_bytes\":37},\"request\":{\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"method\":\"GET\",\"started_at\":\"2026-10-20T01:14:02.549121641Z\",\"url\":\"http://127.0.0.1:29090/health\"},\"response\":{\"body\":\"{\\\"status\\\":\\\"UP\\\",\\\"version\\\":\\\"review-v1\\\"}\",\"duration_ms\":0,\"headers\":{\"Content-Length\":\"37\",\"Content-Type\":\"application/json\",\"Date\":\"Tue, 20 Oct 2026 01:14:02 GMT\",\"X-Fixture-App\":\"local-fixture-v1\"},\"received_at\":\"2026-10-20T01:14:02.550089834Z\",\"status_code\":200}}",
+            "status": "success",
+            "started_at": "2026-10-20T01:14:02.547621Z",
+            "finished_at": "2026-10-20T01:14:02.550131Z",
+            "created_at": "2026-10-20T01:14:02.542127Z"
+          },
+          {
+            "id": "179b4899-64b9-4b44-bcac-9076c33d4cdb",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "session_id": "4412cf68-459c-4053-98f3-38fdd6bd32e7",
+            "model_call_id": "aed955da-b7a0-4d16-9902-636ff76dba0a",
+            "call_id": "call_obs_f9cf3404",
+            "tool_name": "record_observation",
+            "arguments": {
+              "data": {
+                "version": "review-v1",
+                "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+                "status_code": 200
+              },
+              "content": "Health check reported version review-v1",
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+              "obs_type": "service_version",
+              "source_tool_call_id": "call_get_f9cf3404"
+            },
+            "output": "{\"status\":\"recorded\",\"observation_id\":\"1f2bb7d8-9b96-43f2-ae5e-76779531fd99\"}",
+            "status": "success",
+            "started_at": "2026-10-20T01:14:02.576316Z",
+            "finished_at": "2026-10-20T01:14:02.584288Z",
+            "created_at": "2026-10-20T01:14:02.571422Z"
+          },
+          {
+            "id": "b86f974f-139d-473b-9891-be9f1f6eb08d",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "session_id": "15814eb6-b976-4a11-8f80-2a201f2e561c",
+            "model_call_id": "02ebb83f-41c7-4d37-8f42-2bf42871917b",
+            "call_id": "call_read_obs_all",
+            "tool_name": "read_observations",
+            "arguments": {},
+            "output": "{\"observations\":[{\"id\":\"29352f2c-15c1-4ac6-b58e-8429d376d24f\",\"run_id\":\"16b562f8-89be-4535-8eb1-8aed400ec0b1\",\"attempt_id\":\"bd5efa01-5eda-42e1-9f14-ccdec90eb54e\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"obs_type\":\"service_version\",\"content\":\"Health check reported version review-v1\",\"data\":{\"version\":\"review-v1\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"status_code\":200},\"source_tool_call_id\":\"2be4efb2-d697-4b1e-87bb-73da12c3054f\",\"created_at\":\"2026-10-20T01:14:02.481253Z\"},{\"id\":\"1f2bb7d8-9b96-43f2-ae5e-76779531fd99\",\"run_id\":\"16b562f8-89be-4535-8eb1-8aed400ec0b1\",\"attempt_id\":\"3ebee591-c3f3-414f-af9b-1914bdd472ed\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"obs_type\":\"service_version\",\"content\":\"Health check reported version review-v1\",\"data\":{\"version\":\"review-v1\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"status_code\":200},\"source_tool_call_id\":\"ff7fdc24-f326-4026-8d98-824f23119d7c\",\"created_at\":\"2026-10-20T01:14:02.57761Z\"}],\"total_observations\":2}",
+            "status": "success",
+            "started_at": "2026-10-20T01:14:02.641845Z",
+            "finished_at": "2026-10-20T01:14:02.64242Z",
+            "created_at": "2026-10-20T01:14:02.63734Z"
+          },
+          {
+            "id": "b2396d59-f9ca-4512-a4fb-25c15bcfa486",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "session_id": "82531937-1444-4914-a7ed-2ef9e559285e",
+            "model_call_id": "727a883f-5a44-48ff-a83a-055c654dbf1f",
+            "call_id": "call_suggest_completion_http",
+            "tool_name": "suggest_completion",
+            "arguments": {
+              "conclusion": "complete",
+              "final_summary": "All target HTTP endpoints were verified via real GET requests. Verified real HTTP status codes and response bodies from local fixture application. Evidence observation: 29352f2c-15c1-4ac6-b58e-8429d376d24f."
+            },
+            "output": "{\"status\":\"accepted\",\"conclusion\":\"complete\"}",
+            "status": "success",
+            "started_at": "2026-10-20T01:14:02.71028Z",
+            "finished_at": "2026-10-20T01:14:02.710882Z",
+            "created_at": "2026-10-20T01:14:02.705998Z"
+          }
+        ]
+      },
+      "observations": {
+        "observations": [
+          {
+            "id": "29352f2c-15c1-4ac6-b58e-8429d376d24f",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "attempt_id": "bd5efa01-5eda-42e1-9f14-ccdec90eb54e",
+            "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+            "obs_type": "service_version",
+            "content": "Health check reported version review-v1",
+            "data": {
+              "version": "review-v1",
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+              "status_code": 200
+            },
+            "source_tool_call_id": "2be4efb2-d697-4b1e-87bb-73da12c3054f",
+            "created_at": "2026-10-20T01:14:02.481253Z"
+          },
+          {
+            "id": "1f2bb7d8-9b96-43f2-ae5e-76779531fd99",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "attempt_id": "3ebee591-c3f3-414f-af9b-1914bdd472ed",
+            "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+            "obs_type": "service_version",
+            "content": "Health check reported version review-v1",
+            "data": {
+              "version": "review-v1",
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+              "status_code": 200
+            },
+            "source_tool_call_id": "ff7fdc24-f326-4026-8d98-824f23119d7c",
+            "created_at": "2026-10-20T01:14:02.57761Z"
+          }
+        ]
+      },
+      "assets": {
+        "assets": [
+          {
+            "id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+            "namespace": "local-fixture-v1",
+            "kind": "http_endpoint",
+            "external_key": "GET http://127.0.0.1:29090/health",
+            "name": "Local Fixture Health Check",
+            "description": "Health check endpoint of local fixture application",
+            "metadata": {
+              "url": "http://127.0.0.1:29090/health",
+              "path": "/health",
+              "port": "29090",
+              "method": "GET",
+              "content_type": "application/json"
+            },
+            "created_at": "2026-10-20T01:00:10.45493Z",
+            "updated_at": "2026-10-20T01:14:02.326048Z"
+          }
+        ]
+      },
+      "work_items": {
+        "work_items": [
+          {
+            "id": "f8e230c6-4264-41e0-84a2-f2dc26b3ead7",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "key": "inspect_http_home",
+            "title": "Inspect HTTP Home",
+            "objective": "Fetch root page",
+            "work_type": "inspect_http_endpoint",
+            "status": "completed",
+            "input_data": {
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9"
+            },
+            "output_data": {
+              "summary": "Successfully retrieved endpoint for asset f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9 and recorded evidence observation."
+            },
+            "current_attempt_id": "bd5efa01-5eda-42e1-9f14-ccdec90eb54e",
+            "created_by_planner_round_id": "ff5b6408-d0a9-4d1d-a046-7246319264c5",
+            "created_at": "2026-10-20T01:14:02.378809Z",
+            "updated_at": "2026-10-20T01:14:02.512034Z"
+          },
+          {
+            "id": "55c8e320-5f30-4ac9-a6a5-31861afd4545",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "key": "aggregate_summary",
+            "title": "Aggregate HTTP Findings",
+            "objective": "Summarize observations",
+            "work_type": "aggregate_summary",
+            "status": "completed",
+            "input_data": null,
+            "output_data": {
+              "summary": "Analyzed all prerequisite observations. All endpoints healthy and returning 200 OK."
+            },
+            "current_attempt_id": "f95e86b7-280c-4d82-b5c7-47acb62c0ac6",
+            "created_by_planner_round_id": "ff5b6408-d0a9-4d1d-a046-7246319264c5",
+            "created_at": "2026-10-20T01:14:02.378809Z",
+            "updated_at": "2026-10-20T01:14:02.664884Z"
+          },
+          {
+            "id": "d5910f88-6d76-46e3-901a-e064f90b95c5",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "key": "inspect_http_health",
+            "title": "Inspect HTTP Health",
+            "objective": "Fetch health status",
+            "work_type": "inspect_http_endpoint",
+            "status": "completed",
+            "input_data": {
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9"
+            },
+            "output_data": {
+              "summary": "Successfully retrieved endpoint for asset f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9 and recorded evidence observation."
+            },
+            "current_attempt_id": "3ebee591-c3f3-414f-af9b-1914bdd472ed",
+            "created_by_planner_round_id": "ff5b6408-d0a9-4d1d-a046-7246319264c5",
+            "created_at": "2026-10-20T01:14:02.378809Z",
+            "updated_at": "2026-10-20T01:14:02.606869Z"
+          }
+        ]
+      },
+      "events": {
+        "events": [
+          {
+            "id": "c6894553-9008-4eb2-ba75-af37eb54c442",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 1,
+            "type": "state_change",
+            "payload": {
+              "to": "queued",
+              "from": null
+            },
+            "created_at": "2026-10-20T01:14:02.326048Z"
+          },
+          {
+            "id": "72eae79f-737a-4257-986e-8ba829661cd0",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 2,
+            "type": "state_change",
+            "payload": {
+              "to": "running",
+              "from": "queued"
+            },
+            "created_at": "2026-10-20T01:14:02.336204Z"
+          },
+          {
+            "id": "6b80c762-e686-4c25-a493-480e62a8d7a1",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 3,
+            "type": "model_call_start",
+            "payload": {
+              "round": 1,
+              "model_call_id": "287f4a6d-408b-418c-a879-9bae3eb37df7"
+            },
+            "session_id": "aaf7eccf-7f89-49a3-b45a-190f78f11482",
+            "created_at": "2026-10-20T01:14:02.360847Z"
+          },
+          {
+            "id": "768313d4-7b61-427b-92cf-ffd0feec823e",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 4,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 1,
+              "has_content": false,
+              "finish_reason": "tool_calls",
+              "tool_calls_count": 1
+            },
+            "session_id": "aaf7eccf-7f89-49a3-b45a-190f78f11482",
+            "created_at": "2026-10-20T01:14:02.366623Z"
+          },
+          {
+            "id": "20427525-a8c9-48d4-86f2-ad79cfe6bcf6",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 5,
+            "type": "tool_call_start",
+            "payload": {
+              "call_id": "call_submit_plan_http",
+              "tool_name": "submit_plan"
+            },
+            "session_id": "aaf7eccf-7f89-49a3-b45a-190f78f11482",
+            "created_at": "2026-10-20T01:14:02.375684Z"
+          },
+          {
+            "id": "ce493db9-c8a6-4137-ac1e-0f0c9bac38a3",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 6,
+            "type": "tool_call_success",
+            "payload": {
+              "bytes": 96,
+              "call_id": "call_submit_plan_http",
+              "tool_name": "submit_plan"
+            },
+            "session_id": "aaf7eccf-7f89-49a3-b45a-190f78f11482",
+            "created_at": "2026-10-20T01:14:02.390563Z"
+          },
+          {
+            "id": "45376cdf-4fa5-4740-8c0f-d0990b929b2d",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 7,
+            "type": "model_call_start",
+            "payload": {
+              "round": 2,
+              "model_call_id": "f4649b18-534f-49db-89e3-e4f51bba25ff"
+            },
+            "session_id": "aaf7eccf-7f89-49a3-b45a-190f78f11482",
+            "created_at": "2026-10-20T01:14:02.400858Z"
+          },
+          {
+            "id": "07db1561-22c7-45b9-8e06-96b440a187e3",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 8,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 2,
+              "has_content": true,
+              "finish_reason": "stop",
+              "tool_calls_count": 0
+            },
+            "session_id": "aaf7eccf-7f89-49a3-b45a-190f78f11482",
+            "created_at": "2026-10-20T01:14:02.405438Z"
+          },
+          {
+            "id": "0238795c-fc06-4154-a0be-52de42669071",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 9,
+            "type": "work_item_claimed",
+            "payload": {
+              "key": "inspect_http_home",
+              "title": "Inspect HTTP Home",
+              "attempt_id": "bd5efa01-5eda-42e1-9f14-ccdec90eb54e",
+              "session_id": "eccd1e04-d129-430e-ae4e-0ce6225f8b86",
+              "work_item_id": "f8e230c6-4264-41e0-84a2-f2dc26b3ead7"
+            },
+            "session_id": "eccd1e04-d129-430e-ae4e-0ce6225f8b86",
+            "work_item_id": "f8e230c6-4264-41e0-84a2-f2dc26b3ead7",
+            "attempt_id": "bd5efa01-5eda-42e1-9f14-ccdec90eb54e",
+            "created_at": "2026-10-20T01:14:02.415372Z"
+          },
+          {
+            "id": "c568dd0d-8a0b-4b9d-8cd4-fb5bf01b813f",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 10,
+            "type": "model_call_start",
+            "payload": {
+              "round": 1,
+              "model_call_id": "145046de-39d4-4e3f-8f58-2d7e70e5bbb8"
+            },
+            "session_id": "eccd1e04-d129-430e-ae4e-0ce6225f8b86",
+            "created_at": "2026-10-20T01:14:02.431883Z"
+          },
+          {
+            "id": "7e497ca7-ae9c-4116-9264-369cfb72fef7",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 11,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 1,
+              "has_content": false,
+              "finish_reason": "tool_calls",
+              "tool_calls_count": 1
+            },
+            "session_id": "eccd1e04-d129-430e-ae4e-0ce6225f8b86",
+            "created_at": "2026-10-20T01:14:02.437759Z"
+          },
+          {
+            "id": "5bff7edb-a705-4a68-b1d0-45537736bc62",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 12,
+            "type": "tool_call_start",
+            "payload": {
+              "call_id": "call_get_f9cf3404",
+              "tool_name": "get_endpoint"
+            },
+            "session_id": "eccd1e04-d129-430e-ae4e-0ce6225f8b86",
+            "created_at": "2026-10-20T01:14:02.446665Z"
+          },
+          {
+            "id": "548a33ec-5468-456a-a6fa-8a36e661da7b",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 13,
+            "type": "tool_call_success",
+            "payload": {
+              "bytes": 528,
+              "call_id": "call_get_f9cf3404",
+              "tool_name": "get_endpoint"
+            },
+            "session_id": "eccd1e04-d129-430e-ae4e-0ce6225f8b86",
+            "created_at": "2026-10-20T01:14:02.452191Z"
+          },
+          {
+            "id": "6c03bbef-2be9-45f5-81aa-7a9561daf0b4",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 14,
+            "type": "model_call_start",
+            "payload": {
+              "round": 2,
+              "model_call_id": "c1eaddde-2ea5-4412-b795-8430077250dc"
+            },
+            "session_id": "eccd1e04-d129-430e-ae4e-0ce6225f8b86",
+            "created_at": "2026-10-20T01:14:02.462947Z"
+          },
+          {
+            "id": "d1eb08e5-a59a-4127-bf85-b35a8d004669",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 15,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 2,
+              "has_content": false,
+              "finish_reason": "tool_calls",
+              "tool_calls_count": 1
+            },
+            "session_id": "eccd1e04-d129-430e-ae4e-0ce6225f8b86",
+            "created_at": "2026-10-20T01:14:02.468729Z"
+          },
+          {
+            "id": "d39d781b-3fbc-4086-8850-021af2e6d126",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 16,
+            "type": "tool_call_start",
+            "payload": {
+              "call_id": "call_obs_f9cf3404",
+              "tool_name": "record_observation"
+            },
+            "session_id": "eccd1e04-d129-430e-ae4e-0ce6225f8b86",
+            "created_at": "2026-10-20T01:14:02.476669Z"
+          },
+          {
+            "id": "2b210820-7aff-44e8-b95b-e9646c414dc9",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 17,
+            "type": "observation",
+            "payload": {
+              "content": "Health check reported version review-v1",
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+              "obs_type": "service_version",
+              "observation_id": "29352f2c-15c1-4ac6-b58e-8429d376d24f"
+            },
+            "session_id": "eccd1e04-d129-430e-ae4e-0ce6225f8b86",
+            "work_item_id": "f8e230c6-4264-41e0-84a2-f2dc26b3ead7",
+            "attempt_id": "bd5efa01-5eda-42e1-9f14-ccdec90eb54e",
+            "created_at": "2026-10-20T01:14:02.481253Z"
+          },
+          {
+            "id": "3ad5f709-15fe-4793-9fc6-4f56045f1bde",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 18,
+            "type": "tool_call_success",
+            "payload": {
+              "bytes": 77,
+              "call_id": "call_obs_f9cf3404",
+              "tool_name": "record_observation"
+            },
+            "session_id": "eccd1e04-d129-430e-ae4e-0ce6225f8b86",
+            "created_at": "2026-10-20T01:14:02.489241Z"
+          },
+          {
+            "id": "fef60886-86d0-4e20-853d-d96fc10482bb",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 19,
+            "type": "model_call_start",
+            "payload": {
+              "round": 3,
+              "model_call_id": "a54e20bd-3c01-4a1e-bfdd-952fdd5e4b56"
+            },
+            "session_id": "eccd1e04-d129-430e-ae4e-0ce6225f8b86",
+            "created_at": "2026-10-20T01:14:02.499938Z"
+          },
+          {
+            "id": "a7651133-5a75-486c-b460-39f4481cc6a0",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 20,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 3,
+              "has_content": true,
+              "finish_reason": "stop",
+              "tool_calls_count": 0
+            },
+            "session_id": "eccd1e04-d129-430e-ae4e-0ce6225f8b86",
+            "created_at": "2026-10-20T01:14:02.504817Z"
+          },
+          {
+            "id": "5d6d1483-db00-46c9-807f-2f801d526892",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 21,
+            "type": "work_item_claimed",
+            "payload": {
+              "key": "inspect_http_health",
+              "title": "Inspect HTTP Health",
+              "attempt_id": "3ebee591-c3f3-414f-af9b-1914bdd472ed",
+              "session_id": "4412cf68-459c-4053-98f3-38fdd6bd32e7",
+              "work_item_id": "d5910f88-6d76-46e3-901a-e064f90b95c5"
+            },
+            "session_id": "4412cf68-459c-4053-98f3-38fdd6bd32e7",
+            "work_item_id": "d5910f88-6d76-46e3-901a-e064f90b95c5",
+            "attempt_id": "3ebee591-c3f3-414f-af9b-1914bdd472ed",
+            "created_at": "2026-10-20T01:14:02.515729Z"
+          },
+          {
+            "id": "9f1570da-ca22-424d-be61-260dbcc90b4b",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 22,
+            "type": "model_call_start",
+            "payload": {
+              "round": 1,
+              "model_call_id": "3146713e-6976-4144-8f0a-7915ba324ccd"
+            },
+            "session_id": "4412cf68-459c-4053-98f3-38fdd6bd32e7",
+            "created_at": "2026-10-20T01:14:02.532212Z"
+          },
+          {
+            "id": "f7fd7cf3-43bf-48b6-851d-a66c34d71741",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 23,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 1,
+              "has_content": false,
+              "finish_reason": "tool_calls",
+              "tool_calls_count": 1
+            },
+            "session_id": "4412cf68-459c-4053-98f3-38fdd6bd32e7",
+            "created_at": "2026-10-20T01:14:02.537062Z"
+          },
+          {
+            "id": "5c74a70e-44db-483b-92a5-36ad5a4ad5b0",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 24,
+            "type": "tool_call_start",
+            "payload": {
+              "call_id": "call_get_f9cf3404",
+              "tool_name": "get_endpoint"
+            },
+            "session_id": "4412cf68-459c-4053-98f3-38fdd6bd32e7",
+            "created_at": "2026-10-20T01:14:02.544804Z"
+          },
+          {
+            "id": "742632d2-7289-41f5-bc2f-1bd2a3b40275",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 25,
+            "type": "tool_call_success",
+            "payload": {
+              "bytes": 528,
+              "call_id": "call_get_f9cf3404",
+              "tool_name": "get_endpoint"
+            },
+            "session_id": "4412cf68-459c-4053-98f3-38fdd6bd32e7",
+            "created_at": "2026-10-20T01:14:02.550323Z"
+          },
+          {
+            "id": "689c4dda-914e-4c6c-892c-5e828cc578ce",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 26,
+            "type": "model_call_start",
+            "payload": {
+              "round": 2,
+              "model_call_id": "aed955da-b7a0-4d16-9902-636ff76dba0a"
+            },
+            "session_id": "4412cf68-459c-4053-98f3-38fdd6bd32e7",
+            "created_at": "2026-10-20T01:14:02.560328Z"
+          },
+          {
+            "id": "a93170fd-aa1d-4523-8d1c-e0b8f6986099",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 27,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 2,
+              "has_content": false,
+              "finish_reason": "tool_calls",
+              "tool_calls_count": 1
+            },
+            "session_id": "4412cf68-459c-4053-98f3-38fdd6bd32e7",
+            "created_at": "2026-10-20T01:14:02.565124Z"
+          },
+          {
+            "id": "2651c22c-be74-4925-b549-ff557aa84b72",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 28,
+            "type": "tool_call_start",
+            "payload": {
+              "call_id": "call_obs_f9cf3404",
+              "tool_name": "record_observation"
+            },
+            "session_id": "4412cf68-459c-4053-98f3-38fdd6bd32e7",
+            "created_at": "2026-10-20T01:14:02.573595Z"
+          },
+          {
+            "id": "f67f4103-12d6-421d-8a39-03fa5973189a",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 29,
+            "type": "observation",
+            "payload": {
+              "content": "Health check reported version review-v1",
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+              "obs_type": "service_version",
+              "observation_id": "1f2bb7d8-9b96-43f2-ae5e-76779531fd99"
+            },
+            "session_id": "4412cf68-459c-4053-98f3-38fdd6bd32e7",
+            "work_item_id": "d5910f88-6d76-46e3-901a-e064f90b95c5",
+            "attempt_id": "3ebee591-c3f3-414f-af9b-1914bdd472ed",
+            "created_at": "2026-10-20T01:14:02.57761Z"
+          },
+          {
+            "id": "71777584-14ba-4c55-a7eb-c7dd454e304b",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 30,
+            "type": "tool_call_success",
+            "payload": {
+              "bytes": 77,
+              "call_id": "call_obs_f9cf3404",
+              "tool_name": "record_observation"
+            },
+            "session_id": "4412cf68-459c-4053-98f3-38fdd6bd32e7",
+            "created_at": "2026-10-20T01:14:02.584481Z"
+          },
+          {
+            "id": "30e48c0b-6eba-46ae-a028-005d00ae7b7d",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 31,
+            "type": "model_call_start",
+            "payload": {
+              "round": 3,
+              "model_call_id": "2a641c18-aa07-4729-9e47-0accb893143d"
+            },
+            "session_id": "4412cf68-459c-4053-98f3-38fdd6bd32e7",
+            "created_at": "2026-10-20T01:14:02.593766Z"
+          },
+          {
+            "id": "beb36079-35a2-4cbb-8c2a-ef9a110c80fb",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 32,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 3,
+              "has_content": true,
+              "finish_reason": "stop",
+              "tool_calls_count": 0
+            },
+            "session_id": "4412cf68-459c-4053-98f3-38fdd6bd32e7",
+            "created_at": "2026-10-20T01:14:02.598447Z"
+          },
+          {
+            "id": "75eda3ac-ad99-4429-ad83-ccc95f7362c0",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 33,
+            "type": "work_item_claimed",
+            "payload": {
+              "key": "aggregate_summary",
+              "title": "Aggregate HTTP Findings",
+              "attempt_id": "f95e86b7-280c-4d82-b5c7-47acb62c0ac6",
+              "session_id": "15814eb6-b976-4a11-8f80-2a201f2e561c",
+              "work_item_id": "55c8e320-5f30-4ac9-a6a5-31861afd4545"
+            },
+            "session_id": "15814eb6-b976-4a11-8f80-2a201f2e561c",
+            "work_item_id": "55c8e320-5f30-4ac9-a6a5-31861afd4545",
+            "attempt_id": "f95e86b7-280c-4d82-b5c7-47acb62c0ac6",
+            "created_at": "2026-10-20T01:14:02.610013Z"
+          },
+          {
+            "id": "37d73818-f6bb-4ae9-a4e0-c3f0c389dfb7",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 34,
+            "type": "model_call_start",
+            "payload": {
+              "round": 1,
+              "model_call_id": "02ebb83f-41c7-4d37-8f42-2bf42871917b"
+            },
+            "session_id": "15814eb6-b976-4a11-8f80-2a201f2e561c",
+            "created_at": "2026-10-20T01:14:02.626033Z"
+          },
+          {
+            "id": "e864c15f-2a67-407e-b3fb-ef72e42a6715",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 35,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 1,
+              "has_content": false,
+              "finish_reason": "tool_calls",
+              "tool_calls_count": 1
+            },
+            "session_id": "15814eb6-b976-4a11-8f80-2a201f2e561c",
+            "created_at": "2026-10-20T01:14:02.630667Z"
+          },
+          {
+            "id": "653d1745-6a58-4a6b-bff4-9a770079217b",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 36,
+            "type": "tool_call_start",
+            "payload": {
+              "call_id": "call_read_obs_all",
+              "tool_name": "read_observations"
+            },
+            "session_id": "15814eb6-b976-4a11-8f80-2a201f2e561c",
+            "created_at": "2026-10-20T01:14:02.639471Z"
+          },
+          {
+            "id": "71c4b6bc-d513-43e1-a44e-ead8d09e387e",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 37,
+            "type": "tool_call_success",
+            "payload": {
+              "bytes": 1000,
+              "call_id": "call_read_obs_all",
+              "tool_name": "read_observations"
+            },
+            "session_id": "15814eb6-b976-4a11-8f80-2a201f2e561c",
+            "created_at": "2026-10-20T01:14:02.642555Z"
+          },
+          {
+            "id": "2c106d9e-1a32-40b3-868d-915e44c34404",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 38,
+            "type": "model_call_start",
+            "payload": {
+              "round": 2,
+              "model_call_id": "d3a4c553-d5c7-4fc7-b1cc-c943b7d9a291"
+            },
+            "session_id": "15814eb6-b976-4a11-8f80-2a201f2e561c",
+            "created_at": "2026-10-20T01:14:02.652955Z"
+          },
+          {
+            "id": "e20d820a-f939-4f47-933e-83b3207f1abb",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 39,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 2,
+              "has_content": true,
+              "finish_reason": "stop",
+              "tool_calls_count": 0
+            },
+            "session_id": "15814eb6-b976-4a11-8f80-2a201f2e561c",
+            "created_at": "2026-10-20T01:14:02.657234Z"
+          },
+          {
+            "id": "7d9bbbe5-cff6-40c4-938b-7f7da16b7bcb",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 40,
+            "type": "model_call_start",
+            "payload": {
+              "round": 1,
+              "model_call_id": "727a883f-5a44-48ff-a83a-055c654dbf1f"
+            },
+            "session_id": "82531937-1444-4914-a7ed-2ef9e559285e",
+            "created_at": "2026-10-20T01:14:02.690424Z"
+          },
+          {
+            "id": "17725ca3-d821-459f-bc9e-754a77e3795a",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 41,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 1,
+              "has_content": false,
+              "finish_reason": "tool_calls",
+              "tool_calls_count": 1
+            },
+            "session_id": "82531937-1444-4914-a7ed-2ef9e559285e",
+            "created_at": "2026-10-20T01:14:02.697306Z"
+          },
+          {
+            "id": "70483236-1b1d-4def-935c-7a6a85f93e16",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 42,
+            "type": "tool_call_start",
+            "payload": {
+              "call_id": "call_suggest_completion_http",
+              "tool_name": "suggest_completion"
+            },
+            "session_id": "82531937-1444-4914-a7ed-2ef9e559285e",
+            "created_at": "2026-10-20T01:14:02.707929Z"
+          },
+          {
+            "id": "15875e58-c1f8-4afb-b28d-b5bbff714a3a",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 43,
+            "type": "tool_call_success",
+            "payload": {
+              "bytes": 45,
+              "call_id": "call_suggest_completion_http",
+              "tool_name": "suggest_completion"
+            },
+            "session_id": "82531937-1444-4914-a7ed-2ef9e559285e",
+            "created_at": "2026-10-20T01:14:02.711053Z"
+          },
+          {
+            "id": "fddc2e0c-28a0-4a27-91ce-73a06e1c1702",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 44,
+            "type": "model_call_start",
+            "payload": {
+              "round": 2,
+              "model_call_id": "2591bda1-15bb-43c2-b8bf-1e9899b50a2c"
+            },
+            "session_id": "82531937-1444-4914-a7ed-2ef9e559285e",
+            "created_at": "2026-10-20T01:14:02.720711Z"
+          },
+          {
+            "id": "61fce5e8-5da2-42c3-9d64-b9329e7c95dc",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 45,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 2,
+              "has_content": true,
+              "finish_reason": "stop",
+              "tool_calls_count": 0
+            },
+            "session_id": "82531937-1444-4914-a7ed-2ef9e559285e",
+            "created_at": "2026-10-20T01:14:02.725173Z"
+          },
+          {
+            "id": "48606735-500f-4a15-971d-35e0f75914cb",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 46,
+            "type": "state_change",
+            "payload": {
+              "to": "completed",
+              "from": "running"
+            },
+            "created_at": "2026-10-20T01:14:02.734938Z"
+          },
+          {
+            "id": "82669831-12a6-49c2-a459-d4f9739535db",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "seq": 47,
+            "type": "final_answer",
+            "payload": {
+              "output": "All target HTTP endpoints were verified via real GET requests. Verified real HTTP status codes and response bodies from local fixture application. Evidence observation: 29352f2c-15c1-4ac6-b58e-8429d376d24f."
+            },
+            "created_at": "2026-10-20T01:14:02.734938Z"
+          }
+        ]
+      },
+      "planner_rounds": {
+        "planner_rounds": [
+          {
+            "id": "ff5b6408-d0a9-4d1d-a046-7246319264c5",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "round": 1,
+            "trigger_reason": "initial",
+            "plan_summary": "Initial plan submitted",
+            "status": "completed",
+            "created_at": "2026-10-20T01:14:02.34085Z",
+            "finished_at": "2026-10-20T01:14:02.413392Z"
+          },
+          {
+            "id": "88c9c05b-c11f-49c1-84ea-fb4021ab24ac",
+            "run_id": "16b562f8-89be-4535-8eb1-8aed400ec0b1",
+            "round": 2,
+            "trigger_reason": "all_work_completed",
+            "plan_summary": "All target HTTP endpoints were verified via real GET requests. Verified real HTTP status codes and response bodies from local fixture application. Evidence observation: 29352f2c-15c1-4ac6-b58e-8429d376d24f.",
+            "status": "completed",
+            "created_at": "2026-10-20T01:14:02.672574Z",
+            "finished_at": "2026-10-20T01:14:02.732883Z"
+          }
+        ]
+      },
+      "http_versions": [
+        "review-v1",
+        "review-v1"
+      ]
+    },
+    {
+      "expected_version": "review-v2",
+      "run": {
+        "id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+        "task_id": "dc4592ae-e5bf-46fc-bac9-bc68fdc11869",
+        "config_snapshot": {},
+        "execution_input": {
+          "scope": {
+            "endpoints": [
+              "/health"
+            ]
+          },
+          "budget": {
+            "max_tool_calls": 30,
+            "max_work_items": 12,
+            "max_model_calls": 30,
+            "max_planner_rounds": 8,
+            "run_timeout_seconds": 120,
+            "max_parallel_workers": 1,
+            "tool_timeout_seconds": 5,
+            "max_tool_output_bytes": 8192,
+            "model_timeout_seconds": 30
+          },
+          "config": {},
+          "objective": "读取本地 /health，记录版本号、HTTP 状态和证据，比较两次运行。",
+          "parameters": {
+            "fail_at_step": null
+          },
+          "agent_config": {
+            "budget": {
+              "max_tool_calls": 30,
+              "max_work_items": 12,
+              "max_model_calls": 30,
+              "max_planner_rounds": 8,
+              "run_timeout_seconds": 120,
+              "max_parallel_workers": 1,
+              "tool_timeout_seconds": 5,
+              "max_tool_output_bytes": 8192,
+              "model_timeout_seconds": 30
+            },
+            "executor": "orchestrator",
+            "provider": "mock",
+            "mock_scenario": "http_traceability",
+            "tools_version": "v1",
+            "prompt_version": "v1"
+          }
+        },
+        "scope_policy_version": "v1",
+        "status": "completed",
+        "finish_reason": "completed",
+        "final_output": "All target HTTP endpoints were verified via real GET requests. Verified real HTTP status codes and response bodies from local fixture application. Evidence observation: 3db7030c-3eb5-4ec9-9e7f-134006fc49aa.",
+        "started_at": "2026-10-20T01:14:03.481977Z",
+        "finished_at": "2026-10-20T01:14:03.85717Z",
+        "created_at": "2026-10-20T01:14:03.472501Z",
+        "updated_at": "2026-10-20T01:14:03.85717Z"
+      },
+      "tool_calls": {
+        "tool_calls": [
+          {
+            "id": "fcd6954a-3f03-487c-86f8-336e050f9580",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "session_id": "db7fa826-2b1e-4093-9616-0e04152926ed",
+            "model_call_id": "13ececf1-d89e-4752-b99d-6618d1878e68",
+            "call_id": "call_submit_plan_http",
+            "tool_name": "submit_plan",
+            "arguments": {
+              "items": [
+                {
+                  "key": "inspect_http_home",
+                  "title": "Inspect HTTP Home",
+                  "asset_ids": [
+                    "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9"
+                  ],
+                  "objective": "Fetch root page",
+                  "work_type": "inspect_http_endpoint",
+                  "input_data": {
+                    "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9"
+                  }
+                },
+                {
+                  "key": "inspect_http_health",
+                  "title": "Inspect HTTP Health",
+                  "asset_ids": [
+                    "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9"
+                  ],
+                  "objective": "Fetch health status",
+                  "work_type": "inspect_http_endpoint",
+                  "input_data": {
+                    "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9"
+                  }
+                },
+                {
+                  "key": "aggregate_summary",
+                  "title": "Aggregate HTTP Findings",
+                  "asset_ids": [
+                    "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+                    "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9"
+                  ],
+                  "objective": "Summarize observations",
+                  "work_type": "aggregate_summary",
+                  "dependencies": [
+                    "inspect_http_home",
+                    "inspect_http_health"
+                  ]
+                }
+              ],
+              "summary": "Plan to inspect all configured HTTP fixture endpoints and aggregate observations"
+            },
+            "output": "{\"created_count\":3,\"message\":\"Plan submitted successfully with 3 work items\",\"status\":\"success\"}",
+            "status": "success",
+            "started_at": "2026-10-20T01:14:03.517654Z",
+            "finished_at": "2026-10-20T01:14:03.528941Z",
+            "created_at": "2026-10-20T01:14:03.51256Z"
+          },
+          {
+            "id": "51f8c24c-3cfa-46bf-a1d5-12a2dd3944dc",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "session_id": "dc1d3766-d7ab-44b5-9664-eebecfb0fd76",
+            "model_call_id": "668165e7-3b05-46bb-b864-a82cddaa61fc",
+            "call_id": "call_get_f9cf3404",
+            "tool_name": "get_endpoint",
+            "arguments": {
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9"
+            },
+            "output": "{\"error\":null,\"integrity\":{\"is_truncated\":false,\"note\":\"\",\"saved_bytes\":37},\"request\":{\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"method\":\"GET\",\"started_at\":\"2026-10-20T01:14:03.587421504Z\",\"url\":\"http://127.0.0.1:29090/health\"},\"response\":{\"body\":\"{\\\"status\\\":\\\"UP\\\",\\\"version\\\":\\\"review-v2\\\"}\",\"duration_ms\":0,\"headers\":{\"Content-Length\":\"37\",\"Content-Type\":\"application/json\",\"Date\":\"Tue, 20 Oct 2026 01:14:03 GMT\",\"X-Fixture-App\":\"local-fixture-v1\"},\"received_at\":\"2026-10-20T01:14:03.588379026Z\",\"status_code\":200}}",
+            "status": "success",
+            "started_at": "2026-10-20T01:14:03.586214Z",
+            "finished_at": "2026-10-20T01:14:03.588448Z",
+            "created_at": "2026-10-20T01:14:03.58127Z"
+          },
+          {
+            "id": "092e3528-2488-48cb-9ae3-75403c085373",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "session_id": "dc1d3766-d7ab-44b5-9664-eebecfb0fd76",
+            "model_call_id": "dd1390be-3125-452e-8502-100cb16fe30c",
+            "call_id": "call_obs_f9cf3404",
+            "tool_name": "record_observation",
+            "arguments": {
+              "data": {
+                "version": "review-v2",
+                "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+                "status_code": 200
+              },
+              "content": "Health check reported version review-v2",
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+              "obs_type": "service_version",
+              "source_tool_call_id": "call_get_f9cf3404"
+            },
+            "output": "{\"status\":\"recorded\",\"observation_id\":\"3db7030c-3eb5-4ec9-9e7f-134006fc49aa\"}",
+            "status": "success",
+            "started_at": "2026-10-20T01:14:03.61373Z",
+            "finished_at": "2026-10-20T01:14:03.622669Z",
+            "created_at": "2026-10-20T01:14:03.608878Z"
+          },
+          {
+            "id": "715ead39-d1b6-4f59-91b0-25527ea1c49a",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "session_id": "97071ea0-776c-4299-9c32-c6719c0a6678",
+            "model_call_id": "334f7fa5-df43-4a98-b06d-b194ceff2a84",
+            "call_id": "call_get_f9cf3404",
+            "tool_name": "get_endpoint",
+            "arguments": {
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9"
+            },
+            "output": "{\"error\":null,\"integrity\":{\"is_truncated\":false,\"note\":\"\",\"saved_bytes\":37},\"request\":{\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"method\":\"GET\",\"started_at\":\"2026-10-20T01:14:03.681179564Z\",\"url\":\"http://127.0.0.1:29090/health\"},\"response\":{\"body\":\"{\\\"status\\\":\\\"UP\\\",\\\"version\\\":\\\"review-v2\\\"}\",\"duration_ms\":0,\"headers\":{\"Content-Length\":\"37\",\"Content-Type\":\"application/json\",\"Date\":\"Tue, 20 Oct 2026 01:14:03 GMT\",\"X-Fixture-App\":\"local-fixture-v1\"},\"received_at\":\"2026-10-20T01:14:03.682105792Z\",\"status_code\":200}}",
+            "status": "success",
+            "started_at": "2026-10-20T01:14:03.679739Z",
+            "finished_at": "2026-10-20T01:14:03.682171Z",
+            "created_at": "2026-10-20T01:14:03.674357Z"
+          },
+          {
+            "id": "5f19eb40-ed5d-422a-9ba4-bd5e13903f3a",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "session_id": "97071ea0-776c-4299-9c32-c6719c0a6678",
+            "model_call_id": "42adb7c9-8c46-49ff-9022-947053e3b0da",
+            "call_id": "call_obs_f9cf3404",
+            "tool_name": "record_observation",
+            "arguments": {
+              "data": {
+                "version": "review-v2",
+                "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+                "status_code": 200
+              },
+              "content": "Health check reported version review-v2",
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+              "obs_type": "service_version",
+              "source_tool_call_id": "call_get_f9cf3404"
+            },
+            "output": "{\"status\":\"recorded\",\"observation_id\":\"d17b5dff-acaf-43dc-a6c1-86d810e1cc12\"}",
+            "status": "success",
+            "started_at": "2026-10-20T01:14:03.707858Z",
+            "finished_at": "2026-10-20T01:14:03.714832Z",
+            "created_at": "2026-10-20T01:14:03.703275Z"
+          },
+          {
+            "id": "22a04e59-84fe-442d-9a81-c9987bc7865d",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "session_id": "9f72205f-3c88-4330-b7dd-1fad6e0821ea",
+            "model_call_id": "d2bf6f52-43c1-43c2-aab5-404813d6dd4e",
+            "call_id": "call_read_obs_all",
+            "tool_name": "read_observations",
+            "arguments": {},
+            "output": "{\"observations\":[{\"id\":\"3db7030c-3eb5-4ec9-9e7f-134006fc49aa\",\"run_id\":\"0b07c676-4e9d-4847-a390-35cb0a0a5bbb\",\"attempt_id\":\"1801a4b2-eb6f-4302-88be-e64ddab78084\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"obs_type\":\"service_version\",\"content\":\"Health check reported version review-v2\",\"data\":{\"version\":\"review-v2\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"status_code\":200},\"source_tool_call_id\":\"51f8c24c-3cfa-46bf-a1d5-12a2dd3944dc\",\"created_at\":\"2026-10-20T01:14:03.614836Z\"},{\"id\":\"d17b5dff-acaf-43dc-a6c1-86d810e1cc12\",\"run_id\":\"0b07c676-4e9d-4847-a390-35cb0a0a5bbb\",\"attempt_id\":\"4757bb9b-b1cc-476a-ac0f-2c5795228db4\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"obs_type\":\"service_version\",\"content\":\"Health check reported version review-v2\",\"data\":{\"version\":\"review-v2\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"status_code\":200},\"source_tool_call_id\":\"715ead39-d1b6-4f59-91b0-25527ea1c49a\",\"created_at\":\"2026-10-20T01:14:03.708722Z\"}],\"total_observations\":2}",
+            "status": "success",
+            "started_at": "2026-10-20T01:14:03.772305Z",
+            "finished_at": "2026-10-20T01:14:03.772868Z",
+            "created_at": "2026-10-20T01:14:03.767629Z"
+          },
+          {
+            "id": "8aa615c9-16a7-4572-a657-c1f398df06f2",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "session_id": "e3c6c4b7-6df1-4d0b-a105-8fdbb6862e2c",
+            "model_call_id": "b6978a14-371b-4f0f-9113-758b5f638d17",
+            "call_id": "call_suggest_completion_http",
+            "tool_name": "suggest_completion",
+            "arguments": {
+              "conclusion": "complete",
+              "final_summary": "All target HTTP endpoints were verified via real GET requests. Verified real HTTP status codes and response bodies from local fixture application. Evidence observation: 3db7030c-3eb5-4ec9-9e7f-134006fc49aa."
+            },
+            "output": "{\"status\":\"accepted\",\"conclusion\":\"complete\"}",
+            "status": "success",
+            "started_at": "2026-10-20T01:14:03.831831Z",
+            "finished_at": "2026-10-20T01:14:03.832415Z",
+            "created_at": "2026-10-20T01:14:03.827813Z"
+          }
+        ]
+      },
+      "observations": {
+        "observations": [
+          {
+            "id": "3db7030c-3eb5-4ec9-9e7f-134006fc49aa",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "attempt_id": "1801a4b2-eb6f-4302-88be-e64ddab78084",
+            "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+            "obs_type": "service_version",
+            "content": "Health check reported version review-v2",
+            "data": {
+              "version": "review-v2",
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+              "status_code": 200
+            },
+            "source_tool_call_id": "51f8c24c-3cfa-46bf-a1d5-12a2dd3944dc",
+            "created_at": "2026-10-20T01:14:03.614836Z"
+          },
+          {
+            "id": "d17b5dff-acaf-43dc-a6c1-86d810e1cc12",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "attempt_id": "4757bb9b-b1cc-476a-ac0f-2c5795228db4",
+            "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+            "obs_type": "service_version",
+            "content": "Health check reported version review-v2",
+            "data": {
+              "version": "review-v2",
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+              "status_code": 200
+            },
+            "source_tool_call_id": "715ead39-d1b6-4f59-91b0-25527ea1c49a",
+            "created_at": "2026-10-20T01:14:03.708722Z"
+          }
+        ]
+      },
+      "assets": {
+        "assets": [
+          {
+            "id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+            "namespace": "local-fixture-v1",
+            "kind": "http_endpoint",
+            "external_key": "GET http://127.0.0.1:29090/health",
+            "name": "Local Fixture Health Check",
+            "description": "Health check endpoint of local fixture application",
+            "metadata": {
+              "url": "http://127.0.0.1:29090/health",
+              "path": "/health",
+              "port": "29090",
+              "method": "GET",
+              "content_type": "application/json"
+            },
+            "created_at": "2026-10-20T01:00:10.45493Z",
+            "updated_at": "2026-10-20T01:14:03.472501Z"
+          }
+        ]
+      },
+      "work_items": {
+        "work_items": [
+          {
+            "id": "9ef68c56-6a49-4640-b9b1-d6897037c632",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "key": "inspect_http_home",
+            "title": "Inspect HTTP Home",
+            "objective": "Fetch root page",
+            "work_type": "inspect_http_endpoint",
+            "status": "completed",
+            "input_data": {
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9"
+            },
+            "output_data": {
+              "summary": "Successfully retrieved endpoint for asset f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9 and recorded evidence observation."
+            },
+            "current_attempt_id": "1801a4b2-eb6f-4302-88be-e64ddab78084",
+            "created_by_planner_round_id": "621f4a33-4b24-4331-925b-4daee0522e5e",
+            "created_at": "2026-10-20T01:14:03.517842Z",
+            "updated_at": "2026-10-20T01:14:03.644282Z"
+          },
+          {
+            "id": "f882f159-8d42-4714-b7b4-1a7b304781f4",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "key": "inspect_http_health",
+            "title": "Inspect HTTP Health",
+            "objective": "Fetch health status",
+            "work_type": "inspect_http_endpoint",
+            "status": "completed",
+            "input_data": {
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9"
+            },
+            "output_data": {
+              "summary": "Successfully retrieved endpoint for asset f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9 and recorded evidence observation."
+            },
+            "current_attempt_id": "4757bb9b-b1cc-476a-ac0f-2c5795228db4",
+            "created_by_planner_round_id": "621f4a33-4b24-4331-925b-4daee0522e5e",
+            "created_at": "2026-10-20T01:14:03.517842Z",
+            "updated_at": "2026-10-20T01:14:03.737261Z"
+          },
+          {
+            "id": "7610f97e-414a-4184-906e-5dccb82a4c9d",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "key": "aggregate_summary",
+            "title": "Aggregate HTTP Findings",
+            "objective": "Summarize observations",
+            "work_type": "aggregate_summary",
+            "status": "completed",
+            "input_data": null,
+            "output_data": {
+              "summary": "Analyzed all prerequisite observations. All endpoints healthy and returning 200 OK."
+            },
+            "current_attempt_id": "5368e0a0-b4d3-44e6-8311-904939e7aa4b",
+            "created_by_planner_round_id": "621f4a33-4b24-4331-925b-4daee0522e5e",
+            "created_at": "2026-10-20T01:14:03.517842Z",
+            "updated_at": "2026-10-20T01:14:03.79567Z"
+          }
+        ]
+      },
+      "events": {
+        "events": [
+          {
+            "id": "2040d17d-15ec-4efa-88ba-c6e68208c538",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 1,
+            "type": "state_change",
+            "payload": {
+              "to": "queued",
+              "from": null
+            },
+            "created_at": "2026-10-20T01:14:03.472501Z"
+          },
+          {
+            "id": "a946e8bd-6b62-4712-8e34-aa1d10e27d72",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 2,
+            "type": "state_change",
+            "payload": {
+              "to": "running",
+              "from": "queued"
+            },
+            "created_at": "2026-10-20T01:14:03.481378Z"
+          },
+          {
+            "id": "8a7c7bb3-2938-4b41-be3d-a533ffe9134d",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 3,
+            "type": "model_call_start",
+            "payload": {
+              "round": 1,
+              "model_call_id": "13ececf1-d89e-4752-b99d-6618d1878e68"
+            },
+            "session_id": "db7fa826-2b1e-4093-9616-0e04152926ed",
+            "created_at": "2026-10-20T01:14:03.501602Z"
+          },
+          {
+            "id": "0620f2cf-b6b0-4c36-bda0-73e64261c6fe",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 4,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 1,
+              "has_content": false,
+              "finish_reason": "tool_calls",
+              "tool_calls_count": 1
+            },
+            "session_id": "db7fa826-2b1e-4093-9616-0e04152926ed",
+            "created_at": "2026-10-20T01:14:03.506677Z"
+          },
+          {
+            "id": "9d9596c9-65d2-4d63-907d-e71a730d210d",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 5,
+            "type": "tool_call_start",
+            "payload": {
+              "call_id": "call_submit_plan_http",
+              "tool_name": "submit_plan"
+            },
+            "session_id": "db7fa826-2b1e-4093-9616-0e04152926ed",
+            "created_at": "2026-10-20T01:14:03.514988Z"
+          },
+          {
+            "id": "64c47c9b-41df-4329-9bfd-219a79dff057",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 6,
+            "type": "tool_call_success",
+            "payload": {
+              "bytes": 96,
+              "call_id": "call_submit_plan_http",
+              "tool_name": "submit_plan"
+            },
+            "session_id": "db7fa826-2b1e-4093-9616-0e04152926ed",
+            "created_at": "2026-10-20T01:14:03.529132Z"
+          },
+          {
+            "id": "25b3d0aa-ba5a-450e-a851-55d70ef4175f",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 7,
+            "type": "model_call_start",
+            "payload": {
+              "round": 2,
+              "model_call_id": "0af377da-451a-4da1-be6f-aab83233a23c"
+            },
+            "session_id": "db7fa826-2b1e-4093-9616-0e04152926ed",
+            "created_at": "2026-10-20T01:14:03.540071Z"
+          },
+          {
+            "id": "f90b3d7c-bade-4990-aa4c-70583412b216",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 8,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 2,
+              "has_content": true,
+              "finish_reason": "stop",
+              "tool_calls_count": 0
+            },
+            "session_id": "db7fa826-2b1e-4093-9616-0e04152926ed",
+            "created_at": "2026-10-20T01:14:03.544993Z"
+          },
+          {
+            "id": "a6e52fcc-69d8-480b-a509-9cf981f3d373",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 9,
+            "type": "work_item_claimed",
+            "payload": {
+              "key": "inspect_http_home",
+              "title": "Inspect HTTP Home",
+              "attempt_id": "1801a4b2-eb6f-4302-88be-e64ddab78084",
+              "session_id": "dc1d3766-d7ab-44b5-9664-eebecfb0fd76",
+              "work_item_id": "9ef68c56-6a49-4640-b9b1-d6897037c632"
+            },
+            "session_id": "dc1d3766-d7ab-44b5-9664-eebecfb0fd76",
+            "work_item_id": "9ef68c56-6a49-4640-b9b1-d6897037c632",
+            "attempt_id": "1801a4b2-eb6f-4302-88be-e64ddab78084",
+            "created_at": "2026-10-20T01:14:03.554963Z"
+          },
+          {
+            "id": "4442f6fa-ab30-493f-be5e-8c4e0fb77507",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 10,
+            "type": "model_call_start",
+            "payload": {
+              "round": 1,
+              "model_call_id": "668165e7-3b05-46bb-b864-a82cddaa61fc"
+            },
+            "session_id": "dc1d3766-d7ab-44b5-9664-eebecfb0fd76",
+            "created_at": "2026-10-20T01:14:03.570019Z"
+          },
+          {
+            "id": "f70b8c38-bdee-441c-a908-9f3590bb3c36",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 11,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 1,
+              "has_content": false,
+              "finish_reason": "tool_calls",
+              "tool_calls_count": 1
+            },
+            "session_id": "dc1d3766-d7ab-44b5-9664-eebecfb0fd76",
+            "created_at": "2026-10-20T01:14:03.575122Z"
+          },
+          {
+            "id": "8c11724a-ed9c-4fe3-9223-d691229fbf58",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 12,
+            "type": "tool_call_start",
+            "payload": {
+              "call_id": "call_get_f9cf3404",
+              "tool_name": "get_endpoint"
+            },
+            "session_id": "dc1d3766-d7ab-44b5-9664-eebecfb0fd76",
+            "created_at": "2026-10-20T01:14:03.583281Z"
+          },
+          {
+            "id": "58523a55-8fd1-4c40-871d-8dc0ed1bb4e1",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 13,
+            "type": "tool_call_success",
+            "payload": {
+              "bytes": 528,
+              "call_id": "call_get_f9cf3404",
+              "tool_name": "get_endpoint"
+            },
+            "session_id": "dc1d3766-d7ab-44b5-9664-eebecfb0fd76",
+            "created_at": "2026-10-20T01:14:03.588604Z"
+          },
+          {
+            "id": "371d1d13-3ab1-4597-b2d9-04d67974ef75",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 14,
+            "type": "model_call_start",
+            "payload": {
+              "round": 2,
+              "model_call_id": "dd1390be-3125-452e-8502-100cb16fe30c"
+            },
+            "session_id": "dc1d3766-d7ab-44b5-9664-eebecfb0fd76",
+            "created_at": "2026-10-20T01:14:03.598043Z"
+          },
+          {
+            "id": "02e17b2c-79c0-4d0f-beb5-b7f2249339fc",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 15,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 2,
+              "has_content": false,
+              "finish_reason": "tool_calls",
+              "tool_calls_count": 1
+            },
+            "session_id": "dc1d3766-d7ab-44b5-9664-eebecfb0fd76",
+            "created_at": "2026-10-20T01:14:03.60292Z"
+          },
+          {
+            "id": "3508bd7c-8d1e-4191-b341-393d0d0e5a3a",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 16,
+            "type": "tool_call_start",
+            "payload": {
+              "call_id": "call_obs_f9cf3404",
+              "tool_name": "record_observation"
+            },
+            "session_id": "dc1d3766-d7ab-44b5-9664-eebecfb0fd76",
+            "created_at": "2026-10-20T01:14:03.610751Z"
+          },
+          {
+            "id": "31c5a55c-c551-4c7a-8f34-14fca04c9765",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 17,
+            "type": "observation",
+            "payload": {
+              "content": "Health check reported version review-v2",
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+              "obs_type": "service_version",
+              "observation_id": "3db7030c-3eb5-4ec9-9e7f-134006fc49aa"
+            },
+            "session_id": "dc1d3766-d7ab-44b5-9664-eebecfb0fd76",
+            "work_item_id": "9ef68c56-6a49-4640-b9b1-d6897037c632",
+            "attempt_id": "1801a4b2-eb6f-4302-88be-e64ddab78084",
+            "created_at": "2026-10-20T01:14:03.614836Z"
+          },
+          {
+            "id": "38f15a6e-5d1a-4872-a718-713a04c0b2e8",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 18,
+            "type": "tool_call_success",
+            "payload": {
+              "bytes": 77,
+              "call_id": "call_obs_f9cf3404",
+              "tool_name": "record_observation"
+            },
+            "session_id": "dc1d3766-d7ab-44b5-9664-eebecfb0fd76",
+            "created_at": "2026-10-20T01:14:03.622922Z"
+          },
+          {
+            "id": "54d1a852-15fa-470a-942a-215f54eeb6a1",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 19,
+            "type": "model_call_start",
+            "payload": {
+              "round": 3,
+              "model_call_id": "bf2fb8aa-d630-4f91-9f72-41fc4c636ba2"
+            },
+            "session_id": "dc1d3766-d7ab-44b5-9664-eebecfb0fd76",
+            "created_at": "2026-10-20T01:14:03.632661Z"
+          },
+          {
+            "id": "2788c5be-26e9-456c-b7f7-509bbcd6da7c",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 20,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 3,
+              "has_content": true,
+              "finish_reason": "stop",
+              "tool_calls_count": 0
+            },
+            "session_id": "dc1d3766-d7ab-44b5-9664-eebecfb0fd76",
+            "created_at": "2026-10-20T01:14:03.637402Z"
+          },
+          {
+            "id": "00c2e6a4-49e8-4350-b9f2-4b02b3988639",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 21,
+            "type": "work_item_claimed",
+            "payload": {
+              "key": "inspect_http_health",
+              "title": "Inspect HTTP Health",
+              "attempt_id": "4757bb9b-b1cc-476a-ac0f-2c5795228db4",
+              "session_id": "97071ea0-776c-4299-9c32-c6719c0a6678",
+              "work_item_id": "f882f159-8d42-4714-b7b4-1a7b304781f4"
+            },
+            "session_id": "97071ea0-776c-4299-9c32-c6719c0a6678",
+            "work_item_id": "f882f159-8d42-4714-b7b4-1a7b304781f4",
+            "attempt_id": "4757bb9b-b1cc-476a-ac0f-2c5795228db4",
+            "created_at": "2026-10-20T01:14:03.647792Z"
+          },
+          {
+            "id": "26266248-457a-4991-8708-4b1a91b12356",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 22,
+            "type": "model_call_start",
+            "payload": {
+              "round": 1,
+              "model_call_id": "334f7fa5-df43-4a98-b06d-b194ceff2a84"
+            },
+            "session_id": "97071ea0-776c-4299-9c32-c6719c0a6678",
+            "created_at": "2026-10-20T01:14:03.663156Z"
+          },
+          {
+            "id": "c90812b4-4c8d-47e9-a800-0d0faf10e606",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 23,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 1,
+              "has_content": false,
+              "finish_reason": "tool_calls",
+              "tool_calls_count": 1
+            },
+            "session_id": "97071ea0-776c-4299-9c32-c6719c0a6678",
+            "created_at": "2026-10-20T01:14:03.667866Z"
+          },
+          {
+            "id": "04299f6b-289a-40df-bccc-6679ffababe8",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 24,
+            "type": "tool_call_start",
+            "payload": {
+              "call_id": "call_get_f9cf3404",
+              "tool_name": "get_endpoint"
+            },
+            "session_id": "97071ea0-776c-4299-9c32-c6719c0a6678",
+            "created_at": "2026-10-20T01:14:03.676786Z"
+          },
+          {
+            "id": "6f879132-5fc3-4ce6-837b-2e83db33284f",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 25,
+            "type": "tool_call_success",
+            "payload": {
+              "bytes": 528,
+              "call_id": "call_get_f9cf3404",
+              "tool_name": "get_endpoint"
+            },
+            "session_id": "97071ea0-776c-4299-9c32-c6719c0a6678",
+            "created_at": "2026-10-20T01:14:03.682349Z"
+          },
+          {
+            "id": "dbc5e2a7-4c1b-4cc1-ab1f-309bd3cbf8d1",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 26,
+            "type": "model_call_start",
+            "payload": {
+              "round": 2,
+              "model_call_id": "42adb7c9-8c46-49ff-9022-947053e3b0da"
+            },
+            "session_id": "97071ea0-776c-4299-9c32-c6719c0a6678",
+            "created_at": "2026-10-20T01:14:03.691995Z"
+          },
+          {
+            "id": "660c6ab3-3af3-4abb-a768-289bce0d3d0f",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 27,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 2,
+              "has_content": false,
+              "finish_reason": "tool_calls",
+              "tool_calls_count": 1
+            },
+            "session_id": "97071ea0-776c-4299-9c32-c6719c0a6678",
+            "created_at": "2026-10-20T01:14:03.696679Z"
+          },
+          {
+            "id": "776f4504-02bc-408f-bd79-379df49e31eb",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 28,
+            "type": "tool_call_start",
+            "payload": {
+              "call_id": "call_obs_f9cf3404",
+              "tool_name": "record_observation"
+            },
+            "session_id": "97071ea0-776c-4299-9c32-c6719c0a6678",
+            "created_at": "2026-10-20T01:14:03.705196Z"
+          },
+          {
+            "id": "8f898967-7735-4c9f-98d7-896f2825c115",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 29,
+            "type": "observation",
+            "payload": {
+              "content": "Health check reported version review-v2",
+              "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+              "obs_type": "service_version",
+              "observation_id": "d17b5dff-acaf-43dc-a6c1-86d810e1cc12"
+            },
+            "session_id": "97071ea0-776c-4299-9c32-c6719c0a6678",
+            "work_item_id": "f882f159-8d42-4714-b7b4-1a7b304781f4",
+            "attempt_id": "4757bb9b-b1cc-476a-ac0f-2c5795228db4",
+            "created_at": "2026-10-20T01:14:03.708722Z"
+          },
+          {
+            "id": "45f970eb-f69a-4503-abf5-7bc74c486c32",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 30,
+            "type": "tool_call_success",
+            "payload": {
+              "bytes": 77,
+              "call_id": "call_obs_f9cf3404",
+              "tool_name": "record_observation"
+            },
+            "session_id": "97071ea0-776c-4299-9c32-c6719c0a6678",
+            "created_at": "2026-10-20T01:14:03.715026Z"
+          },
+          {
+            "id": "9db5dfdf-cbdb-466f-b513-857a2d8879c6",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 31,
+            "type": "model_call_start",
+            "payload": {
+              "round": 3,
+              "model_call_id": "5b11a209-f1e2-49ae-9cf3-5464c9c0be18"
+            },
+            "session_id": "97071ea0-776c-4299-9c32-c6719c0a6678",
+            "created_at": "2026-10-20T01:14:03.724038Z"
+          },
+          {
+            "id": "63defcdd-e077-4359-af3e-f3a4096bea2a",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 32,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 3,
+              "has_content": true,
+              "finish_reason": "stop",
+              "tool_calls_count": 0
+            },
+            "session_id": "97071ea0-776c-4299-9c32-c6719c0a6678",
+            "created_at": "2026-10-20T01:14:03.729038Z"
+          },
+          {
+            "id": "5154b20d-c2be-4940-b0ff-a390e8754006",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 33,
+            "type": "work_item_claimed",
+            "payload": {
+              "key": "aggregate_summary",
+              "title": "Aggregate HTTP Findings",
+              "attempt_id": "5368e0a0-b4d3-44e6-8311-904939e7aa4b",
+              "session_id": "9f72205f-3c88-4330-b7dd-1fad6e0821ea",
+              "work_item_id": "7610f97e-414a-4184-906e-5dccb82a4c9d"
+            },
+            "session_id": "9f72205f-3c88-4330-b7dd-1fad6e0821ea",
+            "work_item_id": "7610f97e-414a-4184-906e-5dccb82a4c9d",
+            "attempt_id": "5368e0a0-b4d3-44e6-8311-904939e7aa4b",
+            "created_at": "2026-10-20T01:14:03.740424Z"
+          },
+          {
+            "id": "6ad29666-107d-4ffe-b1f7-abb5bdcdf5f4",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 34,
+            "type": "model_call_start",
+            "payload": {
+              "round": 1,
+              "model_call_id": "d2bf6f52-43c1-43c2-aab5-404813d6dd4e"
+            },
+            "session_id": "9f72205f-3c88-4330-b7dd-1fad6e0821ea",
+            "created_at": "2026-10-20T01:14:03.756475Z"
+          },
+          {
+            "id": "22be7487-24ef-4dba-bd80-44327d5d1514",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 35,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 1,
+              "has_content": false,
+              "finish_reason": "tool_calls",
+              "tool_calls_count": 1
+            },
+            "session_id": "9f72205f-3c88-4330-b7dd-1fad6e0821ea",
+            "created_at": "2026-10-20T01:14:03.761491Z"
+          },
+          {
+            "id": "eb1cc249-a9d5-4486-97f8-69481677a11e",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 36,
+            "type": "tool_call_start",
+            "payload": {
+              "call_id": "call_read_obs_all",
+              "tool_name": "read_observations"
+            },
+            "session_id": "9f72205f-3c88-4330-b7dd-1fad6e0821ea",
+            "created_at": "2026-10-20T01:14:03.769682Z"
+          },
+          {
+            "id": "d569c975-e388-488a-83f0-71f6ca8503f6",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 37,
+            "type": "tool_call_success",
+            "payload": {
+              "bytes": 1001,
+              "call_id": "call_read_obs_all",
+              "tool_name": "read_observations"
+            },
+            "session_id": "9f72205f-3c88-4330-b7dd-1fad6e0821ea",
+            "created_at": "2026-10-20T01:14:03.772996Z"
+          },
+          {
+            "id": "7d6a7deb-a20f-4498-84aa-58c94f36a477",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 38,
+            "type": "model_call_start",
+            "payload": {
+              "round": 2,
+              "model_call_id": "cd8def99-034f-498a-84d0-5ade6984ac48"
+            },
+            "session_id": "9f72205f-3c88-4330-b7dd-1fad6e0821ea",
+            "created_at": "2026-10-20T01:14:03.783133Z"
+          },
+          {
+            "id": "7a1f846a-edb1-43b9-9cec-6a85c033c6e3",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 39,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 2,
+              "has_content": true,
+              "finish_reason": "stop",
+              "tool_calls_count": 0
+            },
+            "session_id": "9f72205f-3c88-4330-b7dd-1fad6e0821ea",
+            "created_at": "2026-10-20T01:14:03.788305Z"
+          },
+          {
+            "id": "43009ae1-fb55-45be-8350-a6175f82a114",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 40,
+            "type": "model_call_start",
+            "payload": {
+              "round": 1,
+              "model_call_id": "b6978a14-371b-4f0f-9113-758b5f638d17"
+            },
+            "session_id": "e3c6c4b7-6df1-4d0b-a105-8fdbb6862e2c",
+            "created_at": "2026-10-20T01:14:03.817578Z"
+          },
+          {
+            "id": "5f8b8ffc-d506-41c0-96ba-8535ced6b313",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 41,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 1,
+              "has_content": false,
+              "finish_reason": "tool_calls",
+              "tool_calls_count": 1
+            },
+            "session_id": "e3c6c4b7-6df1-4d0b-a105-8fdbb6862e2c",
+            "created_at": "2026-10-20T01:14:03.822513Z"
+          },
+          {
+            "id": "1873e162-f5fd-43a0-a84a-9b6cb8067d1f",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 42,
+            "type": "tool_call_start",
+            "payload": {
+              "call_id": "call_suggest_completion_http",
+              "tool_name": "suggest_completion"
+            },
+            "session_id": "e3c6c4b7-6df1-4d0b-a105-8fdbb6862e2c",
+            "created_at": "2026-10-20T01:14:03.82947Z"
+          },
+          {
+            "id": "5fc8b4c4-e297-4a73-94a8-526650f03242",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 43,
+            "type": "tool_call_success",
+            "payload": {
+              "bytes": 45,
+              "call_id": "call_suggest_completion_http",
+              "tool_name": "suggest_completion"
+            },
+            "session_id": "e3c6c4b7-6df1-4d0b-a105-8fdbb6862e2c",
+            "created_at": "2026-10-20T01:14:03.832512Z"
+          },
+          {
+            "id": "5e5479b3-e229-4118-9580-40aa738d8e7c",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 44,
+            "type": "model_call_start",
+            "payload": {
+              "round": 2,
+              "model_call_id": "2d75237e-e433-494f-bb35-3f7775a2e070"
+            },
+            "session_id": "e3c6c4b7-6df1-4d0b-a105-8fdbb6862e2c",
+            "created_at": "2026-10-20T01:14:03.84227Z"
+          },
+          {
+            "id": "e0ff0210-d061-411b-ae50-5204b46c74b7",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 45,
+            "type": "model_call_finish",
+            "payload": {
+              "round": 2,
+              "has_content": true,
+              "finish_reason": "stop",
+              "tool_calls_count": 0
+            },
+            "session_id": "e3c6c4b7-6df1-4d0b-a105-8fdbb6862e2c",
+            "created_at": "2026-10-20T01:14:03.847004Z"
+          },
+          {
+            "id": "22e4f89f-d081-4fab-82e6-a7f9f3437330",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 46,
+            "type": "state_change",
+            "payload": {
+              "to": "completed",
+              "from": "running"
+            },
+            "created_at": "2026-10-20T01:14:03.856669Z"
+          },
+          {
+            "id": "9f825137-6c03-49b3-99fb-33a4f4e7ce6b",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "seq": 47,
+            "type": "final_answer",
+            "payload": {
+              "output": "All target HTTP endpoints were verified via real GET requests. Verified real HTTP status codes and response bodies from local fixture application. Evidence observation: 3db7030c-3eb5-4ec9-9e7f-134006fc49aa."
+            },
+            "created_at": "2026-10-20T01:14:03.856669Z"
+          }
+        ]
+      },
+      "planner_rounds": {
+        "planner_rounds": [
+          {
+            "id": "621f4a33-4b24-4331-925b-4daee0522e5e",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "round": 1,
+            "trigger_reason": "initial",
+            "plan_summary": "Initial plan submitted",
+            "status": "completed",
+            "created_at": "2026-10-20T01:14:03.485812Z",
+            "finished_at": "2026-10-20T01:14:03.5534Z"
+          },
+          {
+            "id": "a8638889-24fe-4b6e-b340-219d4196c477",
+            "run_id": "0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+            "round": 2,
+            "trigger_reason": "all_work_completed",
+            "plan_summary": "All target HTTP endpoints were verified via real GET requests. Verified real HTTP status codes and response bodies from local fixture application. Evidence observation: 3db7030c-3eb5-4ec9-9e7f-134006fc49aa.",
+            "status": "completed",
+            "created_at": "2026-10-20T01:14:03.802672Z",
+            "finished_at": "2026-10-20T01:14:03.855074Z"
+          }
+        ]
+      },
+      "http_versions": [
+        "review-v2",
+        "review-v2"
+      ]
+    }
+  ],
+  "page_errors": [],
+  "note": "Verified fixture control response before each run; initial JSON-body control did not change the deployed fixture, so the first two runs are excluded from version-change acceptance.",
+  "run_url": "http://localhost:23000/tasks/dc4592ae-e5bf-46fc-bac9-bc68fdc11869/runs/0b07c676-4e9d-4847-a390-35cb0a0a5bbb",
+  "run_page_excerpt": "Agent Workbench\nTasks\nAssets\nTasks\n/\nTask dc4592ae\n/\nRun 0b07c676\n模拟 / MOCK PROVIDER\n当前为本地内置预设回复，场景：http_traceability\n无外部 LLM API 消耗\nASSETS IN SCOPE (1)\nClick asset to view full history & observations\nLocal Fixture Health Check\n(GET http://127.0.0.1:29090/health)\nRun 0b07c676-4e9d-4847-a390-35cb0a0a5bbb\nCompleted\nFINISH REASON\n\ncompleted\n\nStarted At\n9:14:03 AM\n10/20/2026\nFinished At\n9:14:03 AM\n10/20/2026\nDuration\n0s\nExecutor Mode\nOrchestrator (编排)\n1510 tokens\nCONFIGURATION & EXECUTION INPUT SNAPSHOT\nAssistant Final Answer (最终回答)\nAll target HTTP endpoints were verified via real GET requests. Verified real HTTP status codes and response bodies from local fixture application. Evidence observation: 3db7030c-3eb5-4ec9-9e7f-134006fc49aa.\nWork Items (工作列表)\n3\nObservations (证据与观察)\n2\nSessions (会话隔离)\n5\nEvents Timeline\n47\nModel Calls\n12\nTool Calls\n7\nConversation\n29\nAggregate HTTP Findings\naggregate_summary\naggregate_summary\nRound 1\nCOMPLETED\n\nSummarize observations\n\nTarget Assets:\nLocal Fixture Health Check (GET http://127.0.0.1:29090/health)\nPrerequisites:\ninspect_http_home\ninspect_http_health\nAttempt: 5368e0a0\nCreated: 9:14:03 AM\nOutput Data:\n{\n  \"summary\": \"Analyzed all prerequisite observations. All endpoints healthy and returning 200 OK.\"\n}\nInspect HTTP Health\ninspect_http_health\ninspect_http_endpoint\nRound 1\nCOMPLETED\n\nFetch health status\n\nTarget Assets:\nLocal Fixture Health Check (GET http://127.0.0.1:29090/health)\nAttempt: 4757bb9b\nCreated: 9:14:03 AM\nOutput Data:\n{\n  \"summary\": \"Successfully retrieved endpoint for asset f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9 and recorded evidence observation.\"\n}\nInspect HTTP Home\ninspect_http_home\ninspect_http_endpoint\nRound 1\nCOMPLETED\n\nFetch root page\n\nTarget Assets:\nLocal Fixture Health Check (GET http://127.0.0.1:29090/health)\nAttempt: 1801a4b2\nCreated: 9:14:03 AM\nOutput Data:\n{\n  \"summary\": \"Successfully retrieved endpoint for asset f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9 and recorded evidence observation.\"\n}",
+  "asset_id": "f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+  "asset_url": "http://localhost:23000/assets/f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9",
+  "expanded_asset_page_excerpt": "Agent Workbench\nTasks\nAssets\nBack to Assets\nhttp_endpoint\nlocal-fixture-v1:GET http://127.0.0.1:29090/health\nLocal Fixture Health Check\n\nHealth check endpoint of local fixture application\n\nAsset ID: f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\nCreated: 10/20/2026, 9:00:10 AM\nRun History & Audit Trace\n6 Runs\n验收示例：真实 HTTP 与历史证据\nCompleted\nRun ID: 0b07c676-4e9d-4847-a390-35cb0a0a5bbb\nStarted: 9:14:03 AM\nFinished: 9:14:03 AM\nTARGETED WORK ITEMS (3)\ninspect_http_home\nCOMPLETED\n\nInspect HTTP Home\n\nFetch root page\n\ninspect_http_health\nCOMPLETED\n\nInspect HTTP Health\n\nFetch health status\n\naggregate_summary\nCOMPLETED\n\nAggregate HTTP Findings\n\nSummarize observations\n\nVERIFIED OBSERVATIONS & EVIDENCE (2)\nservice_version\nHealth check reported version review-v2\n{\"version\":\"review-v2\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"status_code\":200}\nHide Evidence\nget_endpoint\ncall_id: call_get_f9cf3404\nsuccess\nArguments:\n{\n  \"asset_id\": \"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\"\n}\nRaw Tool Output / Sample Body:\n{\"error\":null,\"integrity\":{\"is_truncated\":false,\"note\":\"\",\"saved_bytes\":37},\"request\":{\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"method\":\"GET\",\"started_at\":\"2026-10-20T01:14:03.587421504Z\",\"url\":\"http://127.0.0.1:29090/health\"},\"response\":{\"body\":\"{\\\"status\\\":\\\"UP\\\",\\\"version\\\":\\\"review-v2\\\"}\",\"duration_ms\":0,\"headers\":{\"Content-Length\":\"37\",\"Content-Type\":\"application/json\",\"Date\":\"Tue, 20 Oct 2026 01:14:03 GMT\",\"X-Fixture-App\":\"local-fixture-v1\"},\"received_at\":\"2026-10-20T01:14:03.588379026Z\",\"status_code\":200}}\nservice_version\nHealth check reported version review-v2\n{\"version\":\"review-v2\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"status_code\":200}\nInspect Tool Call\n验收示例：真实 HTTP 与历史证据\nCompleted\nRun ID: 16b562f8-89be-4535-8eb1-8aed400ec0b1\nStarted: 9:14:02 AM\nFinished: 9:14:02 AM\nTARGETED WORK ITEMS (3)\ninspect_http_home\nCOMPLETED\n\nInspect HTTP Home\n\nFetch root page\n\naggregate_summary\nCOMPLETED\n\nAggregate HTTP Findings\n\nSummarize observations\n\ninspect_http_health\nCOMPLETED\n\nInspect HTTP Health\n\nFetch health status\n\nVERIFIED OBSERVATIONS & EVIDENCE (2)\nservice_version\nHealth check reported version review-v1\n{\"version\":\"review-v1\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"status_code\":200}\nInspect Tool Call\nservice_version\nHealth check reported version review-v1\n{\"version\":\"review-v1\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"status_code\":200}\nInspect Tool Call\n验收示例：真实 HTTP 与历史证据\nCompleted\nRun ID: a83998e1-b8da-417d-9bd1-4766d94aaa22\nStarted: 9:13:08 AM\nFinished: 9:13:08 AM\nTARGETED WORK ITEMS (3)\ninspect_http_home\nCOMPLETED\n\nInspect HTTP Home\n\nFetch root page\n\ninspect_http_health\nCOMPLETED\n\nInspect HTTP Health\n\nFetch health status\n\naggregate_summary\nCOMPLETED\n\nAggregate HTTP Findings\n\nSummarize observations\n\nVERIFIED OBSERVATIONS & EVIDENCE (2)\nservice_version\nHealth check reported version 2.0.0\n{\"version\":\"2.0.0\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"status_code\":200}\nInspect Tool Call\nservice_version\nHealth check reported version 2.0.0\n{\"version\":\"2.0.0\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"status_code\":200}\nInspect Tool Call\n验收示例：真实 HTTP 与历史证据\nCompleted\nRun ID: 1fd8c27b-4745-4212-b4da-509eb780f881\nStarted: 9:13:07 AM\nFinished: 9:13:07 AM\nTARGETED WORK ITEMS (3)\ninspect_http_home\nCOMPLETED\n\nInspect HTTP Home\n\nFetch root page\n\ninspect_http_health\nCOMPLETED\n\nInspect HTTP Health\n\nFetch health status\n\naggregate_summary\nCOMPLETED\n\nAggregate HTTP Findings\n\nSummarize observations\n\nVERIFIED OBSERVATIONS & EVIDENCE (2)\nservice_version\nHealth check reported version 2.0.0\n{\"version\":\"2.0.0\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"status_code\":200}\nInspect Tool Call\nservice_version\nHealth check reported version 2.0.0\n{\"version\":\"2.0.0\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"status_code\":200}\nInspect Tool Call\nPhase 5 Fixture Live Demonstration Task\nCompleted\nRun ID: fcc151b0-1da9-44b9-a5e4-1b8a2d973d70\nStarted: 9:01:01 AM\nFinished: 9:01:02 AM\nTARGETED WORK ITEMS (3)\ninspect_http_home\nCOMPLETED\n\nInspect HTTP Home\n\nFetch root page\n\ninspect_http_health\nCOMPLETED\n\nInspect HTTP Health\n\nFetch health status\n\naggregate_summary\nCOMPLETED\n\nAggregate HTTP Findings\n\nSummarize observations\n\nVERIFIED OBSERVATIONS & EVIDENCE (2)\nservice_version\nHealth check reported version 2.0.0\n{\"version\":\"2.0.0\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"status_code\":200}\nInspect Tool Call\nservice_version\nHealth check reported version 2.0.0\n{\"version\":\"2.0.0\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"status_code\":200}\nInspect Tool Call\nPhase 5 Fixture Live Demonstration Task\nCompleted\nRun ID: f3b68d4b-8a2f-41a7-9dc3-2e45387311f8\nStarted: 9:00:10 AM\nFinished: 9:00:11 AM\nTARGETED WORK ITEMS (3)\ninspect_http_home\nCOMPLETED\n\nInspect HTTP Home\n\nFetch root page\n\ninspect_http_health\nCOMPLETED\n\nInspect HTTP Health\n\nFetch health status\n\naggregate_summary\nCOMPLETED\n\nAggregate HTTP Findings\n\nSummarize observations\n\nVERIFIED OBSERVATIONS & EVIDENCE (2)\nservice_version\nHealth check reported version 1.0.0\n{\"version\":\"1.0.0\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"status_code\":200}\nInspect Tool Call\nservice_version\nHealth check reported version 1.0.0\n{\"version\":\"1.0.0\",\"asset_id\":\"f9cf3404-d1c1-4a6d-b8df-80a40ef2ddb9\",\"status_code\":200}\nInspect Tool Call",
+  "requests_after": {
+    "counts_by_path": {
+      "/health": 15,
+      "/login": 2
+    },
+    "total_requests": 17,
+    "version": "review-v2"
+  },
+  "real_health_requests_delta": 4
+}

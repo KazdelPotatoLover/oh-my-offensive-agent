@@ -110,9 +110,22 @@ func TestSession_ObservationVerification(t *testing.T) {
 	defer env.manager.StopAll()
 
 	ctx := context.Background()
-	task, _ := env.taskService.Create(ctx, model.CreateTaskRequest{Name: "Obs Task", Objective: "Obs test"})
+	task, _ := env.taskService.Create(ctx, model.CreateTaskRequest{
+		Name:      "Obs Task",
+		Objective: "Obs test",
+		Scope:     json.RawMessage(`{"endpoints":["sample_home","sample_login","sample_health"]}`),
+	})
 	run, _, _ := env.runService.Create(ctx, task.ID, model.CreateRunRequest{}, nil)
 	_, _ = env.runService.TransitionState(ctx, run.ID, model.RunStatusQueued, model.RunStatusRunning, nil)
+
+	runAssets, _ := env.runService.ListAssetsByRun(ctx, run.ID)
+	var homeAssetID uuid.UUID
+	for _, a := range runAssets {
+		if a.ExternalKey == "sample_home" {
+			homeAssetID = a.ID
+			break
+		}
+	}
 
 	// Create a WorkItem & Attempt
 	planItems, err := env.runService.SubmitPlan(ctx, run.ID, []service.PlanItemSpec{
@@ -121,6 +134,8 @@ func TestSession_ObservationVerification(t *testing.T) {
 			Title:     "Item 1",
 			Objective: "Inspect sample",
 			WorkType:  "analyze_sample",
+			AssetIDs:  []uuid.UUID{homeAssetID},
+			InputData: map[string]interface{}{"sample_id": "sample_home"},
 		},
 	})
 	if err != nil {

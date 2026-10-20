@@ -72,7 +72,7 @@ export default function TaskDetailPage() {
 
   const [executorType, setExecutorType] = useState<'orchestrator' | 'agent' | 'fake'>('orchestrator');
   const [providerType, setProviderType] = useState<'mock' | 'openai'>('mock');
-  const [mockScenario, setMockScenario] = useState('orchestration');
+  const [mockScenario, setMockScenario] = useState('http_traceability');
   const [parallelWorkers, setParallelWorkers] = useState<number>(1);
 
   const handleStartRun = async (e: React.FormEvent) => {
@@ -362,7 +362,9 @@ export default function TaskDetailPage() {
                         onChange={(e) => setMockScenario(e.target.value)}
                         className="w-full px-3 py-1.5 bg-gray-900 border border-gray-800 rounded-lg text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       >
-                        <option value="orchestration">orchestration (Planner + Workers + Summary 闭环)</option>
+                        <option value="http_traceability">http_traceability (阶段五: 本地 HTTP 读取与真实请求留痕)</option>
+                        <option value="traceability">traceability (阶段四: 资产溯源 + 多轮核验 3 Rounds / 5 Items)</option>
+                        <option value="orchestration">orchestration (阶段三: Planner + Workers + Summary 2 Rounds / 4 Items)</option>
                         <option value="normal">normal (list_samples → read_sample → complete)</option>
                         <option value="text_and_tool">text_and_tool (cot thought + tool call)</option>
                         <option value="invalid_tool">invalid_tool (calls non-existent tool)</option>

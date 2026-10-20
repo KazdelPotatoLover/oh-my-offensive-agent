@@ -112,18 +112,40 @@ func (h *RunHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 
 		executorType := "fake"
-		if agentCfg, ok := inputMap["agent_config"].(map[string]interface{}); ok {
+		var agentCfg map[string]interface{}
+		if ac, ok := inputMap["agent_config"].(map[string]interface{}); ok {
+			agentCfg = ac
+		} else if cfgMap, ok := inputMap["config"].(map[string]interface{}); ok {
+			if ac, ok := cfgMap["agent_config"].(map[string]interface{}); ok {
+				agentCfg = ac
+			}
+		}
+		if agentCfg != nil {
 			if ex, ok := agentCfg["executor"].(string); ok && ex != "" {
 				executorType = ex
 			}
 		}
 
+		scopeMap, _ := inputMap["scope"].(map[string]interface{})
+		isDiscovery := (scopeMap != nil && scopeMap["mode"] == "discovery") || inputMap["discovery_policy"] != nil
+		if isDiscovery && executorType == "fake" {
+			executorType = "orchestrator"
+		}
+
+		var bMap map[string]interface{}
+		if b, ok := inputMap["budget"].(map[string]interface{}); ok {
+			bMap = b
+		} else if cfgMap, ok := inputMap["config"].(map[string]interface{}); ok {
+			if b, ok := cfgMap["budget"].(map[string]interface{}); ok {
+				bMap = b
+			}
+		}
+
 		if executorType == "agent" {
-			agentCfg, _ := inputMap["agent_config"].(map[string]interface{})
 			provType, _ := agentCfg["provider"].(string)
 
 			budget := model.DefaultBudgetConfig()
-			if bMap, ok := inputMap["budget"].(map[string]interface{}); ok {
+			if bMap != nil {
 				bBytes, _ := json.Marshal(bMap)
 				json.Unmarshal(bBytes, &budget)
 			}
@@ -139,11 +161,10 @@ func (h *RunHandler) Create(w http.ResponseWriter, r *http.Request) {
 			runner := agent.NewAgentRunner(run.ID, h.runService, p, tools.DefaultRegistry(), budget)
 			startErr = h.manager.StartExecutor(run.ID, runner)
 		} else if executorType == "orchestrator" || executorType == "orchestration" {
-			agentCfg, _ := inputMap["agent_config"].(map[string]interface{})
 			provType, _ := agentCfg["provider"].(string)
 
 			budget := model.DefaultBudgetConfig()
-			if bMap, ok := inputMap["budget"].(map[string]interface{}); ok {
+			if bMap != nil {
 				bBytes, _ := json.Marshal(bMap)
 				json.Unmarshal(bBytes, &budget)
 			}
@@ -154,9 +175,23 @@ func (h *RunHandler) Create(w http.ResponseWriter, r *http.Request) {
 			} else {
 				scenario, _ := agentCfg["mock_scenario"].(string)
 				if scenario == "" {
-					scenario = string(provider.ScenarioOrchestration)
+					if isDiscovery {
+						scenario = string(provider.ScenarioDiscovery)
+					} else {
+						scenario = string(provider.ScenarioOrchestration)
+					}
 				}
 				p = provider.NewMockProvider(provider.MockScenario(scenario))
+			}
+
+			if isDiscovery {
+				budget.MaxParallelWorkers = 1
+				if budget.MaxModelCalls < 80 {
+					budget.MaxModelCalls = 80
+				}
+				if budget.MaxToolCalls < 80 {
+					budget.MaxToolCalls = 80
+				}
 			}
 
 			engine := orchestration.NewEngine(run.ID, h.runService, p, budget)
@@ -342,4 +377,50 @@ func (h *RunHandler) GetPlannerRounds(w http.ResponseWriter, r *http.Request) {
 	}
 	respondJSON(w, http.StatusOK, map[string]interface{}{"planner_rounds": rounds})
 }
+
+func (h *RunHandler) GetRunAssets(w http.ResponseWriter, r *http.Request) {
+	runID, err := uuid.Parse(chi.URLParam(r, "runID"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid run ID")
+		return
+	}
+
+	assets, err := h.runService.ListAssetsByRun(r.Context(), runID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to get run assets")
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"assets": assets})
+}
+
+func (h *RunHandler) GetWorkItemDetails(w http.ResponseWriter, r *http.Request) {
+	runID, err := uuid.Parse(chi.URLParam(r, "runID"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid run ID")
+		return
+	}
+
+	items, err := h.runService.ListWorkItemDetailsByRun(r.Context(), runID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to get work item details")
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"work_items": items})
+}
+
+func (h *RunHandler) GetDiscoveries(w http.ResponseWriter, r *http.Request) {
+	runID, err := uuid.Parse(chi.URLParam(r, "runID"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid run ID")
+		return
+	}
+
+	discoveries, err := h.runService.ListDiscoveriesByRun(r.Context(), runID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to get discoveries")
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"discoveries": discoveries})
+}
+
 

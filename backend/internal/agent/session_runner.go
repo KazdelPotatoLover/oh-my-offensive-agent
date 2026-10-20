@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/provider"
@@ -417,7 +418,7 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 			cancelTool()
 
 			var status string
-			var outStr string
+			var storedOutStr string
 			var errMsg *string
 			var toolMsgContent string
 
@@ -426,6 +427,9 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 				status = "failed"
 				errStr := execErr.Error()
 				errMsg = &errStr
+				if len(out) > 0 {
+					storedOutStr = string(out)
+				}
 				toolMsgContent = fmt.Sprintf("Error executing tool %s: %s", tc.Function.Name, errStr)
 				sr.insertSessionEvent("tool_call_failed", map[string]interface{}{
 					"call_id":   tc.ID,
@@ -434,21 +438,21 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 				})
 			} else {
 				status = "success"
-				outStr = string(out)
-				if len(outStr) > sr.budget.MaxToolOutputBytes {
-					outStr = outStr[:sr.budget.MaxToolOutputBytes] + "\n...[truncated: output exceeded budget limit]"
+				storedOutStr = string(out)
+				toolMsgContent = storedOutStr
+				if len(toolMsgContent) > sr.budget.MaxToolOutputBytes {
+					toolMsgContent = truncateUTF8(toolMsgContent, sr.budget.MaxToolOutputBytes) + "\n...[truncated: output exceeded model context budget limit]"
 				}
-				toolMsgContent = outStr
 				sr.insertSessionEvent("tool_call_success", map[string]interface{}{
 					"call_id":   tc.ID,
 					"tool_name": tc.Function.Name,
-					"bytes":     len(outStr),
+					"bytes":     len(storedOutStr),
 				})
 			}
 
 			// Persistence check #2: If saving tool result fails, DO NOT continue or claim completion!
 			if err := sr.runService.UpdateAgentToolCall(
-				context.Background(), tcRec.ID, status, outStr, errMsg, &startTime, &finishTime); err != nil {
+				context.Background(), tcRec.ID, status, storedOutStr, errMsg, &startTime, &finishTime); err != nil {
 				slog.Error("session runner: failed to persist tool result, stopping execution",
 					"session_id", sr.sessionID, "call_id", tc.ID, "error", err)
 				sr.updateSessionTerminal("failed", "persistence_error")
@@ -479,4 +483,14 @@ func (sr *SessionRunner) updateSessionTerminal(status string, finishReason strin
 func (sr *SessionRunner) insertSessionEvent(eventType string, payload map[string]interface{}) {
 	payloadBytes, _ := json.Marshal(payload)
 	_, _ = sr.runService.InsertRunEventWithContext(context.Background(), sr.runID, &sr.sessionID, nil, nil, eventType, payloadBytes)
+}
+
+func truncateUTF8(s string, maxBytes int) string {
+	if len(s) <= maxBytes {
+		return s
+	}
+	for maxBytes > 0 && maxBytes < len(s) && !utf8.RuneStart(s[maxBytes]) {
+		maxBytes--
+	}
+	return s[:maxBytes]
 }

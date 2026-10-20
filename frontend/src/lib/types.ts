@@ -145,6 +145,7 @@ export interface WorkItem {
   input_data: Record<string, unknown>;
   output_data: Record<string, unknown>;
   current_attempt_id?: string;
+  created_by_planner_round_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -157,6 +158,7 @@ export interface Observation {
   content: string;
   data: Record<string, unknown>;
   source_tool_call_id: string;
+  asset_id?: string;
   created_at: string;
 }
 
@@ -184,6 +186,84 @@ export interface PlannerRound {
   status: string;
   created_at: string;
   finished_at?: string;
+}
+
+// --- Phase 4: Asset and Traceability Models ---
+
+export interface Asset {
+  id: string;
+  namespace: string;
+  kind: string;
+  external_key: string;
+  name: string;
+  description: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AssetSummary extends Asset {
+  run_count: number;
+  observation_count: number;
+  work_item_count: number;
+}
+
+export interface ObservationDetail extends Observation {
+  tool_call?: AgentToolCall;
+}
+
+export interface WorkItemDetail extends WorkItem {
+  target_assets: Asset[];
+  source_observations: Observation[];
+  dependencies: WorkItem[];
+  created_round_num?: number;
+}
+
+export interface AssetRunHistory {
+  run_id: string;
+  task_id: string;
+  task_name: string;
+  run_status: RunStatus;
+  started_at?: string;
+  finished_at?: string;
+  work_items: WorkItemDetail[];
+  observations: ObservationDetail[];
+  discovered_by?: AssetDiscoveryDetail;
+}
+
+export interface AssetDiscoveryDetail {
+  id: string;
+  run_id: string;
+  source_asset_id: string;
+  source_tool_call_id: string;
+  target_asset_id: string;
+  raw_href: string;
+  discovered_at: string;
+  source_asset_name?: string;
+  source_asset_key?: string;
+  target_asset_name?: string;
+  target_asset_key?: string;
+}
+
+export interface DiscoveriesResponse {
+  discoveries: AssetDiscoveryDetail[];
+}
+
+export interface AssetDetailsResponse {
+  asset: Asset;
+  run_history: AssetRunHistory[];
+}
+
+export interface AssetsResponse {
+  assets: AssetSummary[];
+}
+
+export interface RunAssetsResponse {
+  assets: Asset[];
+}
+
+export interface WorkItemDetailsResponse {
+  work_items: WorkItemDetail[];
 }
 
 export interface TasksResponse {

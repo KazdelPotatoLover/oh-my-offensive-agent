@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"agent-workbench/backend/internal/model"
@@ -17,6 +18,8 @@ var (
 	ErrInvalidObservationSource = errors.New("invalid observation source tool call: not found, mismatched session/run, or tool call did not succeed")
 	ErrDependencyCycle          = errors.New("work dependency cycle detected")
 	ErrWorkItemConflict         = errors.New("work item key conflict with differing definition")
+	ErrAssetOutOfScope          = errors.New("asset is outside run or work item scope")
+	ErrAssetSampleMismatch      = errors.New("asset and sample_id mismatch")
 )
 
 // --- Sessions ---
@@ -373,16 +376,23 @@ func (s *RunService) ListPlannerRounds(ctx context.Context, runID uuid.UUID) ([]
 // --- Work Items & Dependencies ---
 
 type PlanItemSpec struct {
-	Key          string                 `json:"key"`
-	Title        string                 `json:"title"`
-	Objective    string                 `json:"objective"`
-	WorkType     string                 `json:"work_type"`
-	InputData    map[string]interface{} `json:"input_data"`
-	Dependencies []string               `json:"dependencies"` // keys of dependencies
+	Key                  string                 `json:"key"`
+	Title                string                 `json:"title"`
+	Objective            string                 `json:"objective"`
+	WorkType             string                 `json:"work_type"`
+	InputData            map[string]interface{} `json:"input_data"`
+	Dependencies         []string               `json:"dependencies"`           // keys of dependencies
+	AssetIDs             []uuid.UUID            `json:"asset_ids"`              // target assets
+	SourceObservationIDs []uuid.UUID            `json:"source_observation_ids"` // causal source observations
 }
 
 // SubmitPlan atomically validates and inserts a batch of planned work items and dependencies.
 func (s *RunService) SubmitPlan(ctx context.Context, runID uuid.UUID, planItems []PlanItemSpec) ([]model.WorkItem, error) {
+	return s.SubmitPlanWithRound(ctx, runID, nil, planItems)
+}
+
+// SubmitPlanWithRound atomically validates and inserts planned work items with planner_round_id attribution.
+func (s *RunService) SubmitPlanWithRound(ctx context.Context, runID uuid.UUID, plannerRoundID *uuid.UUID, planItems []PlanItemSpec) ([]model.WorkItem, error) {
 	if len(planItems) == 0 {
 		return []model.WorkItem{}, nil
 	}
@@ -395,7 +405,8 @@ func (s *RunService) SubmitPlan(ctx context.Context, runID uuid.UUID, planItems 
 
 	// Check that run is still running
 	var runStatus model.RunStatus
-	err = tx.QueryRow(ctx, `SELECT status FROM runs WHERE id = $1 FOR UPDATE`, runID).Scan(&runStatus)
+	var scopePolicyVersion string
+	err = tx.QueryRow(ctx, `SELECT status, scope_policy_version FROM runs WHERE id = $1 FOR UPDATE`, runID).Scan(&runStatus, &scopePolicyVersion)
 	if err != nil {
 		return nil, fmt.Errorf("check run status: %w", err)
 	}
@@ -403,8 +414,43 @@ func (s *RunService) SubmitPlan(ctx context.Context, runID uuid.UUID, planItems 
 		return nil, fmt.Errorf("cannot submit plan: run status is %s", runStatus)
 	}
 
+	// Load allowed assets for this run
+	assetRows, err := tx.Query(ctx,
+		`SELECT a.id, a.external_key 
+		 FROM assets a 
+		 JOIN run_assets ra ON a.id = ra.asset_id 
+		 WHERE ra.run_id = $1`, runID)
+	if err != nil {
+		return nil, fmt.Errorf("query run assets: %w", err)
+	}
+	runAssetMap := make(map[uuid.UUID]string)
+	for assetRows.Next() {
+		var aid uuid.UUID
+		var aKey string
+		if err := assetRows.Scan(&aid, &aKey); err == nil {
+			runAssetMap[aid] = aKey
+		}
+	}
+	assetRows.Close()
+
+	// Load existing observations for this run
+	obsRows, err := tx.Query(ctx, `SELECT id FROM observations WHERE run_id = $1`, runID)
+	if err != nil {
+		return nil, fmt.Errorf("query run observations: %w", err)
+	}
+	runObsMap := make(map[uuid.UUID]bool)
+	for obsRows.Next() {
+		var oid uuid.UUID
+		if err := obsRows.Scan(&oid); err == nil {
+			runObsMap[oid] = true
+		}
+	}
+	obsRows.Close()
+
 	// Load existing work items for this run
-	existingRows, err := tx.Query(ctx, `SELECT id, key, title, objective, work_type, input_data FROM work_items WHERE run_id = $1`, runID)
+	existingRows, err := tx.Query(ctx,
+		`SELECT id, key, title, objective, work_type, input_data, created_by_planner_round_id 
+		 FROM work_items WHERE run_id = $1`, runID)
 	if err != nil {
 		return nil, fmt.Errorf("query existing work_items: %w", err)
 	}
@@ -412,7 +458,7 @@ func (s *RunService) SubmitPlan(ctx context.Context, runID uuid.UUID, planItems 
 	keyToItem := make(map[string]model.WorkItem)
 	for existingRows.Next() {
 		var wi model.WorkItem
-		if err := existingRows.Scan(&wi.ID, &wi.Key, &wi.Title, &wi.Objective, &wi.WorkType, &wi.InputData); err != nil {
+		if err := existingRows.Scan(&wi.ID, &wi.Key, &wi.Title, &wi.Objective, &wi.WorkType, &wi.InputData, &wi.CreatedByPlannerRoundID); err != nil {
 			existingRows.Close()
 			return nil, fmt.Errorf("scan existing work_item: %w", err)
 		}
@@ -421,7 +467,7 @@ func (s *RunService) SubmitPlan(ctx context.Context, runID uuid.UUID, planItems 
 	}
 	existingRows.Close()
 
-	// Validate keys in this batch for duplicates or conflicts
+	// Validate keys in this batch for duplicates, asset scope, observation source, and conflict
 	batchKeys := make(map[string]bool)
 	for _, item := range planItems {
 		if item.Key == "" {
@@ -432,11 +478,97 @@ func (s *RunService) SubmitPlan(ctx context.Context, runID uuid.UUID, planItems 
 		}
 		batchKeys[item.Key] = true
 
-		// Check conflict with existing item: if same key exists, check if definition matches
+		// Validate asset_ids: must belong to run_assets
+		if len(item.AssetIDs) > 0 {
+			for _, aid := range item.AssetIDs {
+				if _, ok := runAssetMap[aid]; !ok {
+					return nil, fmt.Errorf("asset %s is outside run asset scope: %w", aid, ErrAssetOutOfScope)
+				}
+			}
+			// Validate sample_id consistency with asset_ids if sample_id provided
+			if sampleID, ok := item.InputData["sample_id"].(string); ok && sampleID != "" {
+				matched := false
+				for _, aid := range item.AssetIDs {
+					if runAssetMap[aid] == sampleID {
+						matched = true
+						break
+					}
+				}
+				if !matched {
+					return nil, fmt.Errorf("sample_id '%s' does not match any target asset: %w", sampleID, ErrAssetSampleMismatch)
+				}
+			}
+		} else if scopePolicyVersion != "legacy" && (item.WorkType == "inspect_http_endpoint" || item.WorkType == "inspect_sample_endpoint") {
+			return nil, fmt.Errorf("work item '%s' of type '%s' requires a target asset: %w", item.Key, item.WorkType, ErrAssetOutOfScope)
+		}
+
+		// Validate source_observation_ids: must belong to existing observations in this run
+		for _, oid := range item.SourceObservationIDs {
+			if !runObsMap[oid] {
+				return nil, fmt.Errorf("source observation %s does not exist in run: %w", oid, ErrInvalidObservationSource)
+			}
+		}
+
+		// Check conflict with existing item: if same key exists, check definition & sets equality
 		if existing, exists := keyToItem[item.Key]; exists {
-			// Idempotent reuse if title & objective match
+			// Title & Objective match
 			if existing.Title != item.Title || existing.Objective != item.Objective {
 				return nil, fmt.Errorf("%w: key %s already exists with different definition", ErrWorkItemConflict, item.Key)
+			}
+
+			// Asset set equality
+			existingAssetRows, err := tx.Query(ctx, `SELECT asset_id FROM work_item_assets WHERE work_item_id = $1`, existing.ID)
+			if err != nil {
+				return nil, fmt.Errorf("query existing work_item_assets: %w", err)
+			}
+			var existingAssets []uuid.UUID
+			for existingAssetRows.Next() {
+				var aid uuid.UUID
+				if err := existingAssetRows.Scan(&aid); err == nil {
+					existingAssets = append(existingAssets, aid)
+				}
+			}
+			existingAssetRows.Close()
+			if !uuidSetsEqual(existingAssets, item.AssetIDs) {
+				return nil, fmt.Errorf("%w: key %s already exists with different asset set", ErrWorkItemConflict, item.Key)
+			}
+
+			// Source observation set equality
+			existingSourceRows, err := tx.Query(ctx, `SELECT source_observation_id FROM work_item_sources WHERE work_item_id = $1`, existing.ID)
+			if err != nil {
+				return nil, fmt.Errorf("query existing work_item_sources: %w", err)
+			}
+			var existingSources []uuid.UUID
+			for existingSourceRows.Next() {
+				var soid uuid.UUID
+				if err := existingSourceRows.Scan(&soid); err == nil {
+					existingSources = append(existingSources, soid)
+				}
+			}
+			existingSourceRows.Close()
+			if !uuidSetsEqual(existingSources, item.SourceObservationIDs) {
+				return nil, fmt.Errorf("%w: key %s already exists with different source observations", ErrWorkItemConflict, item.Key)
+			}
+
+			// Dependency set equality
+			existingDepRows, err := tx.Query(ctx,
+				`SELECT w2.key 
+				 FROM work_dependencies wd
+				 JOIN work_items w2 ON wd.depends_on_work_item_id = w2.id
+				 WHERE wd.work_item_id = $1`, existing.ID)
+			if err != nil {
+				return nil, fmt.Errorf("query existing work_dependencies: %w", err)
+			}
+			var existingDeps []string
+			for existingDepRows.Next() {
+				var dKey string
+				if err := existingDepRows.Scan(&dKey); err == nil {
+					existingDeps = append(existingDeps, dKey)
+				}
+			}
+			existingDepRows.Close()
+			if !stringSetsEqual(existingDeps, item.Dependencies) {
+				return nil, fmt.Errorf("%w: key %s already exists with different dependencies", ErrWorkItemConflict, item.Key)
 			}
 		}
 	}
@@ -505,7 +637,7 @@ func (s *RunService) SubmitPlan(ctx context.Context, runID uuid.UUID, planItems 
 		}
 	}
 
-	// Pass 1: Insert new work items and build keyToID
+	// Pass 1: Insert new work items, asset links, and source links
 	var resultItems []model.WorkItem
 	for _, item := range planItems {
 		var itemID uuid.UUID
@@ -524,19 +656,44 @@ func (s *RunService) SubmitPlan(ctx context.Context, runID uuid.UUID, planItems 
 
 			var wi model.WorkItem
 			err = tx.QueryRow(ctx,
-				`INSERT INTO work_items (id, run_id, key, title, objective, work_type, status, input_data)
-				 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'pending', $6)
+				`INSERT INTO work_items (id, run_id, key, title, objective, work_type, status, input_data, created_by_planner_round_id)
+				 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'pending', $6, $7)
 				 RETURNING id, run_id, key, title, objective, work_type, status, blocked_reason, input_data,
-				           output_data, current_attempt_id, created_at, updated_at`,
-				runID, item.Key, item.Title, item.Objective, workType, inBytes).Scan(
+				           output_data, current_attempt_id, created_by_planner_round_id, created_at, updated_at`,
+				runID, item.Key, item.Title, item.Objective, workType, inBytes, plannerRoundID).Scan(
 				&wi.ID, &wi.RunID, &wi.Key, &wi.Title, &wi.Objective, &wi.WorkType, &wi.Status,
-				&wi.BlockedReason, &wi.InputData, &wi.OutputData, &wi.CurrentAttemptID, &wi.CreatedAt, &wi.UpdatedAt)
+				&wi.BlockedReason, &wi.InputData, &wi.OutputData, &wi.CurrentAttemptID,
+				&wi.CreatedByPlannerRoundID, &wi.CreatedAt, &wi.UpdatedAt)
 			if err != nil {
 				return nil, fmt.Errorf("insert work_item %s: %w", item.Key, err)
 			}
 			itemID = wi.ID
 			keyToID[item.Key] = itemID
 			resultItems = append(resultItems, wi)
+
+			// Insert work_item_assets
+			for _, aid := range item.AssetIDs {
+				_, err = tx.Exec(ctx,
+					`INSERT INTO work_item_assets (id, work_item_id, asset_id, created_at)
+					 VALUES (gen_random_uuid(), $1, $2, now())
+					 ON CONFLICT (work_item_id, asset_id) DO NOTHING`,
+					itemID, aid)
+				if err != nil {
+					return nil, fmt.Errorf("insert work_item_asset for %s: %w", item.Key, err)
+				}
+			}
+
+			// Insert work_item_sources
+			for _, soid := range item.SourceObservationIDs {
+				_, err = tx.Exec(ctx,
+					`INSERT INTO work_item_sources (id, work_item_id, source_observation_id, created_at)
+					 VALUES (gen_random_uuid(), $1, $2, now())
+					 ON CONFLICT (work_item_id, source_observation_id) DO NOTHING`,
+					itemID, soid)
+				if err != nil {
+					return nil, fmt.Errorf("insert work_item_source for %s: %w", item.Key, err)
+				}
+			}
 		}
 	}
 
@@ -563,11 +720,43 @@ func (s *RunService) SubmitPlan(ctx context.Context, runID uuid.UUID, planItems 
 	return resultItems, nil
 }
 
+func uuidSetsEqual(a, b []uuid.UUID) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	m := make(map[uuid.UUID]bool)
+	for _, id := range a {
+		m[id] = true
+	}
+	for _, id := range b {
+		if !m[id] {
+			return false
+		}
+	}
+	return true
+}
+
+func stringSetsEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	m := make(map[string]bool)
+	for _, s := range a {
+		m[s] = true
+	}
+	for _, s := range b {
+		if !m[s] {
+			return false
+		}
+	}
+	return true
+}
+
 // ListWorkItemsByRun retrieves all work items for a run.
 func (s *RunService) ListWorkItemsByRun(ctx context.Context, runID uuid.UUID) ([]model.WorkItem, error) {
 	rows, err := s.pool.Query(ctx,
 		`SELECT id, run_id, key, title, objective, work_type, status, blocked_reason, input_data,
-		        output_data, current_attempt_id, created_at, updated_at
+		        output_data, current_attempt_id, created_by_planner_round_id, created_at, updated_at
 		 FROM work_items WHERE run_id = $1 ORDER BY created_at ASC`, runID)
 	if err != nil {
 		return nil, fmt.Errorf("list work_items: %w", err)
@@ -578,7 +767,7 @@ func (s *RunService) ListWorkItemsByRun(ctx context.Context, runID uuid.UUID) ([
 	for rows.Next() {
 		var wi model.WorkItem
 		if err := rows.Scan(&wi.ID, &wi.RunID, &wi.Key, &wi.Title, &wi.Objective, &wi.WorkType, &wi.Status,
-			&wi.BlockedReason, &wi.InputData, &wi.OutputData, &wi.CurrentAttemptID, &wi.CreatedAt, &wi.UpdatedAt); err != nil {
+			&wi.BlockedReason, &wi.InputData, &wi.OutputData, &wi.CurrentAttemptID, &wi.CreatedByPlannerRoundID, &wi.CreatedAt, &wi.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan work_item: %w", err)
 		}
 		items = append(items, wi)
@@ -594,10 +783,10 @@ func (s *RunService) GetWorkItem(ctx context.Context, workItemID uuid.UUID) (*mo
 	var wi model.WorkItem
 	err := s.pool.QueryRow(ctx,
 		`SELECT id, run_id, key, title, objective, work_type, status, blocked_reason, input_data,
-		        output_data, current_attempt_id, created_at, updated_at
+		        output_data, current_attempt_id, created_by_planner_round_id, created_at, updated_at
 		 FROM work_items WHERE id = $1`, workItemID).Scan(
 		&wi.ID, &wi.RunID, &wi.Key, &wi.Title, &wi.Objective, &wi.WorkType, &wi.Status,
-		&wi.BlockedReason, &wi.InputData, &wi.OutputData, &wi.CurrentAttemptID, &wi.CreatedAt, &wi.UpdatedAt)
+		&wi.BlockedReason, &wi.InputData, &wi.OutputData, &wi.CurrentAttemptID, &wi.CreatedByPlannerRoundID, &wi.CreatedAt, &wi.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
@@ -888,6 +1077,11 @@ func (s *RunService) ListAttemptsByWorkItem(ctx context.Context, workItemID uuid
 
 // CreateObservation records a structured observation linked to an attempt and a verified source tool call.
 func (s *RunService) CreateObservation(ctx context.Context, runID, attemptID uuid.UUID, obsType, content string, data json.RawMessage, sourceToolCallID uuid.UUID) (*model.Observation, error) {
+	return s.CreateObservationWithAsset(ctx, runID, attemptID, obsType, content, data, sourceToolCallID, nil)
+}
+
+// CreateObservationWithAsset records an observation with strict verification of attempt, session, tool call, sample ID, and asset scope.
+func (s *RunService) CreateObservationWithAsset(ctx context.Context, runID, attemptID uuid.UUID, obsType, content string, data json.RawMessage, sourceToolCallID uuid.UUID, assetID *uuid.UUID) (*model.Observation, error) {
 	if data == nil {
 		data = json.RawMessage(`{}`)
 	}
@@ -898,23 +1092,38 @@ func (s *RunService) CreateObservation(ctx context.Context, runID, attemptID uui
 	}
 	defer tx.Rollback(ctx)
 
-	// Verify attempt belongs to run
+	// 1. Verify run is active with ROW LOCK (FOR UPDATE) to serialize deterministically with Stop/terminal transitions
+	var runStatus model.RunStatus
+	var scopePolicyVersion string
+	err = tx.QueryRow(ctx, `SELECT status, scope_policy_version FROM runs WHERE id = $1 FOR UPDATE`, runID).Scan(&runStatus, &scopePolicyVersion)
+	if err != nil {
+		return nil, fmt.Errorf("verify run: %w", err)
+	}
+	if runStatus.IsTerminal() || runStatus == model.RunStatusStopping {
+		return nil, fmt.Errorf("cannot record observation: run status is %s", runStatus)
+	}
+
+	// 2. Verify attempt belongs to run, retrieve attempt's session_id and work_item_id
 	var attSessionID uuid.UUID
+	var workItemID uuid.UUID
 	err = tx.QueryRow(ctx,
-		`SELECT a.session_id 
+		`SELECT a.session_id, a.work_item_id 
 		 FROM attempts a
 		 JOIN work_items wi ON a.work_item_id = wi.id
-		 WHERE a.id = $1 AND wi.run_id = $2`, attemptID, runID).Scan(&attSessionID)
+		 WHERE a.id = $1 AND wi.run_id = $2`, attemptID, runID).Scan(&attSessionID, &workItemID)
 	if err != nil {
 		return nil, fmt.Errorf("verify attempt: %w", ErrInvalidObservationSource)
 	}
 
-	// Verify source tool call exists, belongs to run & attempt session, and succeeded
+	// 3. Verify source tool call: belongs to run & attempt's session, status is success
 	var tcStatus string
 	var tcSessionID *uuid.UUID
+	var tcToolName string
+	var tcArguments json.RawMessage
 	err = tx.QueryRow(ctx,
-		`SELECT status, session_id FROM agent_tool_calls WHERE id = $1 AND run_id = $2`,
-		sourceToolCallID, runID).Scan(&tcStatus, &tcSessionID)
+		`SELECT status, session_id, tool_name, arguments 
+		 FROM agent_tool_calls WHERE id = $1 AND run_id = $2`,
+		sourceToolCallID, runID).Scan(&tcStatus, &tcSessionID, &tcToolName, &tcArguments)
 	if err != nil {
 		return nil, fmt.Errorf("verify source tool call: %w", ErrInvalidObservationSource)
 	}
@@ -922,27 +1131,146 @@ func (s *RunService) CreateObservation(ctx context.Context, runID, attemptID uui
 		return nil, ErrInvalidObservationSource
 	}
 
+	var finalAssetID *uuid.UUID
+	var targetKey string
+
+	// 4. Extract asset depending on tool type
+	if tcToolName == "read_sample" {
+		var tcArgsMap map[string]interface{}
+		if err := json.Unmarshal(tcArguments, &tcArgsMap); err != nil {
+			return nil, fmt.Errorf("invalid tool call arguments: %w", ErrInvalidObservationSource)
+		}
+		rawSampleID, _ := tcArgsMap["sample_id"].(string)
+		sampleID := strings.TrimSpace(rawSampleID)
+		if sampleID == "" {
+			return nil, fmt.Errorf("tool call arguments missing sample_id: %w", ErrInvalidObservationSource)
+		}
+
+		var sampleAssetID uuid.UUID
+		err = tx.QueryRow(ctx,
+			`SELECT id FROM assets WHERE namespace = 'builtin-http-v1' AND kind = 'sample_endpoint' AND external_key = $1`,
+			sampleID).Scan(&sampleAssetID)
+		if err != nil {
+			if spec, ok := BuiltinAssetSpecs[sampleID]; ok {
+				metaJSON, _ := json.Marshal(spec.Metadata)
+				err = tx.QueryRow(ctx,
+					`INSERT INTO assets (id, namespace, kind, external_key, name, description, metadata, created_at, updated_at)
+					 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, now(), now())
+					 ON CONFLICT (namespace, kind, external_key) DO UPDATE SET updated_at = now()
+					 RETURNING id`,
+					spec.Namespace, spec.Kind, spec.ExternalKey, spec.Name, spec.Description, metaJSON).Scan(&sampleAssetID)
+				if err != nil {
+					return nil, fmt.Errorf("resolve asset: %w", err)
+				}
+			} else {
+				return nil, fmt.Errorf("unknown sample asset '%s': %w", sampleID, ErrInvalidObservationSource)
+			}
+		}
+
+		if assetID != nil && *assetID != sampleAssetID {
+			return nil, fmt.Errorf("specified asset_id does not match tool call sample_id '%s': %w", sampleID, ErrAssetSampleMismatch)
+		}
+		finalAssetID = &sampleAssetID
+		targetKey = sampleID
+
+	} else if tcToolName == "get_endpoint" {
+		var tcArgsMap map[string]interface{}
+		if err := json.Unmarshal(tcArguments, &tcArgsMap); err != nil {
+			return nil, fmt.Errorf("invalid tool call arguments: %w", ErrInvalidObservationSource)
+		}
+		rawAssetID, _ := tcArgsMap["asset_id"].(string)
+		parsedAid, err := uuid.Parse(strings.TrimSpace(rawAssetID))
+		if err != nil {
+			return nil, fmt.Errorf("tool call arguments invalid asset_id: %w", ErrInvalidObservationSource)
+		}
+
+		var httpAssetID uuid.UUID
+		var httpName string
+		err = tx.QueryRow(ctx,
+			`SELECT id, name FROM assets WHERE id = $1 AND kind = 'http_endpoint'`,
+			parsedAid).Scan(&httpAssetID, &httpName)
+		if err != nil {
+			return nil, fmt.Errorf("unknown http asset '%s': %w", parsedAid, ErrInvalidObservationSource)
+		}
+
+		if assetID != nil && *assetID != httpAssetID {
+			return nil, fmt.Errorf("specified asset_id does not match tool call asset_id '%s': %w", httpAssetID, ErrAssetSampleMismatch)
+		}
+		finalAssetID = &httpAssetID
+		targetKey = httpName
+
+	} else {
+		return nil, fmt.Errorf("source tool call must be 'read_sample' or 'get_endpoint', but got '%s': %w", tcToolName, ErrInvalidObservationSource)
+	}
+
+	// 5. Check RunAsset scope
+	var inRunScope bool
+	err = tx.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM run_assets WHERE run_id = $1 AND asset_id = $2)`,
+		runID, *finalAssetID).Scan(&inRunScope)
+	if err != nil {
+		return nil, fmt.Errorf("check run asset scope: %w", err)
+	}
+	if !inRunScope {
+		if scopePolicyVersion != "legacy" {
+			return nil, fmt.Errorf("asset '%s' is outside run asset scope: %w", targetKey, ErrAssetOutOfScope)
+		}
+	}
+
+	// 6. Check WorkItemAsset scope
+	var inWIScope bool
+	err = tx.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM work_item_assets WHERE work_item_id = $1 AND asset_id = $2)`,
+		workItemID, *finalAssetID).Scan(&inWIScope)
+	if err != nil {
+		return nil, fmt.Errorf("check work item asset scope: %w", err)
+	}
+	if !inWIScope {
+		if scopePolicyVersion != "legacy" {
+			return nil, fmt.Errorf("asset '%s' is not associated with work item: %w", targetKey, ErrAssetOutOfScope)
+		}
+	}
+
+	// 7. Insert observation
 	var obs model.Observation
 	err = tx.QueryRow(ctx,
-		`INSERT INTO observations (id, run_id, attempt_id, obs_type, content, data, source_tool_call_id)
-		 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)
-		 RETURNING id, run_id, attempt_id, obs_type, content, data, source_tool_call_id, created_at`,
-		runID, attemptID, obsType, content, data, sourceToolCallID).Scan(
-		&obs.ID, &obs.RunID, &obs.AttemptID, &obs.ObsType, &obs.Content, &obs.Data, &obs.SourceToolCallID, &obs.CreatedAt)
+		`INSERT INTO observations (id, run_id, attempt_id, asset_id, obs_type, content, data, source_tool_call_id)
+		 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7)
+		 RETURNING id, run_id, attempt_id, asset_id, obs_type, content, data, source_tool_call_id, created_at`,
+		runID, attemptID, finalAssetID, obsType, content, data, sourceToolCallID).Scan(
+		&obs.ID, &obs.RunID, &obs.AttemptID, &obs.AssetID, &obs.ObsType, &obs.Content, &obs.Data, &obs.SourceToolCallID, &obs.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("insert observation: %w", err)
+	}
+
+	// 8. Insert observation event into run_events
+	var nextSeq int
+	err = tx.QueryRow(ctx,
+		`SELECT COALESCE(MAX(seq), 0) + 1 FROM run_events WHERE run_id = $1`, runID).Scan(&nextSeq)
+	if err == nil {
+		eventPayload, _ := json.Marshal(map[string]interface{}{
+			"observation_id": obs.ID,
+			"obs_type":       obsType,
+			"content":        content,
+			"asset_id":       finalAssetID,
+		})
+		_, _ = tx.Exec(ctx,
+			`INSERT INTO run_events (id, run_id, seq, type, payload, session_id, work_item_id, attempt_id)
+			 VALUES (gen_random_uuid(), $1, $2, 'observation', $3, $4, $5, $6)`,
+			runID, nextSeq, eventPayload, attSessionID, workItemID, attemptID)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit observation: %w", err)
 	}
 	return &obs, nil
+	return &obs, nil
 }
 
 // ListObservationsByRun retrieves all observations for a run.
 func (s *RunService) ListObservationsByRun(ctx context.Context, runID uuid.UUID) ([]model.Observation, error) {
 	rows, err := s.pool.Query(ctx,
-		`SELECT id, run_id, attempt_id, obs_type, content, data, source_tool_call_id, created_at
+		`SELECT id, run_id, attempt_id, asset_id, obs_type, content, data, source_tool_call_id, created_at
 		 FROM observations WHERE run_id = $1 ORDER BY created_at ASC`, runID)
 	if err != nil {
 		return nil, fmt.Errorf("list observations: %w", err)
@@ -952,7 +1280,7 @@ func (s *RunService) ListObservationsByRun(ctx context.Context, runID uuid.UUID)
 	var obs []model.Observation
 	for rows.Next() {
 		var o model.Observation
-		if err := rows.Scan(&o.ID, &o.RunID, &o.AttemptID, &o.ObsType, &o.Content, &o.Data, &o.SourceToolCallID, &o.CreatedAt); err != nil {
+		if err := rows.Scan(&o.ID, &o.RunID, &o.AttemptID, &o.AssetID, &o.ObsType, &o.Content, &o.Data, &o.SourceToolCallID, &o.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan observation: %w", err)
 		}
 		obs = append(obs, o)
@@ -995,11 +1323,11 @@ func (s *RunService) CompleteRunWithOutput(ctx context.Context, runID uuid.UUID,
 		err = tx.QueryRow(ctx,
 			`UPDATE runs SET status = $1, finish_reason = $2, finished_at = $3, updated_at = $3 
 			 WHERE id = $4 
-			 RETURNING id, task_id, idempotency_key, config_snapshot, execution_input, status, finish_reason, 
+			 RETURNING id, task_id, idempotency_key, config_snapshot, execution_input, scope_policy_version, status, finish_reason, 
 			          fail_at_step, final_output, started_at, finished_at, created_at, updated_at`,
 			model.RunStatusStopped, stopReason, now, runID).Scan(
 			&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
-			&r.Status, &r.FinishReason, &r.FailAtStep, &r.FinalOutput, &r.StartedAt, &r.FinishedAt,
+			&r.ScopePolicyVersion, &r.Status, &r.FinishReason, &r.FailAtStep, &r.FinalOutput, &r.StartedAt, &r.FinishedAt,
 			&r.CreatedAt, &r.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("update run to stopped: %w", err)
@@ -1034,11 +1362,11 @@ func (s *RunService) CompleteRunWithOutput(ctx context.Context, runID uuid.UUID,
 	err = tx.QueryRow(ctx,
 		`UPDATE runs SET status = $1, finish_reason = $2, final_output = $3, finished_at = $4, updated_at = $4 
 		 WHERE id = $5 
-		 RETURNING id, task_id, idempotency_key, config_snapshot, execution_input, status, finish_reason, 
+		 RETURNING id, task_id, idempotency_key, config_snapshot, execution_input, scope_policy_version, status, finish_reason, 
 		          fail_at_step, final_output, started_at, finished_at, created_at, updated_at`,
 		model.RunStatusCompleted, finishReason, finalOutput, now, runID).Scan(
 		&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
-		&r.Status, &r.FinishReason, &r.FailAtStep, &r.FinalOutput, &r.StartedAt, &r.FinishedAt,
+		&r.ScopePolicyVersion, &r.Status, &r.FinishReason, &r.FailAtStep, &r.FinalOutput, &r.StartedAt, &r.FinishedAt,
 		&r.CreatedAt, &r.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("update run to completed: %w", err)
