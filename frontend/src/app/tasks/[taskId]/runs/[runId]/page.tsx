@@ -347,15 +347,16 @@ export default function RunDetailPage() {
             <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl text-blue-300 flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <span className="px-2 py-0.5 text-xs font-semibold uppercase bg-blue-500/20 text-blue-200 rounded border border-blue-500/40">
-                  OpenAI Real Model
+                  真实模型 API
                 </span>
                 <span className="text-sm">
-                  使用 OpenAI 兼容协议与大语言模型通信
+                  {agentConfig?.api_format === 'responses' ? 'Responses API' : 'Chat Completions API'}
+                  {agentConfig?.model ? ` · ${String(agentConfig.model)}` : ''}
                 </span>
               </div>
               {totalTokens > 0 && (
                 <span className="text-xs font-mono text-blue-200">
-                  消耗 Token 总计: {totalTokens.toLocaleString()}
+                  已报告 Token: {totalTokens.toLocaleString()}{modelCalls.some(c => !c.usage_known) ? "（部分调用未报告用量）" : ""}
                 </span>
               )}
             </div>
@@ -1244,11 +1245,19 @@ export default function RunDetailPage() {
                       )}
                     </div>
                     <div className="text-xs font-mono text-gray-400 space-x-3">
-                      <span>prompt: {call.prompt_tokens}</span>
-                      <span>completion: {call.completion_tokens}</span>
-                      <span className="text-emerald-400">total: {call.total_tokens}</span>
+                      {call.usage_known ? <>
+                        <span>input: {call.prompt_tokens}</span>
+                        <span>output: {call.completion_tokens}</span>
+                        <span className="text-emerald-400">total: {call.total_tokens}</span>
+                      </> : <span>用量未报告</span>}
                     </div>
                   </div>
+                  {(call.request_id || call.response_id) && (
+                    <div className="text-[11px] text-gray-500 font-mono break-all">
+                      {call.request_id && <div>Request: {call.request_id}</div>}
+                      {call.response_id && <div>Response: {call.response_id}</div>}
+                    </div>
+                  )}
                   {call.error_message && (
                     <div className="p-2.5 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-xs font-mono">
                       {call.error_message}

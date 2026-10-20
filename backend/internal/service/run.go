@@ -183,17 +183,19 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 		}
 	}
 
-	// If real model is selected, validate environment configuration!
-	var sanitizedEndpoint string
-	var modelName string
-	if (executor == "agent" || executor == "orchestrator" || executor == "orchestration") && (providerType == "openai" || providerType == "remote") {
-		apiKey := os.Getenv("LLM_API_KEY")
-		baseURL := os.Getenv("LLM_BASE_URL")
-		modelName := os.Getenv("LLM_MODEL")
-		if apiKey == "" || baseURL == "" || modelName == "" {
-			return nil, false, provider.ErrModelConfigMissing
+	var modelConfig provider.Config
+	if executor == "agent" || executor == "orchestrator" || executor == "orchestration" {
+		switch providerType {
+		case "mock":
+		case "openai", "remote":
+			var configErr error
+			modelConfig, configErr = provider.ConfigFromEnv().Normalized()
+			if configErr != nil {
+				return nil, false, configErr
+			}
+		default:
+			return nil, false, fmt.Errorf("%w: unsupported provider", provider.ErrModelConfigInvalid)
 		}
-		sanitizedEndpoint = baseURL
 	}
 
 	// Check if scope specifies discovery mode
@@ -372,8 +374,9 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 		if providerType == "mock" {
 			agentConfig["mock_scenario"] = mockScenario
 		} else {
-			agentConfig["model"] = modelName
-			agentConfig["endpoint"] = sanitizedEndpoint
+			agentConfig["model"] = modelConfig.Model
+			agentConfig["endpoint"] = modelConfig.BaseURL
+			agentConfig["api_format"] = modelConfig.APIFormat
 		}
 		executionInputMap["agent_config"] = agentConfig
 		executionInputMap["budget"] = budget
@@ -1530,5 +1533,3 @@ func (s *RunService) ListDiscoveriesByRun(ctx context.Context, runID uuid.UUID) 
 	}
 	return list, nil
 }
-
-

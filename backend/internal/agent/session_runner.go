@@ -91,12 +91,20 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 	// Persist initial messages with session_id
 	for _, msg := range initialMessages {
 		var toolCallID *string
+		if msg.ToolCallID != "" {
+			id := msg.ToolCallID
+			toolCallID = &id
+		}
 		var toolCallsJSON json.RawMessage
 		if len(msg.ToolCalls) > 0 {
 			toolCallsJSON, _ = json.Marshal(msg.ToolCalls)
 		}
-		_, err := sr.runService.InsertAgentMessageWithSession(
-			context.Background(), sr.runID, &sr.sessionID, string(msg.Role), msg.Content, toolCallID, toolCallsJSON)
+		var payload json.RawMessage
+		if msg.NativePayload != nil {
+			payload, _ = json.Marshal(msg.NativePayload)
+		}
+		_, err := sr.runService.InsertAgentMessageWithPayload(
+			context.Background(), sr.runID, &sr.sessionID, string(msg.Role), msg.Content, toolCallID, toolCallsJSON, payload)
 		if err != nil {
 			slog.Error("session runner: failed to persist initial message", "session_id", sr.sessionID, "error", err)
 			sr.updateSessionTerminal("failed", "persistence_error")
@@ -174,7 +182,16 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 
 		if callErr != nil {
 			errMsg := callErr.Error()
-			_ = sr.runService.UpdateModelCall(context.Background(), modelCallRec.ID, "failed", nil, nil, 0, 0, 0, &errMsg)
+			var requestID, responseID *string
+			if resp != nil {
+				if resp.RequestID != "" {
+					requestID = &resp.RequestID
+				}
+				if resp.ResponseID != "" {
+					responseID = &resp.ResponseID
+				}
+			}
+			_ = sr.runService.UpdateModelCallWithMetadata(context.Background(), modelCallRec.ID, "failed", nil, requestID, responseID, false, 0, 0, 0, &errMsg)
 			sr.insertSessionEvent("model_call_failed", map[string]interface{}{
 				"round": round,
 				"error": errMsg,
@@ -193,6 +210,9 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 			}
 
 			reason := "provider_error"
+			if errors.Is(callErr, provider.ErrProtocol) {
+				reason = "protocol_error"
+			}
 			sr.updateSessionTerminal("failed", reason)
 			return &SessionResult{
 				SessionID:       sr.sessionID,
@@ -214,8 +234,9 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 		}
 		finishReason := resp.FinishReason
 		requestID := resp.RequestID
+		responseID := resp.ResponseID
 
-		if err := sr.runService.UpdateModelCall(context.Background(), modelCallRec.ID, "completed", &finishReason, &requestID,
+		if err := sr.runService.UpdateModelCallWithMetadata(context.Background(), modelCallRec.ID, "completed", &finishReason, &requestID, &responseID, resp.Usage != nil,
 			promptTokens, completionTokens, turnTokens, nil); err != nil {
 			slog.Error("session runner: failed to update model call", "session_id", sr.sessionID, "error", err)
 			sr.updateSessionTerminal("failed", "persistence_error")
@@ -234,17 +255,22 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 		if len(resp.ToolCalls) > 0 {
 			toolCallsJSON, _ = json.Marshal(resp.ToolCalls)
 		}
-		if _, err := sr.runService.InsertAgentMessageWithSession(
-			context.Background(), sr.runID, &sr.sessionID, "assistant", resp.Content, nil, toolCallsJSON); err != nil {
+		var payload json.RawMessage
+		if resp.NativePayload != nil {
+			payload, _ = json.Marshal(resp.NativePayload)
+		}
+		if _, err := sr.runService.InsertAgentMessageWithPayload(
+			context.Background(), sr.runID, &sr.sessionID, "assistant", resp.Content, nil, toolCallsJSON, payload); err != nil {
 			slog.Error("session runner: failed to persist assistant message", "session_id", sr.sessionID, "error", err)
 			sr.updateSessionTerminal("failed", "persistence_error")
 			return nil, fmt.Errorf("%w: insert assistant message: %v", ErrPersistenceFailure, err)
 		}
 
 		messages = append(messages, provider.ChatMessage{
-			Role:      provider.RoleAssistant,
-			Content:   resp.Content,
-			ToolCalls: resp.ToolCalls,
+			Role:          provider.RoleAssistant,
+			Content:       resp.Content,
+			ToolCalls:     resp.ToolCalls,
+			NativePayload: resp.NativePayload,
 		})
 
 		// Handle refusal and length truncation

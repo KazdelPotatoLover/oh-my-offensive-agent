@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"agent-workbench/backend/internal/model"
+	"agent-workbench/backend/internal/provider"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -105,6 +106,10 @@ func (s *RunService) InsertAgentMessage(ctx context.Context, runID uuid.UUID, ro
 
 // InsertAgentMessageWithSession inserts a new message scoped to a specific session (or run).
 func (s *RunService) InsertAgentMessageWithSession(ctx context.Context, runID uuid.UUID, sessionID *uuid.UUID, role string, content string, toolCallID *string, toolCalls json.RawMessage) (*model.AgentMessage, error) {
+	return s.InsertAgentMessageWithPayload(ctx, runID, sessionID, role, content, toolCallID, toolCalls, nil)
+}
+
+func (s *RunService) InsertAgentMessageWithPayload(ctx context.Context, runID uuid.UUID, sessionID *uuid.UUID, role string, content string, toolCallID *string, toolCalls, providerPayload json.RawMessage) (*model.AgentMessage, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
@@ -125,11 +130,11 @@ func (s *RunService) InsertAgentMessageWithSession(ctx context.Context, runID uu
 
 	var msg model.AgentMessage
 	err = tx.QueryRow(ctx,
-		`INSERT INTO agent_messages (id, run_id, session_id, seq, role, content, tool_call_id, tool_calls)
-		 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7)
-		 RETURNING id, run_id, session_id, seq, role, content, tool_call_id, tool_calls, created_at`,
-		runID, sessionID, nextSeq, role, content, toolCallID, toolCalls).Scan(
-		&msg.ID, &msg.RunID, &msg.SessionID, &msg.Seq, &msg.Role, &msg.Content, &msg.ToolCallID, &msg.ToolCalls, &msg.CreatedAt)
+		`INSERT INTO agent_messages (id, run_id, session_id, seq, role, content, tool_call_id, tool_calls, provider_payload)
+		 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8)
+		 RETURNING id, run_id, session_id, seq, role, content, tool_call_id, tool_calls, provider_payload, created_at`,
+		runID, sessionID, nextSeq, role, content, toolCallID, toolCalls, providerPayload).Scan(
+		&msg.ID, &msg.RunID, &msg.SessionID, &msg.Seq, &msg.Role, &msg.Content, &msg.ToolCallID, &msg.ToolCalls, &msg.ProviderPayload, &msg.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("insert agent_message: %w", err)
 	}
@@ -143,7 +148,7 @@ func (s *RunService) InsertAgentMessageWithSession(ctx context.Context, runID uu
 // ListAgentMessages retrieves all conversation messages for a run in sequence order.
 func (s *RunService) ListAgentMessages(ctx context.Context, runID uuid.UUID) ([]model.AgentMessage, error) {
 	rows, err := s.pool.Query(ctx,
-		`SELECT id, run_id, session_id, seq, role, content, tool_call_id, tool_calls, created_at
+		`SELECT id, run_id, session_id, seq, role, content, tool_call_id, tool_calls, provider_payload, created_at
 		 FROM agent_messages WHERE run_id = $1 ORDER BY created_at ASC, seq ASC`, runID)
 	if err != nil {
 		return nil, fmt.Errorf("query agent_messages: %w", err)
@@ -153,7 +158,7 @@ func (s *RunService) ListAgentMessages(ctx context.Context, runID uuid.UUID) ([]
 	var msgs []model.AgentMessage
 	for rows.Next() {
 		var m model.AgentMessage
-		if err := rows.Scan(&m.ID, &m.RunID, &m.SessionID, &m.Seq, &m.Role, &m.Content, &m.ToolCallID, &m.ToolCalls, &m.CreatedAt); err != nil {
+		if err := rows.Scan(&m.ID, &m.RunID, &m.SessionID, &m.Seq, &m.Role, &m.Content, &m.ToolCallID, &m.ToolCalls, &m.ProviderPayload, &m.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan agent_message: %w", err)
 		}
 		msgs = append(msgs, m)
@@ -167,7 +172,7 @@ func (s *RunService) ListAgentMessages(ctx context.Context, runID uuid.UUID) ([]
 // ListAgentMessagesBySession retrieves messages scoped to a session.
 func (s *RunService) ListAgentMessagesBySession(ctx context.Context, sessionID uuid.UUID) ([]model.AgentMessage, error) {
 	rows, err := s.pool.Query(ctx,
-		`SELECT id, run_id, session_id, seq, role, content, tool_call_id, tool_calls, created_at
+		`SELECT id, run_id, session_id, seq, role, content, tool_call_id, tool_calls, provider_payload, created_at
 		 FROM agent_messages WHERE session_id = $1 ORDER BY seq ASC`, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("query session messages: %w", err)
@@ -177,7 +182,7 @@ func (s *RunService) ListAgentMessagesBySession(ctx context.Context, sessionID u
 	var msgs []model.AgentMessage
 	for rows.Next() {
 		var m model.AgentMessage
-		if err := rows.Scan(&m.ID, &m.RunID, &m.SessionID, &m.Seq, &m.Role, &m.Content, &m.ToolCallID, &m.ToolCalls, &m.CreatedAt); err != nil {
+		if err := rows.Scan(&m.ID, &m.RunID, &m.SessionID, &m.Seq, &m.Role, &m.Content, &m.ToolCallID, &m.ToolCalls, &m.ProviderPayload, &m.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan session message: %w", err)
 		}
 		msgs = append(msgs, m)
@@ -186,6 +191,34 @@ func (s *RunService) ListAgentMessagesBySession(ctx context.Context, sessionID u
 		msgs = []model.AgentMessage{}
 	}
 	return msgs, nil
+}
+
+// LoadSessionConversation reconstructs only this session's persisted conversation.
+// Native provider state stays internal and is validated before reuse.
+func (s *RunService) LoadSessionConversation(ctx context.Context, sessionID uuid.UUID) ([]provider.ChatMessage, error) {
+	records, err := s.ListAgentMessagesBySession(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	messages := make([]provider.ChatMessage, 0, len(records))
+	for _, record := range records {
+		m := provider.ChatMessage{Role: provider.ChatRole(record.Role), Content: record.Content}
+		if record.ToolCallID != nil {
+			m.ToolCallID = *record.ToolCallID
+		}
+		if len(record.ToolCalls) > 0 {
+			if err := json.Unmarshal(record.ToolCalls, &m.ToolCalls); err != nil {
+				return nil, fmt.Errorf("decode persisted tool calls: %w", err)
+			}
+		}
+		if len(record.ProviderPayload) > 0 {
+			if err := json.Unmarshal(record.ProviderPayload, &m.NativePayload); err != nil {
+				return nil, fmt.Errorf("decode persisted provider payload: %w", err)
+			}
+		}
+		messages = append(messages, m)
+	}
+	return messages, nil
 }
 
 // --- Model Calls ---
@@ -201,10 +234,10 @@ func (s *RunService) CreateModelCallWithSession(ctx context.Context, runID uuid.
 	err := s.pool.QueryRow(ctx,
 		`INSERT INTO model_calls (id, run_id, session_id, round, status, started_at)
 		 VALUES (gen_random_uuid(), $1, $2, $3, 'started', now())
-		 RETURNING id, run_id, session_id, round, status, finish_reason, request_id, prompt_tokens, completion_tokens,
+		 RETURNING id, run_id, session_id, round, status, finish_reason, request_id, response_id, usage_known, prompt_tokens, completion_tokens,
 		           total_tokens, error_message, started_at, finished_at, created_at`,
 		runID, sessionID, round).Scan(
-		&call.ID, &call.RunID, &call.SessionID, &call.Round, &call.Status, &call.FinishReason, &call.RequestID,
+		&call.ID, &call.RunID, &call.SessionID, &call.Round, &call.Status, &call.FinishReason, &call.RequestID, &call.ResponseID, &call.UsageKnown,
 		&call.PromptTokens, &call.CompletionTokens, &call.TotalTokens, &call.ErrorMessage,
 		&call.StartedAt, &call.FinishedAt, &call.CreatedAt)
 	if err != nil {
@@ -215,12 +248,16 @@ func (s *RunService) CreateModelCallWithSession(ctx context.Context, runID uuid.
 
 // UpdateModelCall updates a model call record upon completion or failure.
 func (s *RunService) UpdateModelCall(ctx context.Context, id uuid.UUID, status string, finishReason *string, requestID *string, promptTokens, completionTokens, totalTokens int, errMsg *string) error {
+	return s.UpdateModelCallWithMetadata(ctx, id, status, finishReason, requestID, nil, false, promptTokens, completionTokens, totalTokens, errMsg)
+}
+
+func (s *RunService) UpdateModelCallWithMetadata(ctx context.Context, id uuid.UUID, status string, finishReason, requestID, responseID *string, usageKnown bool, promptTokens, completionTokens, totalTokens int, errMsg *string) error {
 	_, err := s.pool.Exec(ctx,
 		`UPDATE model_calls
 		 SET status = $1, finish_reason = $2, request_id = $3, prompt_tokens = $4,
-		     completion_tokens = $5, total_tokens = $6, error_message = $7, finished_at = now()
+		     completion_tokens = $5, total_tokens = $6, error_message = $7, finished_at = now(), response_id = $9, usage_known = $10
 		 WHERE id = $8`,
-		status, finishReason, requestID, promptTokens, completionTokens, totalTokens, errMsg, id)
+		status, finishReason, requestID, promptTokens, completionTokens, totalTokens, errMsg, id, responseID, usageKnown)
 	if err != nil {
 		return fmt.Errorf("update model_call: %w", err)
 	}
@@ -230,7 +267,7 @@ func (s *RunService) UpdateModelCall(ctx context.Context, id uuid.UUID, status s
 // ListModelCalls retrieves all model calls for a run.
 func (s *RunService) ListModelCalls(ctx context.Context, runID uuid.UUID) ([]model.ModelCall, error) {
 	rows, err := s.pool.Query(ctx,
-		`SELECT id, run_id, session_id, round, status, finish_reason, request_id, prompt_tokens, completion_tokens,
+		`SELECT id, run_id, session_id, round, status, finish_reason, request_id, response_id, usage_known, prompt_tokens, completion_tokens,
 		        total_tokens, error_message, started_at, finished_at, created_at
 		 FROM model_calls WHERE run_id = $1 ORDER BY round ASC, created_at ASC`, runID)
 	if err != nil {
@@ -241,7 +278,7 @@ func (s *RunService) ListModelCalls(ctx context.Context, runID uuid.UUID) ([]mod
 	var calls []model.ModelCall
 	for rows.Next() {
 		var c model.ModelCall
-		if err := rows.Scan(&c.ID, &c.RunID, &c.SessionID, &c.Round, &c.Status, &c.FinishReason, &c.RequestID,
+		if err := rows.Scan(&c.ID, &c.RunID, &c.SessionID, &c.Round, &c.Status, &c.FinishReason, &c.RequestID, &c.ResponseID, &c.UsageKnown,
 			&c.PromptTokens, &c.CompletionTokens, &c.TotalTokens, &c.ErrorMessage,
 			&c.StartedAt, &c.FinishedAt, &c.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan model_call: %w", err)
@@ -1263,7 +1300,6 @@ func (s *RunService) CreateObservationWithAsset(ctx context.Context, runID, atte
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit observation: %w", err)
 	}
-	return &obs, nil
 	return &obs, nil
 }
 

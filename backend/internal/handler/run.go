@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"os"
 
 	"agent-workbench/backend/internal/agent"
 	"agent-workbench/backend/internal/model"
@@ -93,7 +92,7 @@ func (h *RunHandler) Create(w http.ResponseWriter, r *http.Request) {
 			respondError(w, http.StatusConflict, "idempotency key conflict: same key but different request parameters")
 			return
 		}
-		if errors.Is(err, provider.ErrModelConfigMissing) {
+		if errors.Is(err, provider.ErrModelConfigMissing) || errors.Is(err, provider.ErrModelConfigInvalid) {
 			respondError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -141,61 +140,46 @@ func (h *RunHandler) Create(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if executorType == "agent" {
-			provType, _ := agentCfg["provider"].(string)
-
+		if executorType == "agent" || executorType == "orchestrator" || executorType == "orchestration" {
 			budget := model.DefaultBudgetConfig()
 			if bMap != nil {
 				bBytes, _ := json.Marshal(bMap)
 				json.Unmarshal(bBytes, &budget)
 			}
-
-			var p provider.Provider
-			if provType == "openai" || provType == "remote" {
-				p = provider.NewOpenAIProvider(os.Getenv("LLM_BASE_URL"), os.Getenv("LLM_API_KEY"), os.Getenv("LLM_MODEL"), nil)
-			} else {
-				scenario, _ := agentCfg["mock_scenario"].(string)
-				p = provider.NewMockProvider(provider.MockScenario(scenario))
+			scenario := provider.MockScenario("normal")
+			if executorType != "agent" {
+				scenario = provider.ScenarioOrchestration
+				if isDiscovery {
+					scenario = provider.ScenarioDiscovery
+				}
 			}
-
-			runner := agent.NewAgentRunner(run.ID, h.runService, p, tools.DefaultRegistry(), budget)
-			startErr = h.manager.StartExecutor(run.ID, runner)
-		} else if executorType == "orchestrator" || executorType == "orchestration" {
-			provType, _ := agentCfg["provider"].(string)
-
-			budget := model.DefaultBudgetConfig()
-			if bMap != nil {
-				bBytes, _ := json.Marshal(bMap)
-				json.Unmarshal(bBytes, &budget)
+			p, providerErr := provider.FromSnapshot(agentCfg, scenario)
+			if providerErr != nil {
+				reason := "provider_config_error"
+				_, _ = h.runService.TransitionState(r.Context(), run.ID, model.RunStatusQueued, model.RunStatusFailed, &reason)
+				respondError(w, http.StatusBadRequest, providerErr.Error())
+				return
 			}
-
-			var p provider.Provider
-			if provType == "openai" || provType == "remote" {
-				p = provider.NewOpenAIProvider(os.Getenv("LLM_BASE_URL"), os.Getenv("LLM_API_KEY"), os.Getenv("LLM_MODEL"), nil)
+			if executorType == "agent" {
+				runner := agent.NewAgentRunner(run.ID, h.runService, p, tools.DefaultRegistry(), budget)
+				startErr = h.manager.StartExecutor(run.ID, runner)
 			} else {
-				scenario, _ := agentCfg["mock_scenario"].(string)
-				if scenario == "" {
-					if isDiscovery {
-						scenario = string(provider.ScenarioDiscovery)
-					} else {
-						scenario = string(provider.ScenarioOrchestration)
+				// Discovery execution is sequential; retain the existing mock scenario budget.
+				// Real model runs must honor the user's recorded limits.
+				if isDiscovery {
+					budget.MaxParallelWorkers = 1
+					if agentCfg["provider"] == nil || agentCfg["provider"] == "mock" {
+						if budget.MaxModelCalls < 80 {
+							budget.MaxModelCalls = 80
+						}
+						if budget.MaxToolCalls < 80 {
+							budget.MaxToolCalls = 80
+						}
 					}
 				}
-				p = provider.NewMockProvider(provider.MockScenario(scenario))
+				engine := orchestration.NewEngine(run.ID, h.runService, p, budget)
+				startErr = h.manager.StartExecutor(run.ID, engine)
 			}
-
-			if isDiscovery {
-				budget.MaxParallelWorkers = 1
-				if budget.MaxModelCalls < 80 {
-					budget.MaxModelCalls = 80
-				}
-				if budget.MaxToolCalls < 80 {
-					budget.MaxToolCalls = 80
-				}
-			}
-
-			engine := orchestration.NewEngine(run.ID, h.runService, p, budget)
-			startErr = h.manager.StartExecutor(run.ID, engine)
 		} else {
 			startErr = h.manager.Start(run.ID, run.FailAtStep)
 		}
@@ -422,5 +406,3 @@ func (h *RunHandler) GetDiscoveries(w http.ResponseWriter, r *http.Request) {
 	}
 	respondJSON(w, http.StatusOK, map[string]interface{}{"discoveries": discoveries})
 }
-
-

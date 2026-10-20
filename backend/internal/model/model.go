@@ -168,18 +168,21 @@ type Observation struct {
 }
 
 type AgentMessage struct {
-	ID         uuid.UUID       `json:"id"`
-	RunID      uuid.UUID       `json:"run_id"`
-	SessionID  *uuid.UUID      `json:"session_id,omitempty"`
-	Seq        int             `json:"seq"`
-	Role       string          `json:"role"`
-	Content    string          `json:"content"`
-	ToolCallID *string         `json:"tool_call_id,omitempty"`
-	ToolCalls  json.RawMessage `json:"tool_calls,omitempty"`
-	CreatedAt  time.Time       `json:"created_at"`
+	ProviderPayload json.RawMessage `json:"-"`
+	ID              uuid.UUID       `json:"id"`
+	RunID           uuid.UUID       `json:"run_id"`
+	SessionID       *uuid.UUID      `json:"session_id,omitempty"`
+	Seq             int             `json:"seq"`
+	Role            string          `json:"role"`
+	Content         string          `json:"content"`
+	ToolCallID      *string         `json:"tool_call_id,omitempty"`
+	ToolCalls       json.RawMessage `json:"tool_calls,omitempty"`
+	CreatedAt       time.Time       `json:"created_at"`
 }
 
 type ModelCall struct {
+	ResponseID       *string    `json:"response_id,omitempty"`
+	UsageKnown       bool       `json:"usage_known"`
 	ID               uuid.UUID  `json:"id"`
 	RunID            uuid.UUID  `json:"run_id"`
 	SessionID        *uuid.UUID `json:"session_id,omitempty"`

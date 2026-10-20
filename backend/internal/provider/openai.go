@@ -228,6 +228,7 @@ func (p *OpenAIProvider) Call(ctx context.Context, messages []ChatMessage, tools
 		ToolCalls:    parsedToolCalls,
 		FinishReason: choice.FinishReason,
 		Usage:        usage,
-		RequestID:    chatResp.ID,
+		RequestID:    resp.Header.Get("x-request-id"),
+		ResponseID:   chatResp.ID,
 	}, nil
 }

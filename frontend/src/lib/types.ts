@@ -73,6 +73,8 @@ export interface ModelCall {
   status: string;
   finish_reason?: string;
   request_id?: string;
+  response_id?: string;
+  usage_known?: boolean;
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;

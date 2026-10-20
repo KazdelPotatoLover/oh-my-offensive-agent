@@ -148,6 +148,9 @@ func (r *AgentRunner) Run(ctx context.Context) {
 	if resErr != nil {
 		slog.Error("agent runner: session execution error", "run_id", r.runID, "error", resErr)
 		reason := "provider_error"
+		if errors.Is(resErr, provider.ErrProtocol) {
+			reason = "protocol_error"
+		}
 		if errors.Is(resErr, ErrPersistenceFailure) {
 			reason = "persistence_error"
 		}

@@ -3,8 +3,17 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 )
+
+var ErrProtocol = errors.New("invalid model protocol response")
+
+// NativePayload is opaque conversation state. Never serialize it to the public API.
+type NativePayload struct {
+	Format string            `json:"format"`
+	Output []json.RawMessage `json:"output"`
+}
 
 type ChatRole string
 
@@ -27,10 +36,11 @@ type ToolCall struct {
 }
 
 type ChatMessage struct {
-	Role       ChatRole   `json:"role"`
-	Content    string     `json:"content"`
-	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
-	ToolCallID string     `json:"tool_call_id,omitempty"`
+	Role          ChatRole       `json:"role"`
+	Content       string         `json:"content"`
+	ToolCalls     []ToolCall     `json:"tool_calls,omitempty"`
+	ToolCallID    string         `json:"tool_call_id,omitempty"`
+	NativePayload *NativePayload `json:"-"`
 }
 
 type ToolDefinition struct {
@@ -46,11 +56,13 @@ type ModelUsage struct {
 }
 
 type ModelResponse struct {
-	Content      string      `json:"content"`
-	ToolCalls    []ToolCall  `json:"tool_calls,omitempty"`
-	FinishReason string      `json:"finish_reason"` // "stop", "tool_calls", "length", "refusal", "error"
-	Usage        *ModelUsage `json:"usage,omitempty"`
-	RequestID    string      `json:"request_id,omitempty"`
+	Content       string         `json:"content"`
+	ToolCalls     []ToolCall     `json:"tool_calls,omitempty"`
+	FinishReason  string         `json:"finish_reason"` // "stop", "tool_calls", "length", "refusal", "error"
+	Usage         *ModelUsage    `json:"usage,omitempty"`
+	RequestID     string         `json:"request_id,omitempty"`
+	ResponseID    string         `json:"response_id,omitempty"`
+	NativePayload *NativePayload `json:"-"`
 }
 
 type ModelOpts struct {

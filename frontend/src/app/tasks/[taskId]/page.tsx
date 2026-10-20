@@ -343,7 +343,7 @@ export default function TaskDetailPage() {
                             : 'bg-gray-900 border-gray-800 text-gray-400 hover:text-white'
                         }`}
                       >
-                        OpenAI Real
+                        真实模型 API
                       </button>
                     </div>
                   </div>
@@ -379,8 +379,8 @@ export default function TaskDetailPage() {
                     </div>
                   ) : (
                     <div className="p-2.5 bg-gray-900/80 border border-gray-800 rounded-lg text-[11px] text-gray-400 leading-relaxed">
-                      Uses backend environment variables: <code className="text-gray-300">LLM_API_KEY</code>, <code className="text-gray-300">LLM_BASE_URL</code>, <code className="text-gray-300">LLM_MODEL</code>.
-                      <p className="text-amber-400/90 mt-1">If not configured, the run will safely fail with model_config_missing.</p>
+                      由后端环境配置连接： <code className="text-gray-300">LLM_API_KEY</code>, <code className="text-gray-300">LLM_BASE_URL</code>, <code className="text-gray-300">LLM_MODEL</code>。<p className="mt-1">通过 <code className="text-gray-300">LLM_API_FORMAT</code> 选择 <code>responses</code> 或 <code>chat_completions</code>（默认）。</p>
+                      <p className="text-amber-400/90 mt-1">缺少配置会阻止启动；不会自动切换为 Mock。</p>
                     </div>
                   )}
                 </>
