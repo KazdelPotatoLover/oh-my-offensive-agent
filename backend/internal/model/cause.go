@@ -33,7 +33,9 @@ func (c TerminationCause) TargetRunStatus() RunStatus {
 		return RunStatusCompleted
 	case CauseUserStop, CauseTimeout:
 		return RunStatusStopped
-	case CauseModelBudgetExhausted, CauseToolBudgetExhausted, CauseInternalError:
+	case CauseModelBudgetExhausted, CauseToolBudgetExhausted:
+		return RunStatusStopped
+	case CauseInternalError:
 		return RunStatusFailed
 	case CauseShutdown:
 		return RunStatusInterrupted

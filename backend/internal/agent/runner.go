@@ -188,7 +188,7 @@ func (r *AgentRunner) handleCancellation(ctx context.Context) {
 }
 
 func (r *AgentRunner) finalize(reason string, output *string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), r.cleanupTimeout())
 	defer cancel()
 	if output == nil {
 		text := "Execution ended: " + reason + ". Persisted messages, tool results and observations remain available."
@@ -200,10 +200,18 @@ func (r *AgentRunner) finalize(reason string, output *string) {
 }
 
 func (r *AgentRunner) ensureStoppingTerminal() {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), r.cleanupTimeout())
 	defer cancel()
 	run, err := r.runService.Get(ctx, r.runID)
 	if err == nil && run.Status == model.RunStatusStopping {
 		r.finalize("user_requested_stop", nil)
 	}
+}
+
+func (r *AgentRunner) cleanupTimeout() time.Duration {
+	seconds := r.budget.CleanupTimeoutSeconds
+	if seconds <= 0 {
+		seconds = 10
+	}
+	return time.Duration(seconds) * time.Second
 }

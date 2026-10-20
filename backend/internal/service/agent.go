@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"agent-workbench/backend/internal/checker"
 	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/provider"
 
@@ -21,7 +22,8 @@ var (
 	ErrWorkItemConflict         = errors.New("work item key conflict with differing definition")
 	ErrAssetOutOfScope          = errors.New("asset is outside run or work item scope")
 	ErrAssetSampleMismatch      = errors.New("asset and sample_id mismatch")
-	ErrUnsupportedWorkType      = errors.New("unsupported work_type; supported: inspect_http_endpoint, analyze_sample, inspect_sample_endpoint, aggregate_summary")
+	ErrUnsupportedWorkType      = errors.New("unsupported work_type; supported: inspect_http_endpoint, analyze_sample, inspect_sample_endpoint, aggregate_summary, run_security_check")
+	ErrUnknownCheckID           = errors.New("unknown check_id: must be a registered check in catalog")
 )
 
 // --- Sessions ---
@@ -593,8 +595,8 @@ func (s *RunService) SubmitPlanWithRound(ctx context.Context, runID uuid.UUID, p
 				if _, ok := runAssetMap[aid]; !ok {
 					return nil, fmt.Errorf("asset %s is outside run asset scope: %w", aid, ErrAssetOutOfScope)
 				}
-				if item.WorkType == "inspect_http_endpoint" && runAssetKinds[aid] != "http_endpoint" {
-					return nil, fmt.Errorf("inspect_http_endpoint requires http_endpoint assets: %w", ErrAssetOutOfScope)
+				if (item.WorkType == "inspect_http_endpoint" || item.WorkType == "run_security_check") && runAssetKinds[aid] != "http_endpoint" {
+					return nil, fmt.Errorf("HTTP inspection and security checks require http_endpoint assets: %w", ErrAssetOutOfScope)
 				}
 				if (item.WorkType == "analyze_sample" || item.WorkType == "inspect_sample_endpoint") && runAssetKinds[aid] != "sample_endpoint" {
 					return nil, fmt.Errorf("sample analysis requires sample_endpoint assets; use inspect_http_endpoint for HTTP targets: %w", ErrAssetOutOfScope)
@@ -630,6 +632,30 @@ func (s *RunService) SubmitPlanWithRound(ctx context.Context, runID uuid.UUID, p
 			}
 			if parseErr != nil || !matched {
 				return nil, fmt.Errorf("inspect_http_endpoint input_data.asset_id must be a UUID in asset_ids: %w", ErrAssetOutOfScope)
+			}
+		}
+		if item.WorkType == "run_security_check" {
+			if len(item.AssetIDs) == 0 {
+				return nil, fmt.Errorf("run_security_check requires asset_ids: %w", ErrAssetOutOfScope)
+			}
+			rawID, _ := item.InputData["asset_id"].(string)
+			targetID, parseErr := uuid.Parse(rawID)
+			matched := false
+			for _, aid := range item.AssetIDs {
+				if aid == targetID {
+					matched = true
+				}
+			}
+			if parseErr != nil || !matched {
+				return nil, fmt.Errorf("run_security_check input_data.asset_id must be a UUID in asset_ids: %w", ErrAssetOutOfScope)
+			}
+			rawCheckID, _ := item.InputData["check_id"].(string)
+			rawCheckID = strings.TrimSpace(rawCheckID)
+			if rawCheckID == "" {
+				return nil, fmt.Errorf("run_security_check requires input_data.check_id: %w", ErrUnknownCheckID)
+			}
+			if !checker.IsRegisteredCheck(rawCheckID) {
+				return nil, fmt.Errorf("%w: %q", ErrUnknownCheckID, rawCheckID)
 			}
 		}
 
@@ -1002,7 +1028,7 @@ func (s *RunService) ClaimNextPendingWorkItem(ctx context.Context, runID uuid.UU
 		   AND EXISTS (
 		     SELECT 1 FROM work_dependencies wd
 		     JOIN work_items dep ON wd.depends_on_work_item_id = dep.id
-		     WHERE wd.work_item_id = wi.id AND dep.status IN ('failed', 'cancelled', 'blocked')
+		     WHERE wd.work_item_id = wi.id AND dep.status IN ('failed', 'exhausted', 'cancelled', 'blocked')
 		   )`, runID)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("update blocked items: %w", err)
@@ -1138,6 +1164,9 @@ func (s *RunService) FinishWorkItem(ctx context.Context, workItemID, attemptID, 
 		}
 		childStatus := "stopped"
 		workStatus := "cancelled"
+		if runReason != nil && (*runReason == string(model.CauseModelBudgetExhausted) || *runReason == string(model.CauseToolBudgetExhausted)) {
+			workStatus = "exhausted"
+		}
 		if runStatus == model.RunStatusFailed {
 			childStatus = "failed"
 		}
@@ -1170,6 +1199,10 @@ func (s *RunService) FinishWorkItem(ctx context.Context, workItemID, attemptID, 
 	if !success {
 		targetItemStatus = model.WorkItemStatusFailed
 		targetAttemptStatus = "failed"
+	}
+	if finishReason == string(model.CauseModelBudgetExhausted) || finishReason == string(model.CauseToolBudgetExhausted) || finishReason == "max_model_calls_exceeded" || finishReason == "max_tool_calls_exceeded" {
+		targetItemStatus = model.WorkItemStatusExhausted
+		targetAttemptStatus = "exhausted"
 	}
 	if finishReason == string(model.CauseShutdown) {
 		targetAttemptStatus = "interrupted"
@@ -1287,133 +1320,11 @@ func (s *RunService) CreateObservationWithAsset(ctx context.Context, runID, atte
 		return nil, fmt.Errorf("cannot record observation: run status is %s", runStatus)
 	}
 
-	// 2. Verify attempt belongs to run, retrieve attempt's session_id and work_item_id
-	var attSessionID uuid.UUID
-	var workItemID uuid.UUID
-	err = tx.QueryRow(ctx,
-		`SELECT a.session_id, a.work_item_id 
-		 FROM attempts a
-		 JOIN work_items wi ON a.work_item_id = wi.id
-		 WHERE a.id = $1 AND wi.run_id = $2`, attemptID, runID).Scan(&attSessionID, &workItemID)
+	source, err := validateObservationSourceTx(ctx, tx, runID, uuid.Nil, attemptID, sourceToolCallID, assetID, scopePolicyVersion)
 	if err != nil {
-		return nil, fmt.Errorf("verify attempt: %w", ErrInvalidObservationSource)
+		return nil, err
 	}
-
-	// 3. Verify source tool call: belongs to run & attempt's session, status is success
-	var tcStatus string
-	var tcSessionID *uuid.UUID
-	var tcToolName string
-	var tcArguments json.RawMessage
-	err = tx.QueryRow(ctx,
-		`SELECT status, session_id, tool_name, arguments 
-		 FROM agent_tool_calls WHERE id = $1 AND run_id = $2`,
-		sourceToolCallID, runID).Scan(&tcStatus, &tcSessionID, &tcToolName, &tcArguments)
-	if err != nil {
-		return nil, fmt.Errorf("verify source tool call: %w", ErrInvalidObservationSource)
-	}
-	if tcStatus != "success" || tcSessionID == nil || *tcSessionID != attSessionID {
-		return nil, ErrInvalidObservationSource
-	}
-
-	var finalAssetID *uuid.UUID
-	var targetKey string
-
-	// 4. Extract asset depending on tool type
-	if tcToolName == "read_sample" {
-		var tcArgsMap map[string]interface{}
-		if err := json.Unmarshal(tcArguments, &tcArgsMap); err != nil {
-			return nil, fmt.Errorf("invalid tool call arguments: %w", ErrInvalidObservationSource)
-		}
-		rawSampleID, _ := tcArgsMap["sample_id"].(string)
-		sampleID := strings.TrimSpace(rawSampleID)
-		if sampleID == "" {
-			return nil, fmt.Errorf("tool call arguments missing sample_id: %w", ErrInvalidObservationSource)
-		}
-
-		var sampleAssetID uuid.UUID
-		err = tx.QueryRow(ctx,
-			`SELECT id FROM assets WHERE namespace = 'builtin-http-v1' AND kind = 'sample_endpoint' AND external_key = $1`,
-			sampleID).Scan(&sampleAssetID)
-		if err != nil {
-			if spec, ok := BuiltinAssetSpecs[sampleID]; ok {
-				metaJSON, _ := json.Marshal(spec.Metadata)
-				err = tx.QueryRow(ctx,
-					`INSERT INTO assets (id, namespace, kind, external_key, name, description, metadata, created_at, updated_at)
-					 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, now(), now())
-					 ON CONFLICT (namespace, kind, external_key) DO UPDATE SET updated_at = now()
-					 RETURNING id`,
-					spec.Namespace, spec.Kind, spec.ExternalKey, spec.Name, spec.Description, metaJSON).Scan(&sampleAssetID)
-				if err != nil {
-					return nil, fmt.Errorf("resolve asset: %w", err)
-				}
-			} else {
-				return nil, fmt.Errorf("unknown sample asset '%s': %w", sampleID, ErrInvalidObservationSource)
-			}
-		}
-
-		if assetID != nil && *assetID != sampleAssetID {
-			return nil, fmt.Errorf("specified asset_id does not match tool call sample_id '%s': %w", sampleID, ErrAssetSampleMismatch)
-		}
-		finalAssetID = &sampleAssetID
-		targetKey = sampleID
-
-	} else if tcToolName == "get_endpoint" {
-		var tcArgsMap map[string]interface{}
-		if err := json.Unmarshal(tcArguments, &tcArgsMap); err != nil {
-			return nil, fmt.Errorf("invalid tool call arguments: %w", ErrInvalidObservationSource)
-		}
-		rawAssetID, _ := tcArgsMap["asset_id"].(string)
-		parsedAid, err := uuid.Parse(strings.TrimSpace(rawAssetID))
-		if err != nil {
-			return nil, fmt.Errorf("tool call arguments invalid asset_id: %w", ErrInvalidObservationSource)
-		}
-
-		var httpAssetID uuid.UUID
-		var httpName string
-		err = tx.QueryRow(ctx,
-			`SELECT id, name FROM assets WHERE id = $1 AND kind = 'http_endpoint'`,
-			parsedAid).Scan(&httpAssetID, &httpName)
-		if err != nil {
-			return nil, fmt.Errorf("unknown http asset '%s': %w", parsedAid, ErrInvalidObservationSource)
-		}
-
-		if assetID != nil && *assetID != httpAssetID {
-			return nil, fmt.Errorf("specified asset_id does not match tool call asset_id '%s': %w", httpAssetID, ErrAssetSampleMismatch)
-		}
-		finalAssetID = &httpAssetID
-		targetKey = httpName
-
-	} else {
-		return nil, fmt.Errorf("source tool call must be 'read_sample' or 'get_endpoint', but got '%s': %w", tcToolName, ErrInvalidObservationSource)
-	}
-
-	// 5. Check RunAsset scope
-	var inRunScope bool
-	err = tx.QueryRow(ctx,
-		`SELECT EXISTS (SELECT 1 FROM run_assets WHERE run_id = $1 AND asset_id = $2)`,
-		runID, *finalAssetID).Scan(&inRunScope)
-	if err != nil {
-		return nil, fmt.Errorf("check run asset scope: %w", err)
-	}
-	if !inRunScope {
-		if scopePolicyVersion != "legacy" {
-			return nil, fmt.Errorf("asset '%s' is outside run asset scope: %w", targetKey, ErrAssetOutOfScope)
-		}
-	}
-
-	// 6. Check WorkItemAsset scope
-	var inWIScope bool
-	err = tx.QueryRow(ctx,
-		`SELECT EXISTS (SELECT 1 FROM work_item_assets WHERE work_item_id = $1 AND asset_id = $2)`,
-		workItemID, *finalAssetID).Scan(&inWIScope)
-	if err != nil {
-		return nil, fmt.Errorf("check work item asset scope: %w", err)
-	}
-	if !inWIScope {
-		if scopePolicyVersion != "legacy" {
-			return nil, fmt.Errorf("asset '%s' is not associated with work item: %w", targetKey, ErrAssetOutOfScope)
-		}
-	}
+	finalAssetID, attSessionID, workItemID := source.assetID, source.sessionID, source.workItem
 
 	// 7. Insert observation
 	var obs model.Observation

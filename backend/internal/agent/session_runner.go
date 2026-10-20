@@ -172,7 +172,7 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 		if sr.modelCallGate != nil {
 			if !sr.modelCallGate.TryAcquire() {
 				reason := "model_calls_exhausted"
-				sr.updateSessionTerminal("failed", reason)
+				sr.updateSessionTerminal("exhausted", reason)
 				return &SessionResult{
 					SessionID:       sr.sessionID,
 					FinishReason:    reason,
@@ -182,8 +182,8 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 				}, nil
 			}
 		} else if modelCallCount >= sr.budget.MaxModelCalls {
-			reason := "max_model_calls_exceeded"
-			sr.updateSessionTerminal("failed", reason)
+			reason := "model_calls_exhausted"
+			sr.updateSessionTerminal("exhausted", reason)
 			return &SessionResult{
 				SessionID:       sr.sessionID,
 				FinishReason:    reason,
@@ -222,9 +222,13 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 			modelTimeout = 30 * time.Second
 		}
 		modelCtx, cancelModel := context.WithTimeout(ctx, modelTimeout)
-		resp, callErr := sr.provider.Call(modelCtx, messages, sr.registry.Definitions(), provider.ModelOpts{
-			Timeout: modelTimeout,
-		})
+		var resp *provider.ModelResponse
+		callErr := modelCtx.Err()
+		if callErr == nil {
+			resp, callErr = sr.provider.Call(modelCtx, messages, sr.registry.Definitions(), provider.ModelOpts{
+				Timeout: modelTimeout,
+			})
+		}
 		cancelModel()
 
 		if sr.onModelCallFinishHook != nil {
@@ -419,9 +423,9 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 		}
 
 		// Check tool call budget
-		if toolCallCount+len(resp.ToolCalls) > sr.budget.MaxToolCalls {
-			reason := "max_tool_calls_exceeded"
-			sr.updateSessionTerminal("failed", reason)
+		if sr.toolCallGate == nil && toolCallCount+len(resp.ToolCalls) > sr.budget.MaxToolCalls {
+			reason := "tool_calls_exhausted"
+			sr.updateSessionTerminal("exhausted", reason)
 			return &SessionResult{
 				SessionID:       sr.sessionID,
 				FinishReason:    reason,
@@ -451,7 +455,7 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 			if sr.toolCallGate != nil {
 				if !sr.toolCallGate.TryAcquire() {
 					reason := "tool_calls_exhausted"
-					sr.updateSessionTerminal("failed", reason)
+					sr.updateSessionTerminal("exhausted", reason)
 					return &SessionResult{
 						SessionID:       sr.sessionID,
 						FinishReason:    reason,

@@ -124,6 +124,10 @@ export interface CreateRunInput {
     max_tool_calls?: number;
     max_parallel_workers?: number;
     run_timeout_seconds?: number;
+    model_timeout_seconds?: number;
+    tool_timeout_seconds?: number;
+    summary_timeout_seconds?: number;
+    cleanup_timeout_seconds?: number;
   };
 }
 
@@ -132,6 +136,7 @@ export type WorkItemStatus =
   | 'running'
   | 'completed'
   | 'failed'
+  | 'exhausted'
   | 'cancelled'
   | 'blocked';
 
@@ -226,6 +231,7 @@ export interface AssetRunHistory {
   task_id: string;
   task_name: string;
   run_status: RunStatus;
+  finish_reason?: string;
   started_at?: string;
   finished_at?: string;
   work_items: WorkItemDetail[];
@@ -308,3 +314,27 @@ export interface PlannerRoundsResponse {
   planner_rounds: PlannerRound[];
 }
 
+export type CheckStatus = 'pass' | 'needs_attention' | 'not_applicable' | 'insufficient_evidence' | 'error';
+export interface CheckResult {
+  id: string;
+  run_id: string;
+  asset_id: string;
+  check_id: string;
+  check_name: string;
+  check_version: string;
+  status: CheckStatus;
+  explanation: string;
+  source_tool_call_id?: string;
+  evidence_snapshot: Record<string, unknown>;
+}
+export interface Finding {
+  id: string;
+  asset_id: string;
+  check_result_id: string;
+  title: string;
+  severity: string;
+  status: 'pending_review' | 'confirmed' | 'false_positive' | 'ignored';
+  description: string;
+  remediation: string;
+  source_tool_call_id?: string;
+}

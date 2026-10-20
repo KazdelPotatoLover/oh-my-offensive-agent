@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"agent-workbench/backend/internal/agent"
+	"agent-workbench/backend/internal/checker"
 	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/orchestration"
 	"agent-workbench/backend/internal/provider"
@@ -171,18 +172,10 @@ func (h *RunHandler) Create(w http.ResponseWriter, r *http.Request) {
 				runner := agent.NewAgentRunner(run.ID, h.runService, p, tools.DefaultRegistry(), budget)
 				startErr = h.manager.StartExecutor(run.ID, runner)
 			} else {
-				// Discovery execution is sequential; retain the existing mock scenario budget.
-				// Real model runs must honor the user's recorded limits.
+				// Discovery is sequential. Every provider, including mock, must
+				// honor the original recorded model/tool hard caps.
 				if isDiscovery {
 					budget.MaxParallelWorkers = 1
-					if agentCfg["provider"] == nil || agentCfg["provider"] == "mock" {
-						if budget.MaxModelCalls < 80 {
-							budget.MaxModelCalls = 80
-						}
-						if budget.MaxToolCalls < 80 {
-							budget.MaxToolCalls = 80
-						}
-					}
 				}
 				engine := orchestration.NewEngine(run.ID, h.runService, p, budget)
 				startErr = h.manager.StartExecutor(run.ID, engine)
@@ -423,4 +416,39 @@ func (h *RunHandler) GetDiscoveries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]interface{}{"discoveries": discoveries})
+}
+
+func (h *RunHandler) GetCheckResults(w http.ResponseWriter, r *http.Request) {
+	runID, err := uuid.Parse(chi.URLParam(r, "runID"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid run ID")
+		return
+	}
+
+	results, err := h.runService.ListCheckResultsByRun(r.Context(), runID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to get check results")
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"check_results": results})
+}
+
+func (h *RunHandler) GetFindings(w http.ResponseWriter, r *http.Request) {
+	runID, err := uuid.Parse(chi.URLParam(r, "runID"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid run ID")
+		return
+	}
+
+	findings, err := h.runService.ListFindingsByRun(r.Context(), runID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to get findings")
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"findings": findings})
+}
+
+func (h *RunHandler) GetCheckCatalog(w http.ResponseWriter, r *http.Request) {
+	catalog := checker.GetCatalog()
+	respondJSON(w, http.StatusOK, map[string]interface{}{"checks": catalog})
 }

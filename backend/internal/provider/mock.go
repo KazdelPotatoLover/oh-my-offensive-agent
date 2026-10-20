@@ -87,7 +87,7 @@ func (m *MockProvider) Call(ctx context.Context, messages []ChatMessage, tools [
 		}
 	}
 
-	if scenario == ScenarioOrchestration || scenario == ScenarioTraceability || scenario == ScenarioHTTPTraceability || m.hasTool(tools, "submit_plan") || m.hasTool(tools, "suggest_completion") || m.hasTool(tools, "record_observation") || m.hasTool(tools, "read_observations") || m.hasTool(tools, "get_endpoint") {
+	if scenario == ScenarioOrchestration || scenario == ScenarioTraceability || scenario == ScenarioHTTPTraceability || m.hasTool(tools, "submit_plan") || m.hasTool(tools, "suggest_completion") || m.hasTool(tools, "record_observation") || m.hasTool(tools, "read_observations") || m.hasTool(tools, "get_endpoint") || m.hasTool(tools, "run_security_check") {
 		return m.handleOrchestrationFlow(round, messages, tools)
 	}
 
@@ -439,6 +439,23 @@ func extractAssetIDFromPrompt(text string) string {
 			endIdx := strings.Index(sub, "]")
 			if endIdx != -1 {
 				return strings.TrimSpace(sub[:endIdx])
+			}
+		}
+	}
+	return ""
+}
+
+func extractJSONStringField(text, key string) string {
+	target := `"` + key + `":`
+	idx := strings.Index(text, target)
+	if idx != -1 {
+		rest := text[idx+len(target):]
+		q1 := strings.Index(rest, `"`)
+		if q1 != -1 {
+			rest2 := rest[q1+1:]
+			q2 := strings.Index(rest2, `"`)
+			if q2 != -1 {
+				return strings.TrimSpace(rest2[:q2])
 			}
 		}
 	}
@@ -854,6 +871,43 @@ func (m *MockProvider) handleOrchestrationFlow(round int, messages []ChatMessage
 			FinishReason: "stop",
 			Usage:        &ModelUsage{PromptTokens: 120, CompletionTokens: 30, TotalTokens: 150},
 			RequestID:    fmt.Sprintf("mock-agg-round-%d", round),
+		}, nil
+	}
+
+	// 2b. Worker run_security_check flow
+	if m.hasTool(tools, "run_security_check") {
+		lastMsg := messages[len(messages)-1]
+		if lastMsg.Role == RoleTool {
+			return &ModelResponse{
+				Content:      "Security checks executed against persisted HTTP evidence. Results and candidate findings recorded.",
+				FinishReason: "stop",
+				Usage:        &ModelUsage{PromptTokens: 100, CompletionTokens: 25, TotalTokens: 125},
+				RequestID:    fmt.Sprintf("mock-check-round-%d", round),
+			}, nil
+		}
+
+		assetID := extractAssetIDFromPrompt(fullPrompt)
+		checkID := extractJSONStringField(fullPrompt, "check_id")
+		if checkID == "" {
+			checkID = "http_security_headers"
+		}
+
+		argsJSON, _ := json.Marshal(map[string]string{
+			"asset_id": assetID,
+			"check_id": checkID,
+		})
+
+		return &ModelResponse{
+			ToolCalls: []ToolCall{
+				{
+					ID:       fmt.Sprintf("call_sec_check_%d", round),
+					Type:     "function",
+					Function: FunctionCall{Name: "run_security_check", Arguments: string(argsJSON)},
+				},
+			},
+			FinishReason: "tool_calls",
+			Usage:        &ModelUsage{PromptTokens: 90, CompletionTokens: 20, TotalTokens: 110},
+			RequestID:    fmt.Sprintf("mock-check-round-%d", round),
 		}, nil
 	}
 

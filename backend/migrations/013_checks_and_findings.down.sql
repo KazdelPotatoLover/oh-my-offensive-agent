@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS findings;
+DROP TABLE IF EXISTS check_results;

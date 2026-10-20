@@ -1,4 +1,6 @@
 import {
+  CheckResult,
+  Finding,
   Task,
   Run,
   RunEvent,
@@ -214,6 +216,16 @@ export const api = {
   async getRunWorkItems(runId: string): Promise<WorkItem[]> {
     const data = await request<WorkItemsResponse>(`/api/runs/${runId}/work_items`);
     return data.work_items || [];
+  },
+
+  async getRunChecks(runId: string): Promise<CheckResult[]> {
+    const data = await request<{ check_results: CheckResult[] }>(`/api/runs/${runId}/checks`);
+    return data.check_results || [];
+  },
+
+  async getRunFindings(runId: string): Promise<Finding[]> {
+    const data = await request<{ findings: Finding[] }>(`/api/runs/${runId}/findings`);
+    return data.findings || [];
   },
 
   async getRunObservations(runId: string): Promise<Observation[]> {

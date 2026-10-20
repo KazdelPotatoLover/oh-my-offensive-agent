@@ -53,7 +53,16 @@ func (s *RunService) finalizeRunWrapup(ctx context.Context, runID uuid.UUID, cau
 		if childStatus == "interrupted" {
 			workStatus = "failed"
 		}
-		if _, err := tx.Exec(ctx, `UPDATE work_items SET status=$2,updated_at=now() WHERE run_id=$1 AND status IN ('pending','running','blocked')`, runID, workStatus); err != nil {
+		if childReason == string(model.CauseModelBudgetExhausted) || childReason == string(model.CauseToolBudgetExhausted) {
+			// A run-level budget stop distinguishes work that had started from
+			// work that never began. Both remain visible in the final snapshot.
+			if _, err := tx.Exec(ctx, `UPDATE work_items SET status='exhausted',updated_at=now() WHERE run_id=$1 AND status='running'`, runID); err != nil {
+				return fmt.Errorf("cleanup exhausted work items: %w", err)
+			}
+			if _, err := tx.Exec(ctx, `UPDATE work_items SET status='cancelled',updated_at=now() WHERE run_id=$1 AND status IN ('pending','blocked')`, runID); err != nil {
+				return fmt.Errorf("cleanup unstarted work items: %w", err)
+			}
+		} else if _, err := tx.Exec(ctx, `UPDATE work_items SET status=$2,updated_at=now() WHERE run_id=$1 AND status IN ('pending','running','blocked')`, runID, workStatus); err != nil {
 			return fmt.Errorf("cleanup work items: %w", err)
 		}
 		if _, err := tx.Exec(ctx, `UPDATE planner_rounds SET status=CASE WHEN $1='interrupted' THEN 'stopped' ELSE $1 END,finished_at=now() WHERE run_id=$2 AND status='running'`, childStatus, runID); err != nil {
@@ -193,9 +202,9 @@ func (s *RunService) finalizeRunWrapup(ctx context.Context, runID uuid.UUID, cau
 func (s *RunService) FinalizeTerminatedRun(ctx context.Context, runID uuid.UUID, targetStatus model.RunStatus, reason string) error {
 	cause := model.TerminationCause(reason)
 	if targetStatus == model.RunStatusStopped {
-		if reason == "timeout" {
-			cause = model.CauseTimeout
-		} else {
+		switch cause {
+		case model.CauseTimeout, model.CauseModelBudgetExhausted, model.CauseToolBudgetExhausted:
+		default:
 			cause = model.CauseUserStop
 		}
 	}

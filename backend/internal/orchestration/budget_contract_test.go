@@ -75,3 +75,38 @@ func TestBudgetSettlementAndDeadlineBlockAdmission(t *testing.T) {
 		})
 	}
 }
+
+func TestBudgetConcurrentToolsAndSettlementRespectBothHardCaps(t *testing.T) {
+	b := NewBudgetManager(model.BudgetConfig{MaxModelCalls: 7, MaxToolCalls: 3}, time.Now())
+	var models, tools atomic.Int32
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	for i := 0; i < 128; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			if i == 64 {
+				b.MarkWrapupStarted()
+			}
+			if b.AcquireModelCall(context.Background(), i%2 == 0) == nil {
+				models.Add(1)
+				b.ReleaseModelCall()
+			}
+			if b.AcquireToolCall(context.Background()) == nil {
+				tools.Add(1)
+			}
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+	if models.Load() > 7 || tools.Load() > 3 || b.ConsumedModelCalls() != int(models.Load()) || b.ConsumedToolCalls() != int(tools.Load()) || b.InflightModelCalls() != 0 {
+		t.Fatalf("models=%d tools=%d consumed=%d/%d inflight=%d", models.Load(), tools.Load(), b.ConsumedModelCalls(), b.ConsumedToolCalls(), b.InflightModelCalls())
+	}
+	if err := b.AcquireToolCall(context.Background()); err == nil {
+		t.Fatal("tool admitted in settlement")
+	}
+	if err := b.AcquireModelCall(context.Background(), false); err == nil {
+		t.Fatal("exploration admitted in settlement")
+	}
+}

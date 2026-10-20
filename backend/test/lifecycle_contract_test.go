@@ -23,6 +23,9 @@ type boundaryProvider struct {
 	entered, release chan struct{}
 	once             sync.Once
 	failSummary      bool
+	summaryDelay     time.Duration
+	summaryEntered   chan struct{}
+	summaryReason    string
 	ignoreCancel     bool
 	summaries        atomic.Int32
 	workers          atomic.Int32
@@ -31,8 +34,24 @@ type boundaryProvider struct {
 func (p *boundaryProvider) Call(ctx context.Context, messages []provider.ChatMessage, defs []provider.ToolDefinition, _ provider.ModelOpts) (*provider.ModelResponse, error) {
 	if len(defs) == 0 {
 		p.summaries.Add(1)
+		if p.summaryEntered != nil {
+			close(p.summaryEntered)
+		}
+		if p.summaryDelay > 0 {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(p.summaryDelay):
+			}
+		}
 		if p.failSummary {
 			return nil, errors.New("summary unavailable")
+		}
+		if p.summaryReason != "" {
+			if p.summaryReason == "tools" {
+				return &provider.ModelResponse{FinishReason: "tool_calls", ToolCalls: []provider.ToolCall{{ID: "forbidden", Type: "function", Function: provider.FunctionCall{Name: "read_observations", Arguments: `{}`}}}}, nil
+			}
+			return &provider.ModelResponse{FinishReason: p.summaryReason, Content: "No summary"}, nil
 		}
 		return &provider.ModelResponse{FinishReason: "stop", Content: "Partial execution summary."}, nil
 	}
@@ -120,7 +139,7 @@ func TestLifecycle_LastAllowedCallAndSummaryFallback(t *testing.T) {
 				t.Fatal("wrapup did not finish")
 			}
 			final, err := env.runService.Get(context.Background(), run.ID)
-			if err != nil || final.FinishReason == nil || *final.FinishReason != "model_calls_exhausted" {
+			if err != nil || final.Status != model.RunStatusStopped || final.FinishReason == nil || *final.FinishReason != "model_calls_exhausted" {
 				t.Fatalf("final=%+v err=%v", final, err)
 			}
 			if p.summaries.Load() != 1 || p.workers.Load() != 1 {

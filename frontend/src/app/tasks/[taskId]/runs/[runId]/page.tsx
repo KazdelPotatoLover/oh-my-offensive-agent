@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Run, RunEvent, AgentMessage, ModelCall, AgentToolCall, WorkItem, Observation, AgentSession, PlannerRound, Asset, WorkItemDetail, AssetDiscoveryDetail } from '@/lib/types';
 import { RunStatusBadge } from '@/components/RunStatusBadge';
+import { CheckResultsPanel } from '@/components/CheckResultsPanel';
 import { EventTimeline } from '@/components/EventTimeline';
 
 interface ParsedHttpEndpointOutput {
@@ -400,7 +401,7 @@ export default function RunDetailPage() {
               <h1 className="text-2xl font-bold text-white tracking-tight font-mono">
                 Run {run.id}
               </h1>
-              <RunStatusBadge status={run.status} size="lg" />
+              <RunStatusBadge status={run.status} finishReason={run.finish_reason} size="lg" />
             </div>
             {isActive && (
               <p className="text-xs text-blue-400 flex items-center space-x-1.5 animate-pulse">
@@ -570,6 +571,8 @@ export default function RunDetailPage() {
           </div>
         </div>
       )}
+
+      <CheckResultsPanel runId={runId} status={run.status} toolCalls={toolCalls} />
 
       {/* Tabs for Timeline / Orchestration / Agent Details */}
       <div className="space-y-4">
@@ -986,6 +989,7 @@ export default function RunDetailPage() {
                         item.status === 'completed' ? 'bg-green-500/10 text-green-400 border border-green-500/30' :
                         item.status === 'running' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30 animate-pulse' :
                         item.status === 'blocked' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' :
+                        item.status === 'exhausted' ? 'bg-orange-500/10 text-orange-300 border border-orange-500/30' :
                         item.status === 'failed' ? 'bg-red-500/10 text-red-400 border border-red-500/30' :
                         'bg-gray-800 text-gray-400'
                       }`}>
@@ -1193,6 +1197,7 @@ export default function RunDetailPage() {
                     <span className={`text-xs px-2 py-0.5 rounded ${
                       sess.status === 'completed' ? 'bg-green-500/10 text-green-400' :
                       sess.status === 'running' ? 'bg-blue-500/10 text-blue-400 animate-pulse' :
+                      sess.status === 'exhausted' ? 'bg-orange-500/10 text-orange-300' :
                       sess.status === 'failed' ? 'bg-red-500/10 text-red-400' : 'bg-gray-800 text-gray-400'
                     }`}>
                       {sess.status}

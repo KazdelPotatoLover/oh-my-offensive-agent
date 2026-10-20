@@ -354,8 +354,8 @@ func TestOrchestration_GlobalBudget_Exhausted(t *testing.T) {
 	}
 
 RunBudgetDone:
-	if finalRun.Status != model.RunStatusFailed {
-		t.Fatalf("expected run status 'failed', got '%s'", finalRun.Status)
+	if finalRun.Status != model.RunStatusStopped {
+		t.Fatalf("expected run status 'stopped', got '%s'", finalRun.Status)
 	}
 	if finalRun.FinishReason == nil || *finalRun.FinishReason != "model_calls_exhausted" {
 		t.Errorf("expected finish_reason 'model_calls_exhausted', got %v", strPtrDeref(finalRun.FinishReason))

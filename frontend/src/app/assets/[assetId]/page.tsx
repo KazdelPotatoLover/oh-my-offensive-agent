@@ -144,7 +144,7 @@ export default function AssetDetailPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                         </svg>
                       </Link>
-                      <RunStatusBadge status={runGroup.run_status} />
+                      <RunStatusBadge status={runGroup.run_status} finishReason={runGroup.finish_reason} />
                     </div>
                     <div className="font-mono text-xs text-gray-500">
                       Run ID: {runGroup.run_id}
@@ -218,6 +218,8 @@ export default function AssetDetailPage() {
                                 className={`text-[10px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wider ${
                                   wi.status === 'completed'
                                     ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                    : wi.status === 'exhausted'
+                                      ? 'bg-orange-500/10 text-orange-300 border border-orange-500/20'
                                     : 'bg-gray-800 text-gray-400'
                                 }`}
                               >

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"agent-workbench/backend/internal/checker"
 	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/service"
 
@@ -60,8 +61,8 @@ func (t *SubmitPlanTool) Parameters() json.RawMessage {
 						"key": {"type": "string", "description": "Unique stable identifier for the work item (e.g. analyze_home)"},
 						"title": {"type": "string", "description": "Human-readable title"},
 						"objective": {"type": "string", "description": "Detailed goal of this work item"},
-						"work_type": {"type": "string", "enum": ["inspect_http_endpoint", "analyze_sample", "inspect_sample_endpoint", "aggregate_summary"], "description": "Exact supported executor type. HTTP assets require inspect_http_endpoint; crawl_page and frontier_reconcile do not exist."},
-						"input_data": {"type": "object", "description": "inspect_http_endpoint: {asset_id: UUID from asset_ids}; analyze_sample: {sample_id: scoped sample key}; aggregate_summary: {}. Dependencies control order only; they do not inject worklist artifacts.", "properties": {"asset_id": {"type": "string"}, "sample_id": {"type": "string"}}},
+						"work_type": {"type": "string", "enum": ["inspect_http_endpoint", "analyze_sample", "inspect_sample_endpoint", "aggregate_summary", "run_security_check"], "description": "Exact supported executor type. HTTP assets require inspect_http_endpoint; security configuration reviews require run_security_check; crawl_page and frontier_reconcile do not exist."},
+						"input_data": {"type": "object", "description": "inspect_http_endpoint: {asset_id: UUID from asset_ids}; run_security_check: {asset_id: UUID from asset_ids, check_id: string}; analyze_sample: {sample_id: scoped sample key}; aggregate_summary: {}. Dependencies control order only; they do not inject worklist artifacts.", "properties": {"asset_id": {"type": "string"}, "sample_id": {"type": "string"}, "check_id": {"type": "string"}}},
 						"dependencies": {
 							"type": "array",
 							"items": {"type": "string"},
@@ -102,6 +103,23 @@ func (t *SubmitPlanTool) Validate(argumentsJSON []byte) error {
 		}
 		if !model.IsSupportedWorkType(item.WorkType) {
 			return fmt.Errorf("%w: %q", service.ErrUnsupportedWorkType, item.WorkType)
+		}
+		if item.WorkType == "run_security_check" {
+			checkID, _ := item.InputData["check_id"].(string)
+			checkID = strings.TrimSpace(checkID)
+			if checkID == "" {
+				return errors.New("run_security_check requires non-empty input_data.check_id")
+			}
+			if !checker.IsRegisteredCheck(checkID) {
+				return fmt.Errorf("unknown check_id %q: planner can only schedule registered checks in catalog", checkID)
+			}
+			assetIDStr, _ := item.InputData["asset_id"].(string)
+			if strings.TrimSpace(assetIDStr) == "" {
+				return errors.New("run_security_check requires non-empty input_data.asset_id")
+			}
+			if _, err := uuid.Parse(strings.TrimSpace(assetIDStr)); err != nil {
+				return fmt.Errorf("run_security_check input_data.asset_id must be a valid UUID: %w", err)
+			}
 		}
 	}
 	return nil
@@ -252,16 +270,110 @@ func (t *RecordObservationTool) Name() string {
 }
 
 func (t *RecordObservationTool) Description() string {
-	return "Record a structured factual observation derived from a successful tool execution."
+	return "Record one structured observation derived from a successful tool execution. For one explored page, combine HTTP status, title, response headers/features, and content summary into one page_observation with structured data; use record_observation_batch only for genuinely different conclusions or evidence sources."
+}
+
+// RecordObservationBatchTool writes several independently evidenced
+// observations in one atomic transaction. It is deliberately bounded and does
+// not weaken the per-row source/session/attempt/asset checks.
+type RecordObservationBatchTool struct {
+	runID, attemptID, sessionID uuid.UUID
+	runService                  *service.RunService
+}
+
+func NewRecordObservationBatchTool(runID, attemptID, sessionID uuid.UUID, runService *service.RunService) *RecordObservationBatchTool {
+	return &RecordObservationBatchTool{runID: runID, attemptID: attemptID, sessionID: sessionID, runService: runService}
+}
+
+func (t *RecordObservationBatchTool) Name() string { return "record_observation_batch" }
+func (t *RecordObservationBatchTool) Description() string {
+	return fmt.Sprintf("Atomically record 1-%d observations. Prefer one page_observation per explored page, combining status/title/response features/content summary. Use multiple entries only for different conclusions or source tool calls. Every entry must cite its own successful source_tool_call_id; any invalid entry rejects the entire batch. Returns {status:recorded,count,observation_ids} with IDs in input order; no partial success.", service.MaxObservationBatch)
+}
+func (t *RecordObservationBatchTool) Parameters() json.RawMessage {
+	return json.RawMessage(fmt.Sprintf(`{"type":"object","properties":{"observations":{"type":"array","minItems":1,"maxItems":%d,"items":{"type":"object","properties":{"obs_type":{"type":"string"},"content":{"type":"string"},"data":{"type":"object","description":"For page_observation: status_code, title, response_features and content_summary from this source"},"source_tool_call_id":{"type":"string","description":"_execution.source_tool_call_id or the exact original call_id"},"asset_id":{"type":"string"}},"required":["obs_type","content","source_tool_call_id"]}}},"required":["observations"]}`, service.MaxObservationBatch))
+}
+func (t *RecordObservationBatchTool) Validate(in []byte) error {
+	var p struct {
+		Observations []struct {
+			ObsType string `json:"obs_type"`
+			Content string `json:"content"`
+			Source  string `json:"source_tool_call_id"`
+			Asset   string `json:"asset_id"`
+		} `json:"observations"`
+	}
+	if err := json.Unmarshal(in, &p); err != nil {
+		return err
+	}
+	if len(p.Observations) == 0 || len(p.Observations) > service.MaxObservationBatch {
+		return fmt.Errorf("observations must contain 1-%d items", service.MaxObservationBatch)
+	}
+	for i, o := range p.Observations {
+		if strings.TrimSpace(o.ObsType) == "" || strings.TrimSpace(o.Content) == "" || strings.TrimSpace(o.Source) == "" {
+			return fmt.Errorf("observation %d requires obs_type, content and source_tool_call_id", i)
+		}
+		if o.Asset != "" {
+			if _, err := uuid.Parse(strings.TrimSpace(o.Asset)); err != nil {
+				return fmt.Errorf("observation %d invalid asset_id: %w", i, err)
+			}
+		}
+	}
+	return nil
+}
+func (t *RecordObservationBatchTool) Execute(ctx context.Context, in []byte) (string, error) {
+	var p struct {
+		Observations []struct {
+			ObsType string         `json:"obs_type"`
+			Content string         `json:"content"`
+			Data    map[string]any `json:"data"`
+			Source  string         `json:"source_tool_call_id"`
+			Asset   string         `json:"asset_id"`
+		} `json:"observations"`
+	}
+	if err := json.Unmarshal(in, &p); err != nil {
+		return "", err
+	}
+	inputs := make([]service.ObservationInput, 0, len(p.Observations))
+	for i, o := range p.Observations {
+		var source uuid.UUID
+		if parsed, err := uuid.Parse(strings.TrimSpace(o.Source)); err == nil {
+			source = parsed
+		} else {
+			tc, lookupErr := t.runService.GetAgentToolCallBySessionAndCallID(ctx, t.sessionID, strings.TrimSpace(o.Source))
+			if lookupErr != nil {
+				return "", fmt.Errorf("observation %d source: %w", i, service.ErrInvalidObservationSource)
+			}
+			source = tc.ID
+		}
+		var asset *uuid.UUID
+		if strings.TrimSpace(o.Asset) != "" {
+			parsed, _ := uuid.Parse(strings.TrimSpace(o.Asset))
+			asset = &parsed
+		}
+		data := json.RawMessage(`{}`)
+		if o.Data != nil {
+			data, _ = json.Marshal(o.Data)
+		}
+		inputs = append(inputs, service.ObservationInput{ObsType: o.ObsType, Content: o.Content, Data: data, SourceToolCallID: source, AssetID: asset})
+	}
+	obs, err := t.runService.CreateObservationsBatchWithSession(ctx, t.runID, t.sessionID, t.attemptID, inputs)
+	if err != nil {
+		return "", err
+	}
+	ids := make([]string, 0, len(obs))
+	for _, o := range obs {
+		ids = append(ids, o.ID.String())
+	}
+	out, _ := json.Marshal(map[string]any{"status": "recorded", "count": len(ids), "observation_ids": ids})
+	return string(out), nil
 }
 
 func (t *RecordObservationTool) Parameters() json.RawMessage {
 	return json.RawMessage(`{
 		"type": "object",
 		"properties": {
-			"obs_type": {"type": "string", "description": "Type of observation, e.g. http_status, page_title, server_header"},
+			"obs_type": {"type": "string", "description": "Use page_observation for a page exploration; legacy observation types are still accepted"},
 			"content": {"type": "string", "description": "Text description of the observation"},
-			"data": {"type": "object", "description": "Structured data extracted from tool output"},
+			"data": {"type": "object", "description": "For page_observation combine status_code, title, response_features (headers/content type/length), and content_summary from the same source; retain all relevant queryable fields"},
 			"source_tool_call_id": {"type": "string", "description": "Copy _execution.source_tool_call_id from a successful get_endpoint/read_sample result. This evidence record UUID is different from asset_id. The exact original call_id is also accepted."},
 			"asset_id": {"type": "string", "description": "Optional UUID of the target asset"}
 		},
@@ -345,7 +457,10 @@ func (t *RecordObservationTool) Execute(ctx context.Context, argumentsJSON []byt
 		parsedAssetID = &aid
 	}
 
-	dataBytes, _ := json.Marshal(payload.Data)
+	dataBytes := json.RawMessage(`{}`)
+	if payload.Data != nil {
+		dataBytes, _ = json.Marshal(payload.Data)
+	}
 	obs, err := t.runService.CreateObservationWithAsset(ctx, t.runID, t.attemptID, payload.ObsType, payload.Content, dataBytes, tcUUID, parsedAssetID)
 	if err != nil {
 		return "", err

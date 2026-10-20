@@ -169,6 +169,12 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 		if req.Budget.ToolTimeoutSeconds > 0 {
 			budget.ToolTimeoutSeconds = req.Budget.ToolTimeoutSeconds
 		}
+		if req.Budget.SummaryTimeoutSeconds > 0 {
+			budget.SummaryTimeoutSeconds = req.Budget.SummaryTimeoutSeconds
+		}
+		if req.Budget.CleanupTimeoutSeconds > 0 {
+			budget.CleanupTimeoutSeconds = req.Budget.CleanupTimeoutSeconds
+		}
 		if req.Budget.MaxToolOutputBytes > 0 {
 			budget.MaxToolOutputBytes = req.Budget.MaxToolOutputBytes
 		}
@@ -367,8 +373,8 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 		agentConfig := map[string]interface{}{
 			"executor":       executor,
 			"provider":       providerType,
-			"prompt_version": "v3",
-			"tools_version":  "v1",
+			"prompt_version": "v4",
+			"tools_version":  "v2",
 			"budget":         budget,
 		}
 		if providerType == "mock" {
@@ -700,6 +706,12 @@ func (s *RunService) InsertRunEventWithContext(ctx context.Context, runID uuid.U
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback(ctx)
+	// Use the same Run-first lock order as the terminal transaction. Besides
+	// serializing event sequence allocation, this prevents a cancelling session
+	// from holding an event key while waiting on the finalizer's Run lock.
+	if err := lockRunAdmission(ctx, tx, runID); err != nil {
+		return nil, err
+	}
 
 	var nextSeq int
 	err = tx.QueryRow(ctx,
@@ -1158,7 +1170,7 @@ func (s *RunService) GetAssetDetailsWithHistory(ctx context.Context, assetID uui
 
 	// Find distinct runs associated with this asset via run_assets OR observations OR work_item_assets
 	runRows, err := s.pool.Query(ctx,
-		`SELECT DISTINCT r.id, r.task_id, t.name, r.status, r.started_at, r.finished_at, r.created_at
+		`SELECT DISTINCT r.id, r.task_id, t.name, r.status, r.finish_reason, r.started_at, r.finished_at, r.created_at
 		 FROM runs r
 		 JOIN tasks t ON r.task_id = t.id
 		 LEFT JOIN run_assets ra ON r.id = ra.run_id AND ra.asset_id = $1
@@ -1173,18 +1185,19 @@ func (s *RunService) GetAssetDetailsWithHistory(ctx context.Context, assetID uui
 	defer runRows.Close()
 
 	type runMeta struct {
-		id         uuid.UUID
-		taskID     uuid.UUID
-		taskName   string
-		status     model.RunStatus
-		startedAt  *time.Time
-		finishedAt *time.Time
+		id           uuid.UUID
+		taskID       uuid.UUID
+		taskName     string
+		status       model.RunStatus
+		finishReason *string
+		startedAt    *time.Time
+		finishedAt   *time.Time
 	}
 	var runs []runMeta
 	for runRows.Next() {
 		var rm runMeta
 		var createdAt time.Time
-		if err := runRows.Scan(&rm.id, &rm.taskID, &rm.taskName, &rm.status, &rm.startedAt, &rm.finishedAt, &createdAt); err != nil {
+		if err := runRows.Scan(&rm.id, &rm.taskID, &rm.taskName, &rm.status, &rm.finishReason, &rm.startedAt, &rm.finishedAt, &createdAt); err != nil {
 			return nil, fmt.Errorf("scan run meta: %w", err)
 		}
 		runs = append(runs, rm)
@@ -1371,6 +1384,7 @@ func (s *RunService) GetAssetDetailsWithHistory(ctx context.Context, assetID uui
 			TaskID:       rm.taskID,
 			TaskName:     rm.taskName,
 			RunStatus:    rm.status,
+			FinishReason: rm.finishReason,
 			StartedAt:    rm.startedAt,
 			FinishedAt:   rm.finishedAt,
 			DiscoveredBy: discoveredBy,

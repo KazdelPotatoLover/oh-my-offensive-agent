@@ -198,6 +198,151 @@ func TestSession_ObservationVerification(t *testing.T) {
 	_ = planItems
 }
 
+// TestObservationBatch_IsAtomicAndTraceable verifies that a page's structured
+// observations can be written together without allowing an invalid source to
+// produce a partial batch.
+func TestObservationBatch_IsAtomicAndTraceable(t *testing.T) {
+	env := setupTestEnv(t)
+	defer env.teardown()
+	ctx := context.Background()
+	task, _ := env.taskService.Create(ctx, model.CreateTaskRequest{Name: "Observation batch", Objective: "batch", Scope: json.RawMessage(`{"endpoints":["sample_home"]}`)})
+	run, _, err := env.runService.Create(ctx, task.ID, model.CreateRunRequest{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = env.runService.TransitionState(ctx, run.ID, model.RunStatusQueued, model.RunStatusRunning, nil)
+	assets, _ := env.runService.ListAssetsByRun(ctx, run.ID)
+	var home uuid.UUID
+	for _, a := range assets {
+		if a.ExternalKey == "sample_home" {
+			home = a.ID
+		}
+	}
+	_, err = env.runService.SubmitPlan(ctx, run.ID, []service.PlanItemSpec{{Key: "page", Title: "page", Objective: "page", WorkType: "analyze_sample", InputData: map[string]any{"sample_id": "sample_home"}, AssetIDs: []uuid.UUID{home}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, att, sess, err := env.runService.ClaimNextPendingWorkItem(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	call := func(id string) *model.AgentToolCall {
+		tc, e := env.runService.CreateAgentToolCallWithSession(ctx, run.ID, &sess.ID, nil, id, "read_sample", json.RawMessage(`{"sample_id":"sample_home"}`))
+		if e != nil {
+			t.Fatal(e)
+		}
+		if e = env.runService.UpdateAgentToolCall(ctx, tc.ID, "success", `{"status_code":200,"title":"Home"}`, nil, &now, &now); e != nil {
+			t.Fatal(e)
+		}
+		return tc
+	}
+	first, second := call("page-one"), call("page-two")
+	obs, err := env.runService.CreateObservationsBatchWithAssets(ctx, run.ID, att.ID, []service.ObservationInput{
+		{ObsType: "page_observation", Content: "status 200 title Home", Data: json.RawMessage(`{"status_code":200,"title":"Home"}`), SourceToolCallID: first.ID, AssetID: &home},
+		{ObsType: "content_summary", Content: "home page summary", Data: json.RawMessage(`{"summary":"welcome"}`), SourceToolCallID: second.ID, AssetID: &home},
+	})
+	if err != nil || len(obs) != 2 {
+		t.Fatalf("batch err=%v count=%d", err, len(obs))
+	}
+	stored, err := env.runService.ListObservationsByRun(ctx, run.ID)
+	if err != nil || len(stored) != 2 {
+		t.Fatalf("stored observations=%d err=%v", len(stored), err)
+	}
+	bad := uuid.New()
+	_, err = env.runService.CreateObservationsBatchWithAssets(ctx, run.ID, att.ID, []service.ObservationInput{
+		{ObsType: "page_observation", Content: "valid", SourceToolCallID: first.ID, AssetID: &home},
+		{ObsType: "page_observation", Content: "invalid", SourceToolCallID: bad, AssetID: &home},
+	})
+	if !errors.Is(err, service.ErrInvalidObservationSource) {
+		t.Fatalf("expected invalid source, got %v", err)
+	}
+	stored, _ = env.runService.ListObservationsByRun(ctx, run.ID)
+	if len(stored) != 2 {
+		t.Fatalf("invalid batch partially committed: %d", len(stored))
+	}
+	_, err = env.runService.CreateObservationsBatchWithSession(ctx, run.ID, uuid.New(), att.ID, []service.ObservationInput{
+		{ObsType: "page_observation", Content: "wrong session", SourceToolCallID: first.ID, AssetID: &home},
+	})
+	if !errors.Is(err, service.ErrInvalidObservationSource) {
+		t.Fatalf("expected session mismatch to be rejected, got %v", err)
+	}
+	stored, _ = env.runService.ListObservationsByRun(ctx, run.ID)
+	if len(stored) != 2 {
+		t.Fatalf("session mismatch changed observation count: %d", len(stored))
+	}
+	otherSession, err := env.runService.CreateSession(ctx, run.ID, "worker", nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign, err := env.runService.CreateAgentToolCallWithSession(ctx, run.ID, &otherSession.ID, nil, "foreign", "read_sample", json.RawMessage(`{"sample_id":"sample_home"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = env.runService.UpdateAgentToolCall(ctx, foreign.ID, "success", `{}`, nil, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	wrongAsset := uuid.New()
+	for _, invalid := range []struct {
+		name                 string
+		run, attempt, source uuid.UUID
+		asset                *uuid.UUID
+	}{
+		{"source_session", run.ID, att.ID, foreign.ID, &home},
+		{"wrong_attempt", run.ID, uuid.New(), first.ID, &home},
+		{"wrong_run", uuid.New(), att.ID, first.ID, &home},
+		{"asset_mismatch", run.ID, att.ID, first.ID, &wrongAsset},
+	} {
+		t.Run(invalid.name, func(t *testing.T) {
+			var eventsBefore, eventsAfter int
+			if err := env.pool.QueryRow(ctx, `SELECT COUNT(*) FROM run_events WHERE run_id=$1 AND type='observation'`, run.ID).Scan(&eventsBefore); err != nil {
+				t.Fatal(err)
+			}
+			_, err := env.runService.CreateObservationsBatchWithSession(ctx, invalid.run, sess.ID, invalid.attempt, []service.ObservationInput{
+				{ObsType: "page_observation", Content: "valid first", SourceToolCallID: first.ID, AssetID: &home},
+				{ObsType: "separate_conclusion", Content: "invalid second", SourceToolCallID: invalid.source, AssetID: invalid.asset},
+			})
+			if err == nil {
+				t.Fatal("invalid batch accepted")
+			}
+			stored, err := env.runService.ListObservationsByRun(ctx, run.ID)
+			if err != nil || len(stored) != 2 {
+				t.Fatalf("partial observation commit: %d %v", len(stored), err)
+			}
+			if err := env.pool.QueryRow(ctx, `SELECT COUNT(*) FROM run_events WHERE run_id=$1 AND type='observation'`, run.ID).Scan(&eventsAfter); err != nil {
+				t.Fatal(err)
+			}
+			if eventsBefore != eventsAfter {
+				t.Fatal("invalid batch partially emitted events")
+			}
+		})
+	}
+	tooMany := make([]service.ObservationInput, service.MaxObservationBatch+1)
+	if _, err := env.runService.CreateObservationsBatchWithAssets(ctx, run.ID, att.ID, tooMany); err == nil {
+		t.Fatal("oversized batch accepted")
+	}
+	if _, err := env.runService.CreateObservationsBatchWithAssets(ctx, run.ID, att.ID, nil); err == nil {
+		t.Fatal("empty batch accepted")
+	}
+	// This fails during insertion after the first row/event have been written,
+	// verifying transactional rollback as well as upfront source validation.
+	_, err = env.runService.CreateObservationsBatchWithAssets(ctx, run.ID, att.ID, []service.ObservationInput{
+		{ObsType: "page_observation", Content: "valid", SourceToolCallID: first.ID},
+		{ObsType: "page_observation", Content: "invalid JSON data", Data: json.RawMessage(`{`), SourceToolCallID: second.ID},
+	})
+	if err == nil {
+		t.Fatal("invalid data insertion accepted")
+	}
+	stored, _ = env.runService.ListObservationsByRun(ctx, run.ID)
+	if len(stored) != 2 {
+		t.Fatalf("insert error partially committed: %d", len(stored))
+	}
+	var events int
+	if err := env.pool.QueryRow(ctx, `SELECT COUNT(*) FROM run_events WHERE run_id=$1 AND type='observation'`, run.ID).Scan(&events); err != nil || events != 2 {
+		t.Fatalf("insert error partially emitted events: %d %v", events, err)
+	}
+}
+
 // TestSession_DependencyCycleRejection verifies that SubmitPlan detects cycles, self-dependencies,
 // and key conflicts.
 func TestSession_DependencyCycleRejection(t *testing.T) {

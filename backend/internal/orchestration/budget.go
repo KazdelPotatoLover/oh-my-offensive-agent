@@ -78,6 +78,15 @@ func NewBudgetManager(cfg model.BudgetConfig, startTime time.Time) *BudgetManage
 	return bm
 }
 
+// restoreUsage is called once before session admission. Persisted requests from
+// this Run must not disappear from its hard cap when an engine is constructed.
+func (b *BudgetManager) restoreUsage(models, tools int) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.consumedModelCalls = int32(models)
+	b.consumedToolCalls = int32(tools)
+}
+
 // AcquireModelCall atomically requests a quota slot for a model call.
 // Non-wrapup calls cannot consume the reserved wrap-up quota.
 func (b *BudgetManager) AcquireModelCall(ctx context.Context, isWrapup bool) error {
@@ -201,6 +210,36 @@ func (b *BudgetManager) ConsumedToolCalls() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return int(b.consumedToolCalls)
+}
+
+func (b *BudgetManager) RemainingModelCalls() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	remaining := b.maxModelCalls - int(b.consumedModelCalls)
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
+}
+
+func (b *BudgetManager) RemainingExplorationModelCalls() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	remaining := b.maxExplorationCalls - int(b.consumedModelCalls)
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
+}
+
+func (b *BudgetManager) RemainingToolCalls() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	remaining := b.maxToolCalls - int(b.consumedToolCalls)
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
 }
 
 // HasWrapupQuota reports whether the reserved wrap-up model call quota is available.

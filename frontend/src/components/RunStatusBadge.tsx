@@ -3,6 +3,7 @@ import { RunStatus } from '@/lib/types';
 
 interface RunStatusBadgeProps {
   status: RunStatus | string;
+  finishReason?: string;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
 }
@@ -45,6 +46,12 @@ const statusConfig: Record<string, { bg: string; text: string; border: string; d
     border: 'border-gray-500/20',
     dot: 'bg-gray-400',
   },
+  exhausted: {
+    bg: 'bg-amber-500/10',
+    text: 'text-amber-300',
+    border: 'border-amber-500/30',
+    dot: 'bg-amber-400',
+  },
   interrupted: {
     bg: 'bg-purple-500/10',
     text: 'text-purple-400',
@@ -53,7 +60,7 @@ const statusConfig: Record<string, { bg: string; text: string; border: string; d
   },
 };
 
-export function RunStatusBadge({ status, size = 'sm', className = '' }: RunStatusBadgeProps) {
+export function RunStatusBadge({ status, finishReason, size = 'sm', className = '' }: RunStatusBadgeProps) {
   const normalizedStatus = (status || '').toLowerCase();
   const config = statusConfig[normalizedStatus] || {
     bg: 'bg-gray-500/10',
@@ -81,7 +88,7 @@ export function RunStatusBadge({ status, size = 'sm', className = '' }: RunStatu
       } ${className}`}
     >
       <span className={`rounded-full ${config.dot} ${dotSizes}`} />
-      <span>{status}</span>
+      <span>{normalizedStatus === 'stopped' && (finishReason === 'model_calls_exhausted' || finishReason === 'tool_calls_exhausted') ? '预算耗尽 · 部分完成' : status}</span>
     </span>
   );
 }

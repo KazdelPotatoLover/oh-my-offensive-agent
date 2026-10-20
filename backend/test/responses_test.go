@@ -199,7 +199,7 @@ func TestResponses_InvalidOrTruncatedOutputNeverExecutesTools(t *testing.T) {
 		{"truncated", `{"status":"incomplete","incomplete_details":{"reason":"max_output_tokens"},"output":[{"type":"function_call","call_id":"call","name":"list_samples","arguments":"{"}]}`, "model_output_truncated"},
 		{"refused", `{"status":"completed","output":[{"type":"function_call","call_id":"call","name":"list_samples","arguments":"{}"},{"type":"message","role":"assistant","content":[{"type":"refusal","refusal":"No"}]}]}`, "model_refused"},
 		{"duplicate", `{"status":"completed","output":[{"type":"function_call","call_id":"same","name":"list_samples","arguments":"{}"},{"type":"function_call","call_id":"same","name":"list_samples","arguments":"{}"}]}`, "protocol_error"},
-		{"tool_budget", `{"status":"completed","output":[{"type":"function_call","call_id":"one","name":"list_samples","arguments":"{}"},{"type":"function_call","call_id":"two","name":"list_samples","arguments":"{}"}]}`, "max_tool_calls_exceeded"},
+		{"tool_budget", `{"status":"completed","output":[{"type":"function_call","call_id":"one","name":"list_samples","arguments":"{}"},{"type":"function_call","call_id":"two","name":"list_samples","arguments":"{}"}]}`, "tool_calls_exhausted"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			env := setupTestEnv(t)

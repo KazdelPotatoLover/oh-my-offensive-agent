@@ -117,6 +117,9 @@ func main() {
 		r.Get("/runs/{runID}/planner_rounds", runHandler.GetPlannerRounds)
 		r.Get("/runs/{runID}/assets", runHandler.GetRunAssets)
 		r.Get("/runs/{runID}/discoveries", runHandler.GetDiscoveries)
+		r.Get("/runs/{runID}/checks", runHandler.GetCheckResults)
+		r.Get("/runs/{runID}/findings", runHandler.GetFindings)
+		r.Get("/checks/catalog", runHandler.GetCheckCatalog)
 	})
 
 	// Health check

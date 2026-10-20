@@ -360,8 +360,8 @@ func TestAgent_BudgetLimitsExceeded(t *testing.T) {
 	}
 
 	final1 := waitForRunTerminal(t, env, run1.ID, 10*time.Second)
-	if final1.Status != model.RunStatusFailed || final1.FinishReason == nil || *final1.FinishReason != "max_model_calls_exceeded" {
-		t.Fatalf("expected failed with max_model_calls_exceeded, got status=%s, finish_reason=%v", final1.Status, final1.FinishReason)
+	if final1.Status != model.RunStatusStopped || final1.FinishReason == nil || *final1.FinishReason != "model_calls_exhausted" {
+		t.Fatalf("expected stopped with model_calls_exhausted, got status=%s, finish_reason=%v", final1.Status, final1.FinishReason)
 	}
 
 	// 6b. Max Tool Calls Budget Exceeded
@@ -391,11 +391,11 @@ func TestAgent_BudgetLimitsExceeded(t *testing.T) {
 	}
 
 	final2 := waitForRunTerminal(t, env, run2.ID, 10*time.Second)
-	if final2.Status != model.RunStatusFailed || final2.FinishReason == nil || *final2.FinishReason != "max_tool_calls_exceeded" {
-		t.Fatalf("expected failed with max_tool_calls_exceeded, got status=%s, finish_reason=%v", final2.Status, final2.FinishReason)
+	if final2.Status != model.RunStatusStopped || final2.FinishReason == nil || *final2.FinishReason != "tool_calls_exhausted" {
+		t.Fatalf("expected stopped with tool_calls_exhausted, got status=%s, finish_reason=%v", final2.Status, final2.FinishReason)
 	}
 
-	t.Log("Budget limits verified: max_model_calls_exceeded and max_tool_calls_exceeded strictly enforced")
+	t.Log("Budget limits verified: model_calls_exhausted and tool_calls_exhausted strictly enforced")
 }
 
 // 7. 空响应、拒绝与截断验证

@@ -21,6 +21,7 @@ type Server struct {
 	enableLoginLink atomic.Bool
 	totalReqs       atomic.Int64
 	countsByPath    sync.Map // map[string]*atomic.Int64
+	customHeaders   sync.Map // map[string]*sync.Map (path -> headerKey -> headerValue)
 }
 
 // NewServer creates a new local fixture server bound to 127.0.0.1 with the specified port (e.g. "29090").
@@ -122,6 +123,23 @@ func (s *Server) IsEnableLoginLink() bool {
 	return s.enableLoginLink.Load()
 }
 
+// SetCustomHeader configures a custom HTTP response header for a specific path.
+func (s *Server) SetCustomHeader(path, key, value string) {
+	val, _ := s.customHeaders.LoadOrStore(path, &sync.Map{})
+	m := val.(*sync.Map)
+	m.Store(key, value)
+}
+
+func (s *Server) applyCustomHeaders(path string, w http.ResponseWriter) {
+	if val, ok := s.customHeaders.Load(path); ok {
+		m := val.(*sync.Map)
+		m.Range(func(k, v any) bool {
+			w.Header().Set(k.(string), v.(string))
+			return true
+		})
+	}
+}
+
 // RequestCount returns total requests handled.
 func (s *Server) RequestCount() int64 {
 	return s.totalReqs.Load()
@@ -158,6 +176,7 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 	s.recordRequest("/")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("X-Fixture-App", "local-fixture-v1")
+	s.applyCustomHeaders("/", w)
 	w.WriteHeader(http.StatusOK)
 
 	var sb strings.Builder
@@ -201,6 +220,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	s.recordRequest("/login")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("X-Fixture-App", "local-fixture-v1")
+	s.applyCustomHeaders("/login", w)
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`<!DOCTYPE html>
 <html>
@@ -251,6 +271,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	s.recordRequest("/health")
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Fixture-App", "local-fixture-v1")
+	s.applyCustomHeaders("/health", w)
 	w.WriteHeader(http.StatusOK)
 	data, _ := json.Marshal(map[string]interface{}{
 		"status":  "UP",

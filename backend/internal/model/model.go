@@ -70,15 +70,15 @@ type Run struct {
 }
 
 type RunEvent struct {
-	ID          uuid.UUID       `json:"id"`
-	RunID       uuid.UUID       `json:"run_id"`
-	Seq         int             `json:"seq"`
-	Type        string          `json:"type"`
-	Payload     json.RawMessage `json:"payload"`
-	SessionID   *uuid.UUID      `json:"session_id,omitempty"`
-	WorkItemID  *uuid.UUID      `json:"work_item_id,omitempty"`
-	AttemptID   *uuid.UUID      `json:"attempt_id,omitempty"`
-	CreatedAt   time.Time       `json:"created_at"`
+	ID         uuid.UUID       `json:"id"`
+	RunID      uuid.UUID       `json:"run_id"`
+	Seq        int             `json:"seq"`
+	Type       string          `json:"type"`
+	Payload    json.RawMessage `json:"payload"`
+	SessionID  *uuid.UUID      `json:"session_id,omitempty"`
+	WorkItemID *uuid.UUID      `json:"work_item_id,omitempty"`
+	AttemptID  *uuid.UUID      `json:"attempt_id,omitempty"`
+	CreatedAt  time.Time       `json:"created_at"`
 }
 
 type AgentSession struct {
@@ -88,7 +88,7 @@ type AgentSession struct {
 	Round         *int            `json:"round,omitempty"`
 	WorkItemID    *uuid.UUID      `json:"work_item_id,omitempty"`
 	AttemptID     *uuid.UUID      `json:"attempt_id,omitempty"`
-	Status        string          `json:"status"` // 'running', 'completed', 'failed', 'stopped', 'interrupted'
+	Status        string          `json:"status"` // 'running', 'completed', 'failed', 'exhausted', 'stopped', 'interrupted'
 	InputSnapshot json.RawMessage `json:"input_snapshot"`
 	FinishReason  *string         `json:"finish_reason,omitempty"`
 	CreatedAt     time.Time       `json:"created_at"`
@@ -114,25 +114,28 @@ const (
 	WorkItemStatusRunning   WorkItemStatus = "running"
 	WorkItemStatusCompleted WorkItemStatus = "completed"
 	WorkItemStatusFailed    WorkItemStatus = "failed"
+	// WorkItemStatusExhausted means local worker budget ended before completion;
+	// persisted evidence remains available for planner follow-up.
+	WorkItemStatusExhausted WorkItemStatus = "exhausted"
 	WorkItemStatusCancelled WorkItemStatus = "cancelled"
 	WorkItemStatusBlocked   WorkItemStatus = "blocked"
 )
 
 type WorkItem struct {
-	ID                       uuid.UUID       `json:"id"`
-	RunID                    uuid.UUID       `json:"run_id"`
-	Key                      string          `json:"key"`
-	Title                    string          `json:"title"`
-	Objective                string          `json:"objective"`
-	WorkType                 string          `json:"work_type"`
-	Status                   WorkItemStatus  `json:"status"`
-	BlockedReason            *string         `json:"blocked_reason,omitempty"`
-	InputData                json.RawMessage `json:"input_data"`
-	OutputData               json.RawMessage `json:"output_data"`
-	CurrentAttemptID         *uuid.UUID      `json:"current_attempt_id,omitempty"`
-	CreatedByPlannerRoundID  *uuid.UUID      `json:"created_by_planner_round_id,omitempty"`
-	CreatedAt                time.Time       `json:"created_at"`
-	UpdatedAt                time.Time       `json:"updated_at"`
+	ID                      uuid.UUID       `json:"id"`
+	RunID                   uuid.UUID       `json:"run_id"`
+	Key                     string          `json:"key"`
+	Title                   string          `json:"title"`
+	Objective               string          `json:"objective"`
+	WorkType                string          `json:"work_type"`
+	Status                  WorkItemStatus  `json:"status"`
+	BlockedReason           *string         `json:"blocked_reason,omitempty"`
+	InputData               json.RawMessage `json:"input_data"`
+	OutputData              json.RawMessage `json:"output_data"`
+	CurrentAttemptID        *uuid.UUID      `json:"current_attempt_id,omitempty"`
+	CreatedByPlannerRoundID *uuid.UUID      `json:"created_by_planner_round_id,omitempty"`
+	CreatedAt               time.Time       `json:"created_at"`
+	UpdatedAt               time.Time       `json:"updated_at"`
 }
 
 type WorkDependency struct {
@@ -216,28 +219,41 @@ type AgentToolCall struct {
 }
 
 type BudgetConfig struct {
-	MaxModelCalls       int `json:"max_model_calls"`
-	MaxToolCalls        int `json:"max_tool_calls"`
-	RunTimeoutSeconds   int `json:"run_timeout_seconds"`
-	ModelTimeoutSeconds int `json:"model_timeout_seconds"`
-	ToolTimeoutSeconds  int `json:"tool_timeout_seconds"`
-	MaxToolOutputBytes  int `json:"max_tool_output_bytes"`
-	MaxPlannerRounds    int `json:"max_planner_rounds"`
-	MaxWorkItems        int `json:"max_work_items"`
-	MaxParallelWorkers  int `json:"max_parallel_workers"`
+	MaxModelCalls         int `json:"max_model_calls"`
+	MaxToolCalls          int `json:"max_tool_calls"`
+	RunTimeoutSeconds     int `json:"run_timeout_seconds"`
+	ModelTimeoutSeconds   int `json:"model_timeout_seconds"`
+	ToolTimeoutSeconds    int `json:"tool_timeout_seconds"`
+	SummaryTimeoutSeconds int `json:"summary_timeout_seconds"`
+	CleanupTimeoutSeconds int `json:"cleanup_timeout_seconds"`
+	MaxToolOutputBytes    int `json:"max_tool_output_bytes"`
+	MaxPlannerRounds      int `json:"max_planner_rounds"`
+	MaxWorkItems          int `json:"max_work_items"`
+	MaxParallelWorkers    int `json:"max_parallel_workers"`
+}
+
+// BudgetSummary is the planner/report-facing snapshot. It keeps model rounds
+// and tool calls separate; a tool call is never presented as a page count.
+type BudgetSummary struct {
+	RemainingModelCalls       int `json:"remaining_model_calls"`
+	RemainingExplorationCalls int `json:"remaining_exploration_model_calls"`
+	RemainingToolCalls        int `json:"remaining_tool_calls"`
+	RemainingSeconds          int `json:"remaining_seconds"`
 }
 
 func DefaultBudgetConfig() BudgetConfig {
 	return BudgetConfig{
-		MaxModelCalls:       30,
-		MaxToolCalls:        30,
-		RunTimeoutSeconds:   120,
-		ModelTimeoutSeconds: 30,
-		ToolTimeoutSeconds:  5,
-		MaxToolOutputBytes:  8192,
-		MaxPlannerRounds:    8,
-		MaxWorkItems:        12,
-		MaxParallelWorkers:  1,
+		MaxModelCalls:         30,
+		MaxToolCalls:          30,
+		RunTimeoutSeconds:     120,
+		ModelTimeoutSeconds:   30,
+		ToolTimeoutSeconds:    5,
+		SummaryTimeoutSeconds: 30,
+		CleanupTimeoutSeconds: 10,
+		MaxToolOutputBytes:    8192,
+		MaxPlannerRounds:      8,
+		MaxWorkItems:          12,
+		MaxParallelWorkers:    1,
 	}
 }
 
@@ -312,10 +328,10 @@ type AssetSummary struct {
 // WorkItemDetail represents a work item enriched with target assets, source observations, and dependencies
 type WorkItemDetail struct {
 	WorkItem
-	TargetAssets       []Asset         `json:"target_assets"`
-	SourceObservations []Observation   `json:"source_observations"`
-	Dependencies       []WorkItem      `json:"dependencies"`
-	CreatedRoundNum    *int            `json:"created_round_num,omitempty"`
+	TargetAssets       []Asset       `json:"target_assets"`
+	SourceObservations []Observation `json:"source_observations"`
+	Dependencies       []WorkItem    `json:"dependencies"`
+	CreatedRoundNum    *int          `json:"created_round_num,omitempty"`
 }
 
 // ObservationDetail represents an observation enriched with its underlying tool call evidence
@@ -326,15 +342,16 @@ type ObservationDetail struct {
 
 // AssetRunHistory represents the work items and observations for an asset within a specific Run
 type AssetRunHistory struct {
-	RunID        uuid.UUID              `json:"run_id"`
-	TaskID       uuid.UUID              `json:"task_id"`
-	TaskName     string                 `json:"task_name"`
-	RunStatus    RunStatus              `json:"run_status"`
-	StartedAt    *time.Time             `json:"started_at,omitempty"`
-	FinishedAt   *time.Time             `json:"finished_at,omitempty"`
-	DiscoveredBy *AssetDiscoveryDetail  `json:"discovered_by,omitempty"`
-	WorkItems    []WorkItemDetail       `json:"work_items"`
-	Observations []ObservationDetail    `json:"observations"`
+	RunID        uuid.UUID             `json:"run_id"`
+	TaskID       uuid.UUID             `json:"task_id"`
+	TaskName     string                `json:"task_name"`
+	RunStatus    RunStatus             `json:"run_status"`
+	FinishReason *string               `json:"finish_reason,omitempty"`
+	StartedAt    *time.Time            `json:"started_at,omitempty"`
+	FinishedAt   *time.Time            `json:"finished_at,omitempty"`
+	DiscoveredBy *AssetDiscoveryDetail `json:"discovered_by,omitempty"`
+	WorkItems    []WorkItemDetail      `json:"work_items"`
+	Observations []ObservationDetail   `json:"observations"`
 }
 
 // AssetDetailsResponse represents the detailed view of an asset grouped by Run
@@ -344,7 +361,7 @@ type AssetDetailsResponse struct {
 }
 
 type DiscoveryPolicy struct {
-	Mode              string   `json:"mode,omitempty"`                // "exact_paths" or "same_origin_html"
+	Mode              string   `json:"mode,omitempty"` // "exact_paths" or "same_origin_html"
 	Origin            string   `json:"origin"`
 	AllowedMethods    []string `json:"allowed_methods"`
 	AllowedPaths      []string `json:"allowed_paths,omitempty"`
@@ -370,4 +387,3 @@ type AssetDiscoveryDetail struct {
 	TargetAssetName string `json:"target_asset_name,omitempty"`
 	TargetAssetKey  string `json:"target_asset_key,omitempty"`
 }
-

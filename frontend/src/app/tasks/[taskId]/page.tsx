@@ -501,7 +501,7 @@ export default function TaskDetailPage() {
                   className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-gray-850 hover:bg-gray-800/50 transition-colors gap-3 group"
                 >
                   <div className="flex items-center space-x-4">
-                    <RunStatusBadge status={run.status} />
+                    <RunStatusBadge status={run.status} finishReason={run.finish_reason} />
                     <div>
                       <div className="flex items-center space-x-2">
                         <span className="font-mono text-sm font-semibold text-white group-hover:text-blue-400 transition-colors">
