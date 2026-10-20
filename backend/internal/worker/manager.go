@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/service"
 
 	"github.com/google/uuid"
@@ -37,7 +38,7 @@ type Manager struct {
 	runService    *service.RunService
 	mu            sync.Mutex
 	closed        bool
-	cancels       map[uuid.UUID]context.CancelFunc
+	cancels       map[uuid.UUID]context.CancelCauseFunc
 	pendingCancel map[uuid.UUID]bool
 	defaultOpts   []WorkerOption
 	wg            sync.WaitGroup
@@ -47,7 +48,7 @@ func NewManager(pool *pgxpool.Pool, runService *service.RunService) *Manager {
 	return &Manager{
 		pool:          pool,
 		runService:    runService,
-		cancels:       make(map[uuid.UUID]context.CancelFunc),
+		cancels:       make(map[uuid.UUID]context.CancelCauseFunc),
 		pendingCancel: make(map[uuid.UUID]bool),
 	}
 }
@@ -81,11 +82,15 @@ func (m *Manager) StartExecutor(runID uuid.UUID, executor Executor) error {
 		return ErrManagerClosed
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	if _, exists := m.cancels[runID]; exists {
+		m.mu.Unlock()
+		return fmt.Errorf("executor already registered for run %s", runID)
+	}
+	ctx, cancel := context.WithCancelCause(context.Background())
 	// If stop was already requested for this run before worker registered:
 	if m.pendingCancel[runID] {
 		delete(m.pendingCancel, runID)
-		cancel()
+		cancel(model.CauseUserStop)
 	}
 	m.cancels[runID] = cancel
 	m.wg.Add(1)
@@ -96,6 +101,22 @@ func (m *Manager) StartExecutor(runID uuid.UUID, executor Executor) error {
 			m.mu.Lock()
 			delete(m.cancels, runID)
 			m.mu.Unlock()
+			// Delete first: a concurrent Stop either sees this executor and this
+			// check observes stopping, or sees no executor and finalizes it itself.
+			cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			if run, err := m.runService.Get(cleanupCtx, runID); err == nil && run.Status.IsActive() && (ctx.Err() != nil || run.Status == model.RunStatusStopping) {
+				cause := model.CauseInternalError
+				if ctx.Err() != nil {
+					cause = model.ResolveCancelCause(ctx)
+				}
+				if run.Status == model.RunStatusStopping {
+					cause = model.CauseUserStop
+				}
+				if err = m.runService.FinalizeRunWrapup(cleanupCtx, runID, cause, nil); err != nil {
+					slog.Error("manager: failed to finalize stop", "run_id", runID, "error", err)
+				}
+			}
+			cleanupCancel()
 			m.wg.Done()
 			slog.Info("executor finished", "run_id", runID)
 		}()
@@ -112,7 +133,7 @@ func (m *Manager) Stop(runID uuid.UUID) {
 	defer m.mu.Unlock()
 
 	if cancel, ok := m.cancels[runID]; ok {
-		cancel()
+		cancel(model.CauseUserStop)
 		slog.Info("worker stop requested (active cancel called)", "run_id", runID)
 	} else {
 		// Stop requested before worker registered!
@@ -121,13 +142,27 @@ func (m *Manager) Stop(runID uuid.UUID) {
 	}
 }
 
+// StopAndFinalizeIfIdle also acknowledges a stop when its executor already exited.
+// pendingCancel ensures a registration racing with this path receives cancellation.
+func (m *Manager) StopAndFinalizeIfIdle(ctx context.Context, runID uuid.UUID) error {
+	m.mu.Lock()
+	if cancel, ok := m.cancels[runID]; ok {
+		cancel(model.CauseUserStop)
+		m.mu.Unlock()
+		return nil
+	}
+	m.pendingCancel[runID] = true
+	m.mu.Unlock()
+	return m.runService.FinalizeCancelledRun(ctx, runID, "user_requested_stop")
+}
+
 // StopAll cancels all active worker executions.
 func (m *Manager) StopAll() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	for runID, cancel := range m.cancels {
-		cancel()
+		cancel(model.CauseShutdown)
 		slog.Info("worker stop requested via StopAll", "run_id", runID)
 	}
 	slog.Info("all active workers stop requested")

@@ -75,10 +75,14 @@ func (r *AgentRunner) Run(ctx context.Context) {
 		return
 	}
 
+	if run.Status.IsTerminal() {
+		return
+	}
+
 	// If stop was requested before worker started
 	if run.Status == model.RunStatusStopping {
 		reason := "user_requested_stop"
-		r.runService.TransitionState(context.Background(), r.runID, model.RunStatusStopping, model.RunStatusStopped, &reason)
+		r.finalize(reason, nil)
 		return
 	}
 
@@ -108,7 +112,7 @@ func (r *AgentRunner) Run(ctx context.Context) {
 	if err != nil {
 		slog.Error("agent runner: failed to create session", "run_id", r.runID, "error", err)
 		reason := "persistence_error"
-		r.runService.TransitionState(context.Background(), r.runID, model.RunStatusRunning, model.RunStatusFailed, &reason)
+		r.finalize(reason, nil)
 		return
 	}
 
@@ -126,6 +130,9 @@ func (r *AgentRunner) Run(ctx context.Context) {
 
 	// Overall execution context bounded by run_timeout_seconds
 	runTimeout := time.Duration(r.budget.RunTimeoutSeconds) * time.Second
+	if runTimeout <= 0 {
+		runTimeout = 120 * time.Second
+	}
 	runCtx, cancelRun := context.WithTimeout(ctx, runTimeout)
 	defer cancelRun()
 
@@ -154,22 +161,18 @@ func (r *AgentRunner) Run(ctx context.Context) {
 		if errors.Is(resErr, ErrPersistenceFailure) {
 			reason = "persistence_error"
 		}
-		r.runService.TransitionState(context.Background(), r.runID, model.RunStatusRunning, model.RunStatusFailed, &reason)
+		r.finalize(reason, nil)
 		return
 	}
 
 	if res == nil {
 		reason := "failed"
-		r.runService.TransitionState(context.Background(), r.runID, model.RunStatusRunning, model.RunStatusFailed, &reason)
+		r.finalize(reason, nil)
 		return
 	}
 
 	if res.FinishReason == "completed" && res.FinalContent != "" {
-		reason := "final_answer"
-		_, err = r.runService.CompleteRunWithOutput(context.Background(), r.runID, reason, res.FinalContent)
-		if err != nil {
-			slog.Error("agent runner: failed to complete run with output", "run_id", r.runID, "error", err)
-		}
+		r.finalize("final_answer", &res.FinalContent)
 		return
 	}
 
@@ -177,47 +180,30 @@ func (r *AgentRunner) Run(ctx context.Context) {
 	if finishReason == "completed" {
 		finishReason = "final_answer"
 	}
-	r.runService.TransitionState(context.Background(), r.runID, model.RunStatusRunning, model.RunStatusFailed, &finishReason)
+	r.finalize(finishReason, nil)
 }
 
 func (r *AgentRunner) handleCancellation(ctx context.Context) {
-	cleanupCtx := context.Background()
-	run, err := r.runService.Get(cleanupCtx, r.runID)
-	if err != nil {
-		slog.Error("agent runner: failed to get run during cancellation", "run_id", r.runID, "error", err)
-		return
-	}
+	r.finalize(string(model.ResolveCancelCause(ctx)), nil)
+}
 
-	if run.Status.IsTerminal() {
-		return
+func (r *AgentRunner) finalize(reason string, output *string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if output == nil {
+		text := "Execution ended: " + reason + ". Persisted messages, tool results and observations remain available."
+		output = &text
 	}
-
-	if run.Status == model.RunStatusStopping {
-		reason := "user_requested_stop"
-		r.runService.TransitionState(cleanupCtx, r.runID, model.RunStatusStopping, model.RunStatusStopped, &reason)
-		return
+	if err := r.runService.FinalizeRunWrapup(ctx, r.runID, model.TerminationCause(reason), output); err != nil {
+		slog.Error("agent runner: failed to finalize run", "run_id", r.runID, "error", err)
 	}
-
-	// Deadline / timeout exceeded
-	if ctx.Err() == context.DeadlineExceeded {
-		reason := "deadline_exceeded"
-		r.runService.TransitionState(cleanupCtx, r.runID, run.Status, model.RunStatusFailed, &reason)
-		return
-	}
-
-	reason := "user requested stop"
-	r.runService.TransitionState(cleanupCtx, r.runID, run.Status, model.RunStatusStopped, &reason)
 }
 
 func (r *AgentRunner) ensureStoppingTerminal() {
-	cleanupCtx := context.Background()
-	run, err := r.runService.Get(cleanupCtx, r.runID)
-	if err != nil {
-		return
-	}
-	if run.Status == model.RunStatusStopping {
-		reason := "user_requested_stop"
-		r.runService.TransitionState(cleanupCtx, r.runID, model.RunStatusStopping, model.RunStatusStopped, &reason)
-		slog.Info("agent runner: ensureStoppingTerminal transitioned stopping to stopped", "run_id", r.runID)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	run, err := r.runService.Get(ctx, r.runID)
+	if err == nil && run.Status == model.RunStatusStopping {
+		r.finalize("user_requested_stop", nil)
 	}
 }

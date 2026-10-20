@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"agent-workbench/backend/internal/agent"
-	"agent-workbench/backend/internal/db"
 	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/provider"
 	"agent-workbench/backend/internal/service"
@@ -277,7 +276,7 @@ func TestSession_DependencyCycleRejection(t *testing.T) {
 	}
 }
 
-// TestSession_RestartInterruptedRecovery verifies that MarkInterruptedRuns
+// TestSession_RestartInterruptedRecovery verifies that RecoverActiveRuns
 // terminates active sessions, attempts, and pending work items with consistent status.
 func TestSession_RestartInterruptedRecovery(t *testing.T) {
 	env := setupTestEnv(t)
@@ -305,9 +304,9 @@ func TestSession_RestartInterruptedRecovery(t *testing.T) {
 	}
 
 	// Simulate sudden server restart
-	err = db.MarkInterruptedRuns(ctx, env.pool)
+	_, err = env.runService.RecoverActiveRuns(ctx)
 	if err != nil {
-		t.Fatalf("MarkInterruptedRuns failed: %v", err)
+		t.Fatalf("RecoverActiveRuns failed: %v", err)
 	}
 
 	// Verify Run is interrupted
@@ -368,4 +367,3 @@ func TestSession_PersistenceFailureStopsExecution(t *testing.T) {
 	}
 	_ = run
 }
-

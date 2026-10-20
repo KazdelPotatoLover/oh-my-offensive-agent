@@ -2,14 +2,11 @@ package db
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -38,127 +35,5 @@ func RunMigrations(databaseURL, migrationsPath string) error {
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
-	return nil
-}
-
-func MarkInterruptedRuns(ctx context.Context, pool *pgxpool.Pool) error {
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback(ctx)
-
-	// Get all active runs
-	rows, err := tx.Query(ctx,
-		`SELECT id, status FROM runs WHERE status IN ('queued', 'running', 'stopping')`)
-	if err != nil {
-		return fmt.Errorf("failed to query active runs: %w", err)
-	}
-
-	type activeRun struct {
-		ID     uuid.UUID
-		Status string
-	}
-	var activeRuns []activeRun
-	for rows.Next() {
-		var r activeRun
-		if err := rows.Scan(&r.ID, &r.Status); err != nil {
-			return fmt.Errorf("failed to scan run: %w", err)
-		}
-		activeRuns = append(activeRuns, r)
-	}
-	rows.Close()
-
-	if len(activeRuns) == 0 {
-		slog.Info("no active runs to mark as interrupted")
-		return nil
-	}
-
-	for _, r := range activeRuns {
-		// Update run status
-		_, err := tx.Exec(ctx,
-			`UPDATE runs SET status = 'interrupted', finish_reason = 'server restarted', 
-			 finished_at = now(), updated_at = now() WHERE id = $1`, r.ID)
-		if err != nil {
-			return fmt.Errorf("failed to update run %s: %w", r.ID, err)
-		}
-
-		// Mark in-progress model_calls as interrupted
-		_, err = tx.Exec(ctx,
-			`UPDATE model_calls SET status = 'interrupted', error_message = 'server restarted', 
-			 finished_at = now() WHERE run_id = $1 AND status = 'started'`, r.ID)
-		if err != nil {
-			return fmt.Errorf("failed to update model_calls for run %s: %w", r.ID, err)
-		}
-
-		// Mark in-progress agent_tool_calls as interrupted
-		_, err = tx.Exec(ctx,
-			`UPDATE agent_tool_calls SET status = 'interrupted', error_message = 'server restarted', 
-			 finished_at = now() WHERE run_id = $1 AND status IN ('pending', 'running')`, r.ID)
-		if err != nil {
-			return fmt.Errorf("failed to update agent_tool_calls for run %s: %w", r.ID, err)
-		}
-
-		// Mark in-progress agent_sessions as interrupted
-		_, err = tx.Exec(ctx,
-			`UPDATE agent_sessions SET status = 'interrupted', finish_reason = 'server restarted', 
-			 updated_at = now() WHERE run_id = $1 AND status = 'running'`, r.ID)
-		if err != nil {
-			return fmt.Errorf("failed to update agent_sessions for run %s: %w", r.ID, err)
-		}
-
-		// Mark in-progress planner_rounds as failed
-		_, err = tx.Exec(ctx,
-			`UPDATE planner_rounds SET status = 'failed', finished_at = now() 
-			 WHERE run_id = $1 AND status = 'running'`, r.ID)
-		if err != nil {
-			return fmt.Errorf("failed to update planner_rounds for run %s: %w", r.ID, err)
-		}
-
-		// Mark in-progress attempts as interrupted
-		_, err = tx.Exec(ctx,
-			`UPDATE attempts SET status = 'interrupted', finish_reason = 'server restarted', 
-			 finished_at = now() WHERE work_item_id IN (SELECT id FROM work_items WHERE run_id = $1) AND status = 'running'`, r.ID)
-		if err != nil {
-			return fmt.Errorf("failed to update attempts for run %s: %w", r.ID, err)
-		}
-
-		// Mark pending/running work_items as failed/interrupted
-		_, err = tx.Exec(ctx,
-			`UPDATE work_items SET status = 'failed', blocked_reason = 'server restarted', 
-			 updated_at = now() WHERE run_id = $1 AND status IN ('pending', 'running')`, r.ID)
-		if err != nil {
-			return fmt.Errorf("failed to update work_items for run %s: %w", r.ID, err)
-		}
-
-		// Get next seq
-		var nextSeq int
-		err = tx.QueryRow(ctx,
-			`SELECT COALESCE(MAX(seq), 0) + 1 FROM run_events WHERE run_id = $1`, r.ID).Scan(&nextSeq)
-		if err != nil {
-			return fmt.Errorf("failed to get next seq for run %s: %w", r.ID, err)
-		}
-
-		// Insert state_change event
-		payload, _ := json.Marshal(map[string]interface{}{
-			"from": r.Status,
-			"to":   "interrupted",
-		})
-		_, err = tx.Exec(ctx,
-			`INSERT INTO run_events (id, run_id, seq, type, payload) 
-			 VALUES (gen_random_uuid(), $1, $2, 'state_change', $3)`,
-			r.ID, nextSeq, payload)
-		if err != nil {
-			return fmt.Errorf("failed to insert event for run %s: %w", r.ID, err)
-		}
-
-		slog.Info("marked run as interrupted", "run_id", r.ID, "old_status", r.Status)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	slog.Info("marked interrupted runs", "count", len(activeRuns))
 	return nil
 }

@@ -50,15 +50,17 @@ func main() {
 	}
 	defer pool.Close()
 
-	// Mark interrupted runs
-	if err := db.MarkInterruptedRuns(ctx, pool); err != nil {
-		slog.Error("failed to mark interrupted runs", "error", err)
-		os.Exit(1)
-	}
-
-	// Initialize services
+	// Initialize services, then reconcile persisted execution state before serving
+	// requests. Infrastructure owns connections; lifecycle recovery belongs to the service.
 	taskService := service.NewTaskService(pool)
 	runService := service.NewRunService(pool)
+	recoveryCtx, cancelRecovery := context.WithTimeout(ctx, 30*time.Second)
+	_, recoveryErr := runService.RecoverActiveRuns(recoveryCtx)
+	cancelRecovery()
+	if recoveryErr != nil {
+		slog.Error("failed to recover active runs", "error", recoveryErr)
+		os.Exit(1)
+	}
 
 	// Initialize worker manager
 	manager := worker.NewManager(pool, runService)

@@ -21,6 +21,7 @@ var (
 	ErrWorkItemConflict         = errors.New("work item key conflict with differing definition")
 	ErrAssetOutOfScope          = errors.New("asset is outside run or work item scope")
 	ErrAssetSampleMismatch      = errors.New("asset and sample_id mismatch")
+	ErrUnsupportedWorkType      = errors.New("unsupported work_type; supported: inspect_http_endpoint, analyze_sample, inspect_sample_endpoint, aggregate_summary")
 )
 
 // --- Sessions ---
@@ -30,8 +31,16 @@ func (s *RunService) CreateSession(ctx context.Context, runID uuid.UUID, role st
 	if inputSnapshot == nil {
 		inputSnapshot = json.RawMessage(`{}`)
 	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	if err = lockRunAdmission(ctx, tx, runID); err != nil {
+		return nil, err
+	}
 	var sess model.AgentSession
-	err := s.pool.QueryRow(ctx,
+	err = tx.QueryRow(ctx,
 		`INSERT INTO agent_sessions (id, run_id, role, round, work_item_id, attempt_id, status, input_snapshot)
 		 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'running', $6)
 		 RETURNING id, run_id, role, round, work_item_id, attempt_id, status, input_snapshot, finish_reason, created_at, updated_at`,
@@ -41,13 +50,16 @@ func (s *RunService) CreateSession(ctx context.Context, runID uuid.UUID, role st
 	if err != nil {
 		return nil, fmt.Errorf("create agent_session: %w", err)
 	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
 	return &sess, nil
 }
 
 // UpdateSessionStatus updates session state and finish reason.
 func (s *RunService) UpdateSessionStatus(ctx context.Context, sessionID uuid.UUID, status string, finishReason *string) error {
 	_, err := s.pool.Exec(ctx,
-		`UPDATE agent_sessions SET status = $1, finish_reason = $2, updated_at = now() WHERE id = $3`,
+		`UPDATE agent_sessions SET status = $1, finish_reason = $2, updated_at = now() WHERE id = $3 AND status = 'running'`,
 		status, finishReason, sessionID)
 	if err != nil {
 		return fmt.Errorf("update agent_session: %w", err)
@@ -115,6 +127,9 @@ func (s *RunService) InsertAgentMessageWithPayload(ctx context.Context, runID uu
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback(ctx)
+	if err = lockRunAdmission(ctx, tx, runID); err != nil {
+		return nil, err
+	}
 
 	var nextSeq int
 	if sessionID != nil {
@@ -230,8 +245,16 @@ func (s *RunService) CreateModelCall(ctx context.Context, runID uuid.UUID, round
 
 // CreateModelCallWithSession records the start of a model invocation within a session.
 func (s *RunService) CreateModelCallWithSession(ctx context.Context, runID uuid.UUID, sessionID *uuid.UUID, round int) (*model.ModelCall, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	if err = lockRunAdmission(ctx, tx, runID); err != nil {
+		return nil, err
+	}
 	var call model.ModelCall
-	err := s.pool.QueryRow(ctx,
+	err = tx.QueryRow(ctx,
 		`INSERT INTO model_calls (id, run_id, session_id, round, status, started_at)
 		 VALUES (gen_random_uuid(), $1, $2, $3, 'started', now())
 		 RETURNING id, run_id, session_id, round, status, finish_reason, request_id, response_id, usage_known, prompt_tokens, completion_tokens,
@@ -242,6 +265,9 @@ func (s *RunService) CreateModelCallWithSession(ctx context.Context, runID uuid.
 		&call.StartedAt, &call.FinishedAt, &call.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("insert model_call: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
 	}
 	return &call, nil
 }
@@ -256,7 +282,7 @@ func (s *RunService) UpdateModelCallWithMetadata(ctx context.Context, id uuid.UU
 		`UPDATE model_calls
 		 SET status = $1, finish_reason = $2, request_id = $3, prompt_tokens = $4,
 		     completion_tokens = $5, total_tokens = $6, error_message = $7, finished_at = now(), response_id = $9, usage_known = $10
-		 WHERE id = $8`,
+		 WHERE id = $8 AND status = 'started'`,
 		status, finishReason, requestID, promptTokens, completionTokens, totalTokens, errMsg, id, responseID, usageKnown)
 	if err != nil {
 		return fmt.Errorf("update model_call: %w", err)
@@ -300,8 +326,16 @@ func (s *RunService) CreateAgentToolCall(ctx context.Context, runID uuid.UUID, m
 
 // CreateAgentToolCallWithSession records a tool request scoped to a session.
 func (s *RunService) CreateAgentToolCallWithSession(ctx context.Context, runID uuid.UUID, sessionID *uuid.UUID, modelCallID *uuid.UUID, callID string, toolName string, arguments json.RawMessage) (*model.AgentToolCall, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	if err = lockRunAdmission(ctx, tx, runID); err != nil {
+		return nil, err
+	}
 	var tc model.AgentToolCall
-	err := s.pool.QueryRow(ctx,
+	err = tx.QueryRow(ctx,
 		`INSERT INTO agent_tool_calls (id, run_id, session_id, model_call_id, call_id, tool_name, arguments, status)
 		 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'pending')
 		 RETURNING id, run_id, session_id, model_call_id, call_id, tool_name, arguments, output, status,
@@ -311,6 +345,9 @@ func (s *RunService) CreateAgentToolCallWithSession(ctx context.Context, runID u
 		&tc.Status, &tc.ErrorMessage, &tc.StartedAt, &tc.FinishedAt, &tc.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("insert agent_tool_call: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
 	}
 	return &tc, nil
 }
@@ -322,7 +359,7 @@ func (s *RunService) UpdateAgentToolCall(ctx context.Context, id uuid.UUID, stat
 		 SET status = $1, output = $2, error_message = $3,
 		     started_at = COALESCE($4, started_at),
 		     finished_at = COALESCE($5, finished_at)
-		 WHERE id = $6`,
+		 WHERE id = $6 AND status IN ('pending', 'running')`,
 		status, output, errMsg, startedAt, finishedAt, id)
 	if err != nil {
 		return fmt.Errorf("update agent_tool_call: %w", err)
@@ -360,8 +397,16 @@ func (s *RunService) ListAgentToolCalls(ctx context.Context, runID uuid.UUID) ([
 
 // CreatePlannerRound creates a new round of planning.
 func (s *RunService) CreatePlannerRound(ctx context.Context, runID uuid.UUID, round int, triggerReason string, sessionID *uuid.UUID) (*model.PlannerRound, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	if err = lockRunAdmission(ctx, tx, runID); err != nil {
+		return nil, err
+	}
 	var pr model.PlannerRound
-	err := s.pool.QueryRow(ctx,
+	err = tx.QueryRow(ctx,
 		`INSERT INTO planner_rounds (id, run_id, round, trigger_reason, session_id, status)
 		 VALUES (gen_random_uuid(), $1, $2, $3, $4, 'running')
 		 RETURNING id, run_id, round, trigger_reason, session_id, plan_summary, status, created_at, finished_at`,
@@ -371,13 +416,16 @@ func (s *RunService) CreatePlannerRound(ctx context.Context, runID uuid.UUID, ro
 	if err != nil {
 		return nil, fmt.Errorf("create planner_round: %w", err)
 	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
 	return &pr, nil
 }
 
 // UpdatePlannerRound updates a planner round status and summary.
 func (s *RunService) UpdatePlannerRound(ctx context.Context, id uuid.UUID, status string, planSummary *string) error {
 	_, err := s.pool.Exec(ctx,
-		`UPDATE planner_rounds SET status = $1, plan_summary = $2, finished_at = now() WHERE id = $3`,
+		`UPDATE planner_rounds SET status = $1, plan_summary = $2, finished_at = now() WHERE id = $3 AND status = 'running'`,
 		status, planSummary, id)
 	if err != nil {
 		return fmt.Errorf("update planner_round: %w", err)
@@ -433,6 +481,16 @@ func (s *RunService) SubmitPlanWithRound(ctx context.Context, runID uuid.UUID, p
 	if len(planItems) == 0 {
 		return []model.WorkItem{}, nil
 	}
+	// Preserve the legacy default, but never silently route an unknown type to samples.
+	planItems = append([]PlanItemSpec(nil), planItems...)
+	for i := range planItems {
+		if planItems[i].WorkType == "" {
+			planItems[i].WorkType = "analyze_sample"
+		}
+		if !model.IsSupportedWorkType(planItems[i].WorkType) {
+			return nil, fmt.Errorf("%w: item %q requested %q", ErrUnsupportedWorkType, planItems[i].Key, planItems[i].WorkType)
+		}
+	}
 
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -453,7 +511,7 @@ func (s *RunService) SubmitPlanWithRound(ctx context.Context, runID uuid.UUID, p
 
 	// Load allowed assets for this run
 	assetRows, err := tx.Query(ctx,
-		`SELECT a.id, a.external_key 
+		`SELECT a.id, a.external_key, a.kind
 		 FROM assets a 
 		 JOIN run_assets ra ON a.id = ra.asset_id 
 		 WHERE ra.run_id = $1`, runID)
@@ -461,11 +519,13 @@ func (s *RunService) SubmitPlanWithRound(ctx context.Context, runID uuid.UUID, p
 		return nil, fmt.Errorf("query run assets: %w", err)
 	}
 	runAssetMap := make(map[uuid.UUID]string)
+	runAssetKinds := make(map[uuid.UUID]string)
 	for assetRows.Next() {
 		var aid uuid.UUID
-		var aKey string
-		if err := assetRows.Scan(&aid, &aKey); err == nil {
+		var aKey, aKind string
+		if err := assetRows.Scan(&aid, &aKey, &aKind); err == nil {
 			runAssetMap[aid] = aKey
+			runAssetKinds[aid] = aKind
 		}
 	}
 	assetRows.Close()
@@ -514,12 +574,30 @@ func (s *RunService) SubmitPlanWithRound(ctx context.Context, runID uuid.UUID, p
 			return nil, fmt.Errorf("duplicate key %s in same submit_plan batch", item.Key)
 		}
 		batchKeys[item.Key] = true
+		if item.WorkType == "analyze_sample" || item.WorkType == "inspect_sample_endpoint" {
+			hasSampleAsset := false
+			for _, kind := range runAssetKinds {
+				if kind == "sample_endpoint" {
+					hasSampleAsset = true
+					break
+				}
+			}
+			if len(runAssetKinds) > 0 && !hasSampleAsset {
+				return nil, fmt.Errorf("sample analysis cannot execute in an HTTP-only run; use inspect_http_endpoint: %w", ErrAssetOutOfScope)
+			}
+		}
 
 		// Validate asset_ids: must belong to run_assets
 		if len(item.AssetIDs) > 0 {
 			for _, aid := range item.AssetIDs {
 				if _, ok := runAssetMap[aid]; !ok {
 					return nil, fmt.Errorf("asset %s is outside run asset scope: %w", aid, ErrAssetOutOfScope)
+				}
+				if item.WorkType == "inspect_http_endpoint" && runAssetKinds[aid] != "http_endpoint" {
+					return nil, fmt.Errorf("inspect_http_endpoint requires http_endpoint assets: %w", ErrAssetOutOfScope)
+				}
+				if (item.WorkType == "analyze_sample" || item.WorkType == "inspect_sample_endpoint") && runAssetKinds[aid] != "sample_endpoint" {
+					return nil, fmt.Errorf("sample analysis requires sample_endpoint assets; use inspect_http_endpoint for HTTP targets: %w", ErrAssetOutOfScope)
 				}
 			}
 			// Validate sample_id consistency with asset_ids if sample_id provided
@@ -537,6 +615,22 @@ func (s *RunService) SubmitPlanWithRound(ctx context.Context, runID uuid.UUID, p
 			}
 		} else if scopePolicyVersion != "legacy" && (item.WorkType == "inspect_http_endpoint" || item.WorkType == "inspect_sample_endpoint") {
 			return nil, fmt.Errorf("work item '%s' of type '%s' requires a target asset: %w", item.Key, item.WorkType, ErrAssetOutOfScope)
+		}
+		if item.WorkType == "inspect_http_endpoint" {
+			if len(item.AssetIDs) == 0 {
+				return nil, fmt.Errorf("inspect_http_endpoint requires asset_ids: %w", ErrAssetOutOfScope)
+			}
+			rawID, _ := item.InputData["asset_id"].(string)
+			targetID, parseErr := uuid.Parse(rawID)
+			matched := false
+			for _, aid := range item.AssetIDs {
+				if aid == targetID {
+					matched = true
+				}
+			}
+			if parseErr != nil || !matched {
+				return nil, fmt.Errorf("inspect_http_endpoint input_data.asset_id must be a UUID in asset_ids: %w", ErrAssetOutOfScope)
+			}
 		}
 
 		// Validate source_observation_ids: must belong to existing observations in this run
@@ -1027,12 +1121,65 @@ func (s *RunService) FinishWorkItem(ctx context.Context, workItemID, attemptID, 
 		return fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback(ctx)
+	// Serialize final worker results with stop acknowledgement. A cancelled attempt
+	// cannot be revived by a model/tool response that arrives after its deadline.
+	var runStatus model.RunStatus
+	var itemStatus model.WorkItemStatus
+	var runReason *string
+	err = tx.QueryRow(ctx, `SELECT status, finish_reason FROM runs WHERE id=(
+		SELECT run_id FROM work_items WHERE id=$1 AND current_attempt_id=$2) FOR UPDATE`, workItemID, attemptID).Scan(&runStatus, &runReason)
+	if err != nil {
+		return fmt.Errorf("lock work item completion: %w", err)
+	}
+	if runStatus.IsTerminal() {
+		reason := "parent_run_terminal"
+		if runReason != nil && *runReason != "" {
+			reason = *runReason
+		}
+		childStatus := "stopped"
+		workStatus := "cancelled"
+		if runStatus == model.RunStatusFailed {
+			childStatus = "failed"
+		}
+		if runStatus == model.RunStatusInterrupted {
+			childStatus = "interrupted"
+			workStatus = "failed"
+		}
+		if err := closeAttemptAndSession(ctx, tx, attemptID, sessionID, childStatus, reason); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE work_items SET status=$2,updated_at=now() WHERE id=$1 AND status IN ('pending','running','blocked')`, workItemID, workStatus); err != nil {
+			return err
+		}
+		return tx.Commit(ctx)
+	}
+
+	// Read after acquiring the Run lock, using the same lock order as cancellation.
+	if err = tx.QueryRow(ctx, `SELECT status FROM work_items WHERE id=$1 AND current_attempt_id=$2 FOR UPDATE`, workItemID, attemptID).Scan(&itemStatus); err != nil {
+		return err
+	}
+	if itemStatus != model.WorkItemStatusRunning {
+		if err := closeAttemptAndSession(ctx, tx, attemptID, sessionID, "stopped", "work_item_already_finished"); err != nil {
+			return err
+		}
+		return tx.Commit(ctx)
+	}
 
 	targetItemStatus := model.WorkItemStatusCompleted
 	targetAttemptStatus := "completed"
 	if !success {
 		targetItemStatus = model.WorkItemStatusFailed
 		targetAttemptStatus = "failed"
+	}
+	if finishReason == string(model.CauseShutdown) {
+		targetAttemptStatus = "interrupted"
+	}
+	if runStatus == model.RunStatusStopping || finishReason == "user_requested_stop" || finishReason == "timeout" {
+		targetItemStatus = model.WorkItemStatusCancelled
+		targetAttemptStatus = "stopped"
+		if runStatus == model.RunStatusStopping {
+			finishReason = "user_requested_stop"
+		}
 	}
 
 	if outputData == nil {
@@ -1041,7 +1188,7 @@ func (s *RunService) FinishWorkItem(ctx context.Context, workItemID, attemptID, 
 
 	// 1. Update attempt
 	_, err = tx.Exec(ctx,
-		`UPDATE attempts SET status = $1, finish_reason = $2, finished_at = now() WHERE id = $3`,
+		`UPDATE attempts SET status = $1, finish_reason = $2, finished_at = now() WHERE id = $3 AND status='running'`,
 		targetAttemptStatus, finishReason, attemptID)
 	if err != nil {
 		return fmt.Errorf("update attempt: %w", err)
@@ -1049,7 +1196,7 @@ func (s *RunService) FinishWorkItem(ctx context.Context, workItemID, attemptID, 
 
 	// 2. Update session
 	_, err = tx.Exec(ctx,
-		`UPDATE agent_sessions SET status = $1, finish_reason = $2, updated_at = now() WHERE id = $3`,
+		`UPDATE agent_sessions SET status = $1, finish_reason = $2, updated_at = now() WHERE id = $3 AND status = 'running'`,
 		targetAttemptStatus, finishReason, sessionID)
 	if err != nil {
 		return fmt.Errorf("update session: %w", err)
@@ -1284,17 +1431,21 @@ func (s *RunService) CreateObservationWithAsset(ctx context.Context, runID, atte
 	var nextSeq int
 	err = tx.QueryRow(ctx,
 		`SELECT COALESCE(MAX(seq), 0) + 1 FROM run_events WHERE run_id = $1`, runID).Scan(&nextSeq)
-	if err == nil {
-		eventPayload, _ := json.Marshal(map[string]interface{}{
-			"observation_id": obs.ID,
-			"obs_type":       obsType,
-			"content":        content,
-			"asset_id":       finalAssetID,
-		})
-		_, _ = tx.Exec(ctx,
-			`INSERT INTO run_events (id, run_id, seq, type, payload, session_id, work_item_id, attempt_id)
-			 VALUES (gen_random_uuid(), $1, $2, 'observation', $3, $4, $5, $6)`,
-			runID, nextSeq, eventPayload, attSessionID, workItemID, attemptID)
+	if err != nil {
+		return nil, fmt.Errorf("get next run_events seq: %w", err)
+	}
+	eventPayload, _ := json.Marshal(map[string]interface{}{
+		"observation_id": obs.ID,
+		"obs_type":       obsType,
+		"content":        content,
+		"asset_id":       finalAssetID,
+	})
+	_, err = tx.Exec(ctx,
+		`INSERT INTO run_events (id, run_id, seq, type, payload, session_id, work_item_id, attempt_id)
+		 VALUES (gen_random_uuid(), $1, $2, 'observation', $3, $4, $5, $6)`,
+		runID, nextSeq, eventPayload, attSessionID, workItemID, attemptID)
+	if err != nil {
+		return nil, fmt.Errorf("insert run_events observation: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -1330,119 +1481,30 @@ func (s *RunService) ListObservationsByRun(ctx context.Context, runID uuid.UUID)
 // CompleteRunWithOutput atomically completes a run with its final assistant answer.
 // If run is in 'stopping' status, it avoids overwriting with 'completed' and safely converges to 'stopped'.
 func (s *RunService) CompleteRunWithOutput(ctx context.Context, runID uuid.UUID, finishReason string, finalOutput string) (*model.Run, error) {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("begin transaction: %w", err)
+	if finishReason == "" {
+		finishReason = "final_answer"
 	}
-	defer tx.Rollback(ctx)
-
-	var currentStatus model.RunStatus
-	err = tx.QueryRow(ctx,
-		`SELECT status FROM runs WHERE id = $1 FOR UPDATE`, runID).Scan(&currentStatus)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrNotFound
-		}
-		return nil, fmt.Errorf("get run for update: %w", err)
+	if err := s.finalizeRunWrapup(ctx, runID, model.TerminationCause(finishReason), &finalOutput, true); err != nil {
+		return nil, err
 	}
+	return s.Get(ctx, runID)
+}
 
-	if currentStatus.IsTerminal() {
-		return nil, fmt.Errorf("%w: run is already in terminal status %s", ErrTerminalState, currentStatus)
+func lockRunAdmission(ctx context.Context, tx pgx.Tx, runID uuid.UUID) error {
+	var status model.RunStatus
+	if err := tx.QueryRow(ctx, `SELECT status FROM runs WHERE id=$1 FOR UPDATE`, runID).Scan(&status); err != nil {
+		return err
 	}
-
-	now := time.Now()
-	var r model.Run
-
-	// Crucial invariant: if user requested stop and run is currently stopping, converge to stopped!
-	if currentStatus == model.RunStatusStopping {
-		stopReason := "user_requested_stop"
-		err = tx.QueryRow(ctx,
-			`UPDATE runs SET status = $1, finish_reason = $2, finished_at = $3, updated_at = $3 
-			 WHERE id = $4 
-			 RETURNING id, task_id, idempotency_key, config_snapshot, execution_input, scope_policy_version, status, finish_reason, 
-			          fail_at_step, final_output, started_at, finished_at, created_at, updated_at`,
-			model.RunStatusStopped, stopReason, now, runID).Scan(
-			&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
-			&r.ScopePolicyVersion, &r.Status, &r.FinishReason, &r.FailAtStep, &r.FinalOutput, &r.StartedAt, &r.FinishedAt,
-			&r.CreatedAt, &r.UpdatedAt)
-		if err != nil {
-			return nil, fmt.Errorf("update run to stopped: %w", err)
-		}
-
-		var nextSeq int
-		err = tx.QueryRow(ctx,
-			`SELECT COALESCE(MAX(seq), 0) + 1 FROM run_events WHERE run_id = $1`, runID).Scan(&nextSeq)
-		if err != nil {
-			return nil, fmt.Errorf("get next seq: %w", err)
-		}
-
-		payload, _ := json.Marshal(map[string]interface{}{
-			"from": string(model.RunStatusStopping),
-			"to":   string(model.RunStatusStopped),
-		})
-		_, err = tx.Exec(ctx,
-			`INSERT INTO run_events (id, run_id, seq, type, payload) 
-			 VALUES (gen_random_uuid(), $1, $2, 'state_change', $3)`,
-			runID, nextSeq, payload)
-		if err != nil {
-			return nil, fmt.Errorf("insert state_change event: %w", err)
-		}
-
-		if err := tx.Commit(ctx); err != nil {
-			return nil, fmt.Errorf("commit stopped transition: %w", err)
-		}
-		return &r, nil
+	if status.IsTerminal() || status == model.RunStatusStopping {
+		return ErrTerminalState
 	}
+	return nil
+}
 
-	// Normal completion with final answer
-	err = tx.QueryRow(ctx,
-		`UPDATE runs SET status = $1, finish_reason = $2, final_output = $3, finished_at = $4, updated_at = $4 
-		 WHERE id = $5 
-		 RETURNING id, task_id, idempotency_key, config_snapshot, execution_input, scope_policy_version, status, finish_reason, 
-		          fail_at_step, final_output, started_at, finished_at, created_at, updated_at`,
-		model.RunStatusCompleted, finishReason, finalOutput, now, runID).Scan(
-		&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
-		&r.ScopePolicyVersion, &r.Status, &r.FinishReason, &r.FailAtStep, &r.FinalOutput, &r.StartedAt, &r.FinishedAt,
-		&r.CreatedAt, &r.UpdatedAt)
-	if err != nil {
-		return nil, fmt.Errorf("update run to completed: %w", err)
+func closeAttemptAndSession(ctx context.Context, tx pgx.Tx, attemptID, sessionID uuid.UUID, status, reason string) error {
+	if _, err := tx.Exec(ctx, `UPDATE attempts SET status=$1,finish_reason=$2,finished_at=now() WHERE id=$3 AND status='running'`, status, reason, attemptID); err != nil {
+		return err
 	}
-
-	var nextSeq int
-	err = tx.QueryRow(ctx,
-		`SELECT COALESCE(MAX(seq), 0) + 1 FROM run_events WHERE run_id = $1`, runID).Scan(&nextSeq)
-	if err != nil {
-		return nil, fmt.Errorf("get next seq: %w", err)
-	}
-
-	// 1. state_change event
-	payload, _ := json.Marshal(map[string]interface{}{
-		"from": string(currentStatus),
-		"to":   string(model.RunStatusCompleted),
-	})
-	_, err = tx.Exec(ctx,
-		`INSERT INTO run_events (id, run_id, seq, type, payload) 
-		 VALUES (gen_random_uuid(), $1, $2, 'state_change', $3)`,
-		runID, nextSeq, payload)
-	if err != nil {
-		return nil, fmt.Errorf("insert state_change event: %w", err)
-	}
-
-	// 2. final_answer event
-	answerPayload, _ := json.Marshal(map[string]interface{}{
-		"output": finalOutput,
-	})
-	_, err = tx.Exec(ctx,
-		`INSERT INTO run_events (id, run_id, seq, type, payload) 
-		 VALUES (gen_random_uuid(), $1, $2, 'final_answer', $3)`,
-		runID, nextSeq+1, answerPayload)
-	if err != nil {
-		return nil, fmt.Errorf("insert final_answer event: %w", err)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit completed transition: %w", err)
-	}
-
-	return &r, nil
+	_, err := tx.Exec(ctx, `UPDATE agent_sessions SET status=$1,finish_reason=$2,updated_at=now() WHERE id=$3 AND status='running'`, status, reason, sessionID)
+	return err
 }

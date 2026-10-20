@@ -46,7 +46,7 @@ func (w *FakeWorker) Run(ctx context.Context) {
 
 	// 1. Initial check: Was stop already requested before worker even began?
 	if ctx.Err() != nil {
-		w.handleCancellation()
+		w.handleCancellation(ctx)
 		return
 	}
 
@@ -62,7 +62,7 @@ func (w *FakeWorker) Run(ctx context.Context) {
 		return
 	}
 	if run.Status == model.RunStatusStopping {
-		w.handleCancellation()
+		w.handleCancellation(ctx)
 		return
 	}
 
@@ -72,11 +72,11 @@ func (w *FakeWorker) Run(ctx context.Context) {
 		// If transition failed, check if it's because stop intent was saved in DB
 		curRun, getErr := w.runService.Get(context.Background(), w.runID)
 		if getErr == nil && curRun.Status == model.RunStatusStopping {
-			w.handleCancellation()
+			w.handleCancellation(ctx)
 			return
 		}
 		if ctx.Err() != nil {
-			w.handleCancellation()
+			w.handleCancellation(ctx)
 			return
 		}
 		slog.Error("failed to transition to running", "run_id", w.runID, "error", err)
@@ -88,7 +88,7 @@ func (w *FakeWorker) Run(ctx context.Context) {
 		// Check cancellation at start of step
 		select {
 		case <-ctx.Done():
-			w.handleCancellation()
+			w.handleCancellation(ctx)
 			return
 		default:
 		}
@@ -101,13 +101,7 @@ func (w *FakeWorker) Run(ctx context.Context) {
 		// Check if should fail at this step
 		if w.failAtStep != nil && step == *w.failAtStep {
 			reason := fmt.Sprintf("failed at step %d (simulated)", step)
-			_, err := w.runService.TransitionState(
-				context.Background(), w.runID,
-				model.RunStatusRunning, model.RunStatusFailed, &reason)
-			if err != nil {
-				w.ensureStoppingTerminal()
-				slog.Error("failed to transition to failed", "run_id", w.runID, "error", err)
-			}
+			w.finalize(model.TerminationCause(reason))
 			return
 		}
 
@@ -125,88 +119,42 @@ func (w *FakeWorker) Run(ctx context.Context) {
 		if w.stepDelay > 0 {
 			select {
 			case <-ctx.Done():
-				w.handleCancellation()
+				w.handleCancellation(ctx)
 				return
 			case <-time.After(w.stepDelay):
 			}
 		}
 	}
 
-	// 4. All steps completed
-	reason := "all steps completed"
-	_, err = w.runService.TransitionState(
-		context.Background(), w.runID,
-		model.RunStatusRunning, model.RunStatusCompleted, &reason)
-	if err != nil {
-		w.ensureStoppingTerminal()
-		slog.Error("failed to transition to completed", "run_id", w.runID, "error", err)
+	// 4. All steps completed. Retain the fake executor's public reason label.
+	if ctx.Err() != nil {
+		w.handleCancellation(ctx)
+		return
+	}
+	w.finalize(model.TerminationCause("all steps completed"))
+}
+
+func (w *FakeWorker) finalize(cause model.TerminationCause) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := w.runService.FinalizeRunWrapup(ctx, w.runID, cause, nil); err != nil {
+		slog.Error("fake worker: failed to finalize run", "run_id", w.runID, "error", err)
 	}
 }
 
-func (w *FakeWorker) handleCancellation() {
-	ctx := context.Background()
-	run, err := w.runService.Get(ctx, w.runID)
-	if err != nil {
-		slog.Error("failed to get run during cancellation", "run_id", w.runID, "error", err)
-		return
+func (w *FakeWorker) handleCancellation(ctx context.Context) {
+	cause := model.CauseUserStop
+	if ctx.Err() != nil {
+		cause = model.ResolveCancelCause(ctx)
 	}
-
-	if run.Status.IsTerminal() {
-		slog.Info("run already in terminal state during cancellation", "run_id", w.runID, "status", run.Status)
-		return
-	}
-
-	reason := "user requested stop"
-	if run.Status == model.RunStatusStopping {
-		_, err := w.runService.TransitionState(ctx, w.runID,
-			model.RunStatusStopping, model.RunStatusStopped, &reason)
-		if err != nil {
-			slog.Error("failed to transition stopping to stopped", "run_id", w.runID, "error", err)
-		}
-		return
-	}
-
-	if run.Status == model.RunStatusQueued {
-		// Transition queued -> stopping -> stopped
-		_, err := w.runService.TransitionState(ctx, w.runID,
-			model.RunStatusQueued, model.RunStatusStopping, nil)
-		if err == nil {
-			_, err = w.runService.TransitionState(ctx, w.runID,
-				model.RunStatusStopping, model.RunStatusStopped, &reason)
-		}
-		if err != nil {
-			slog.Error("failed to transition queued to stopped", "run_id", w.runID, "error", err)
-		}
-		return
-	}
-
-	if run.Status == model.RunStatusRunning {
-		// Transition running -> stopping -> stopped
-		_, err := w.runService.TransitionState(ctx, w.runID,
-			model.RunStatusRunning, model.RunStatusStopping, nil)
-		if err == nil {
-			_, err = w.runService.TransitionState(ctx, w.runID,
-				model.RunStatusStopping, model.RunStatusStopped, &reason)
-		}
-		if err != nil {
-			slog.Error("failed to transition running to stopped", "run_id", w.runID, "error", err)
-		}
-		return
-	}
-
-	slog.Warn("unexpected status during cancellation", "run_id", w.runID, "status", run.Status)
+	w.finalize(cause)
 }
 
 func (w *FakeWorker) ensureStoppingTerminal() {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	run, err := w.runService.Get(ctx, w.runID)
 	if err == nil && run.Status == model.RunStatusStopping {
-		reason := "user requested stop"
-		_, transErr := w.runService.TransitionState(ctx, w.runID, model.RunStatusStopping, model.RunStatusStopped, &reason)
-		if transErr != nil {
-			slog.Error("ensureStoppingTerminal failed", "run_id", w.runID, "error", transErr)
-		} else {
-			slog.Info("ensureStoppingTerminal transitioned stopping to stopped", "run_id", w.runID)
-		}
+		w.finalize(model.CauseUserStop)
 	}
 }

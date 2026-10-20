@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -648,10 +649,6 @@ func TestDiscovery_StoppingRunAbortsRegistration(t *testing.T) {
 	run, _, _ := env.runService.Create(ctx, task.ID, model.CreateRunRequest{}, nil)
 	sess, _ := env.runService.CreateSession(ctx, run.ID, "worker", nil, nil, nil, nil)
 
-	// Transition run to stopping
-	_, _ = env.runService.TransitionState(ctx, run.ID, model.RunStatusQueued, model.RunStatusRunning, nil)
-	_, _ = env.runService.TransitionState(ctx, run.ID, model.RunStatusRunning, model.RunStatusStopping, nil)
-
 	tc, _ := env.runService.CreateAgentToolCallWithSession(ctx, run.ID, &sess.ID, nil, "call_valid", "get_endpoint", json.RawMessage(`{}`))
 	respData := map[string]interface{}{
 		"request":  map[string]interface{}{"url": "http://127.0.0.1:29090/"},
@@ -660,6 +657,10 @@ func TestDiscovery_StoppingRunAbortsRegistration(t *testing.T) {
 	respBytes, _ := json.Marshal(respData)
 	nowTC := time.Now()
 	_ = env.runService.UpdateAgentToolCall(ctx, tc.ID, "success", string(respBytes), nil, &nowTC, &nowTC)
+
+	// Transition run to stopping
+	_, _ = env.runService.TransitionState(ctx, run.ID, model.RunStatusQueued, model.RunStatusRunning, nil)
+	_, _ = env.runService.TransitionState(ctx, run.ID, model.RunStatusRunning, model.RunStatusStopping, nil)
 
 	extractTool := tools.NewExtractEndpointLinksTool(run.ID, uuid.Nil, sess.ID, env.runService)
 	_, err := extractTool.Execute(ctx, []byte(fmt.Sprintf(`{"source_tool_call_id":"%s"}`, tc.ID)))
@@ -670,6 +671,9 @@ func TestDiscovery_StoppingRunAbortsRegistration(t *testing.T) {
 
 // 8. Real Target Range: Live Connectivity, Dynamic Extraction and Provenance
 func TestDiscovery_RealTargetRange_LiveConnectivityAndExtraction(t *testing.T) {
+	if os.Getenv("RUN_LIVE_TARGET_TESTS") != "1" {
+		t.Skip("set RUN_LIVE_TARGET_TESTS=1 to explicitly enable live target access")
+	}
 	// First check if target range is reachable
 	targetURL := "http://192.168.77.88:7780/"
 	client := &http.Client{Timeout: 2 * time.Second}

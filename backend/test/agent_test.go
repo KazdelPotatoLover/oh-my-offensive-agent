@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"agent-workbench/backend/internal/agent"
-	"agent-workbench/backend/internal/db"
 	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/provider"
 	"agent-workbench/backend/internal/tools"
@@ -539,9 +538,9 @@ func TestAgent_RestartInterruptedRecovery(t *testing.T) {
 	env.runService.UpdateAgentToolCall(ctx, tc.ID, "running", "", nil, &now, nil)
 
 	// Simulate server restart recovery
-	err = db.MarkInterruptedRuns(ctx, env.pool)
+	_, err = env.runService.RecoverActiveRuns(ctx)
 	if err != nil {
-		t.Fatalf("MarkInterruptedRuns: %v", err)
+		t.Fatalf("RecoverActiveRuns: %v", err)
 	}
 
 	// Verify run is interrupted

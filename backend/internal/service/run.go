@@ -367,7 +367,7 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 		agentConfig := map[string]interface{}{
 			"executor":       executor,
 			"provider":       providerType,
-			"prompt_version": "v1",
+			"prompt_version": "v3",
 			"tools_version":  "v1",
 			"budget":         budget,
 		}
@@ -485,11 +485,12 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 			"name":         spec.Name,
 			"description":  spec.Description,
 			"metadata":     spec.Metadata,
+			"is_seed":      true,
 		})
 
 		_, err = tx.Exec(ctx,
-			`INSERT INTO run_assets (id, run_id, asset_id, snapshot, created_at)
-			 VALUES (gen_random_uuid(), $1, $2, $3, now())
+			`INSERT INTO run_assets (id, run_id, asset_id, snapshot, is_seed, depth, created_at)
+			 VALUES (gen_random_uuid(), $1, $2, $3, true, 0, now())
 			 ON CONFLICT (run_id, asset_id) DO NOTHING`,
 			r.ID, assetID, snapJSON)
 		if err != nil {
@@ -506,32 +507,41 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 }
 
 func (s *RunService) Stop(ctx context.Context, id uuid.UUID) (*model.Run, error) {
-	// Get current run
-	current, err := s.Get(ctx, id)
+	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	if current.Status.IsTerminal() {
-		return nil, fmt.Errorf("%w: run is already %s", ErrTerminalState, current.Status)
-	}
-
-	var newStatus model.RunStatus
-	switch current.Status {
-	case model.RunStatusQueued, model.RunStatusRunning:
-		newStatus = model.RunStatusStopping
-	case model.RunStatusStopping:
-		// Already stopping
-		return current, nil
-	default:
-		return nil, fmt.Errorf("%w: cannot stop run in status %s", ErrInvalidTransition, current.Status)
-	}
-
-	run, err := s.TransitionState(ctx, id, current.Status, newStatus, nil)
-	if err != nil {
+	defer tx.Rollback(ctx)
+	var status model.RunStatus
+	if err = tx.QueryRow(ctx, `SELECT status FROM runs WHERE id=$1 FOR UPDATE`, id).Scan(&status); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
-	return run, nil
+	if status.IsTerminal() {
+		return nil, fmt.Errorf("%w: run is already %s", ErrTerminalState, status)
+	}
+	if status != model.RunStatusStopping {
+		if !model.IsAllowedTransition(status, model.RunStatusStopping) {
+			return nil, fmt.Errorf("%w: cannot stop run in status %s", ErrInvalidTransition, status)
+		}
+		if _, err = tx.Exec(ctx, `UPDATE runs SET status='stopping',updated_at=now() WHERE id=$1`, id); err != nil {
+			return nil, err
+		}
+		var seq int
+		if err = tx.QueryRow(ctx, `SELECT COALESCE(MAX(seq),0)+1 FROM run_events WHERE run_id=$1`, id).Scan(&seq); err != nil {
+			return nil, err
+		}
+		payload, _ := json.Marshal(map[string]interface{}{"from": status, "to": model.RunStatusStopping})
+		if _, err = tx.Exec(ctx, `INSERT INTO run_events(id,run_id,seq,type,payload) VALUES(gen_random_uuid(),$1,$2,'state_change',$3)`, id, seq, payload); err != nil {
+			return nil, err
+		}
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return s.Get(ctx, id)
 }
 
 // TransitionState atomically updates run status and inserts a state_change event.

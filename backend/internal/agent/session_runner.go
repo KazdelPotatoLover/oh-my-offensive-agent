@@ -33,9 +33,37 @@ type SessionResult struct {
 
 type SessionRunnerOption func(*SessionRunner)
 
+type CallGate interface {
+	TryAcquire() bool
+}
+
+type CallGateFunc func() bool
+
+func (f CallGateFunc) TryAcquire() bool {
+	return f()
+}
+
+func WithModelCallGate(gate CallGate) SessionRunnerOption {
+	return func(r *SessionRunner) {
+		r.modelCallGate = gate
+	}
+}
+
+func WithToolCallGate(gate CallGate) SessionRunnerOption {
+	return func(r *SessionRunner) {
+		r.toolCallGate = gate
+	}
+}
+
 func WithSessionModelCallHook(hook func(round int)) SessionRunnerOption {
 	return func(r *SessionRunner) {
 		r.onModelCallHook = hook
+	}
+}
+
+func WithSessionModelCallFinishHook(hook func(round int, err error)) SessionRunnerOption {
+	return func(r *SessionRunner) {
+		r.onModelCallFinishHook = hook
 	}
 }
 
@@ -47,15 +75,18 @@ func WithSessionToolCallHook(hook func(callID string, toolName string)) SessionR
 
 // SessionRunner executes a single multi-turn conversational tool-calling session.
 type SessionRunner struct {
-	sessionID       uuid.UUID
-	runID           uuid.UUID
-	role            string
-	runService      *service.RunService
-	provider        provider.Provider
-	registry        *tools.Registry
-	budget          model.BudgetConfig
-	onModelCallHook func(round int)
-	onToolCallHook  func(callID string, toolName string)
+	sessionID             uuid.UUID
+	runID                 uuid.UUID
+	role                  string
+	runService            *service.RunService
+	provider              provider.Provider
+	registry              *tools.Registry
+	budget                model.BudgetConfig
+	modelCallGate         CallGate
+	toolCallGate          CallGate
+	onModelCallHook       func(round int)
+	onModelCallFinishHook func(round int, err error)
+	onToolCallHook        func(callID string, toolName string)
 }
 
 func NewSessionRunner(
@@ -103,8 +134,10 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 		if msg.NativePayload != nil {
 			payload, _ = json.Marshal(msg.NativePayload)
 		}
-		_, err := sr.runService.InsertAgentMessageWithPayload(
-			context.Background(), sr.runID, &sr.sessionID, string(msg.Role), msg.Content, toolCallID, toolCallsJSON, payload)
+		_, err := persistCall(func(dbCtx context.Context) (*model.AgentMessage, error) {
+			return sr.runService.InsertAgentMessageWithPayload(
+				dbCtx, sr.runID, &sr.sessionID, string(msg.Role), msg.Content, toolCallID, toolCallsJSON, payload)
+		})
 		if err != nil {
 			slog.Error("session runner: failed to persist initial message", "session_id", sr.sessionID, "error", err)
 			sr.updateSessionTerminal("failed", "persistence_error")
@@ -123,11 +156,8 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 		// Check context cancellation
 		select {
 		case <-ctx.Done():
-			reason := "user_requested_stop"
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				reason = "timeout"
-			}
-			sr.updateSessionTerminal("stopped", reason)
+			reason := string(model.ResolveCancelCause(ctx))
+			sr.updateSessionTerminal(cancellationSessionStatus(ctx), reason)
 			return &SessionResult{
 				SessionID:       sr.sessionID,
 				FinishReason:    reason,
@@ -139,7 +169,19 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 		}
 
 		// Check model call budget
-		if modelCallCount >= sr.budget.MaxModelCalls {
+		if sr.modelCallGate != nil {
+			if !sr.modelCallGate.TryAcquire() {
+				reason := "model_calls_exhausted"
+				sr.updateSessionTerminal("failed", reason)
+				return &SessionResult{
+					SessionID:       sr.sessionID,
+					FinishReason:    reason,
+					ModelCallsCount: modelCallCount,
+					ToolCallsCount:  toolCallCount,
+					TotalTokens:     totalTokens,
+				}, nil
+			}
+		} else if modelCallCount >= sr.budget.MaxModelCalls {
 			reason := "max_model_calls_exceeded"
 			sr.updateSessionTerminal("failed", reason)
 			return &SessionResult{
@@ -153,8 +195,13 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 
 		// 1. Record model call start in DB
 		round := modelCallCount + 1
-		modelCallRec, err := sr.runService.CreateModelCallWithSession(context.Background(), sr.runID, &sr.sessionID, round)
+		modelCallRec, err := persistCall(func(dbCtx context.Context) (*model.ModelCall, error) {
+			return sr.runService.CreateModelCallWithSession(dbCtx, sr.runID, &sr.sessionID, round)
+		})
 		if err != nil {
+			if sr.onModelCallFinishHook != nil {
+				sr.onModelCallFinishHook(round, err)
+			}
 			slog.Error("session runner: failed to create model call", "session_id", sr.sessionID, "error", err)
 			sr.updateSessionTerminal("failed", "persistence_error")
 			return nil, fmt.Errorf("%w: create model call: %v", ErrPersistenceFailure, err)
@@ -180,6 +227,10 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 		})
 		cancelModel()
 
+		if sr.onModelCallFinishHook != nil {
+			sr.onModelCallFinishHook(round, callErr)
+		}
+
 		if callErr != nil {
 			errMsg := callErr.Error()
 			var requestID, responseID *string
@@ -191,18 +242,17 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 					responseID = &resp.ResponseID
 				}
 			}
-			_ = sr.runService.UpdateModelCallWithMetadata(context.Background(), modelCallRec.ID, "failed", nil, requestID, responseID, false, 0, 0, 0, &errMsg)
+			_ = persistWrite(func(dbCtx context.Context) error {
+				return sr.runService.UpdateModelCallWithMetadata(dbCtx, modelCallRec.ID, "failed", nil, requestID, responseID, false, 0, 0, 0, &errMsg)
+			})
 			sr.insertSessionEvent("model_call_failed", map[string]interface{}{
 				"round": round,
 				"error": errMsg,
 			})
 
 			if ctx.Err() != nil {
-				reason := "user_requested_stop"
-				if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-					reason = "timeout"
-				}
-				sr.updateSessionTerminal("stopped", reason)
+				reason := string(model.ResolveCancelCause(ctx))
+				sr.updateSessionTerminal(cancellationSessionStatus(ctx), reason)
 				return &SessionResult{
 					SessionID:    sr.sessionID,
 					FinishReason: reason,
@@ -223,6 +273,24 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 			}, fmt.Errorf("provider error: %w", callErr)
 		}
 
+		// A response arriving after cancellation must not start tools or revive state.
+		if ctx.Err() != nil {
+			reason := string(model.ResolveCancelCause(ctx))
+			_ = persistWrite(func(dbCtx context.Context) error {
+				return sr.runService.UpdateModelCallWithMetadata(dbCtx, modelCallRec.ID, "interrupted", nil, nil, nil, false, 0, 0, 0, &reason)
+			})
+			sr.updateSessionTerminal(cancellationSessionStatus(ctx), reason)
+			return &SessionResult{SessionID: sr.sessionID, FinishReason: reason}, ctx.Err()
+		}
+		if resp == nil {
+			reason := "provider_error"
+			_ = persistWrite(func(dbCtx context.Context) error {
+				return sr.runService.UpdateModelCallWithMetadata(dbCtx, modelCallRec.ID, "failed", nil, nil, nil, false, 0, 0, 0, &reason)
+			})
+			sr.updateSessionTerminal("failed", reason)
+			return &SessionResult{SessionID: sr.sessionID, FinishReason: reason}, errors.New("provider returned nil response")
+		}
+
 		// Model call completed
 		modelCallCount++
 		var promptTokens, completionTokens, turnTokens int
@@ -236,8 +304,10 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 		requestID := resp.RequestID
 		responseID := resp.ResponseID
 
-		if err := sr.runService.UpdateModelCallWithMetadata(context.Background(), modelCallRec.ID, "completed", &finishReason, &requestID, &responseID, resp.Usage != nil,
-			promptTokens, completionTokens, turnTokens, nil); err != nil {
+		if err := persistWrite(func(dbCtx context.Context) error {
+			return sr.runService.UpdateModelCallWithMetadata(dbCtx, modelCallRec.ID, "completed", &finishReason, &requestID, &responseID, resp.Usage != nil,
+				promptTokens, completionTokens, turnTokens, nil)
+		}); err != nil {
 			slog.Error("session runner: failed to update model call", "session_id", sr.sessionID, "error", err)
 			sr.updateSessionTerminal("failed", "persistence_error")
 			return nil, fmt.Errorf("%w: update model call: %v", ErrPersistenceFailure, err)
@@ -259,8 +329,10 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 		if resp.NativePayload != nil {
 			payload, _ = json.Marshal(resp.NativePayload)
 		}
-		if _, err := sr.runService.InsertAgentMessageWithPayload(
-			context.Background(), sr.runID, &sr.sessionID, "assistant", resp.Content, nil, toolCallsJSON, payload); err != nil {
+		if _, err := persistCall(func(dbCtx context.Context) (*model.AgentMessage, error) {
+			return sr.runService.InsertAgentMessageWithPayload(
+				dbCtx, sr.runID, &sr.sessionID, "assistant", resp.Content, nil, toolCallsJSON, payload)
+		}); err != nil {
 			slog.Error("session runner: failed to persist assistant message", "session_id", sr.sessionID, "error", err)
 			sr.updateSessionTerminal("failed", "persistence_error")
 			return nil, fmt.Errorf("%w: insert assistant message: %v", ErrPersistenceFailure, err)
@@ -363,8 +435,8 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 		for _, tc := range resp.ToolCalls {
 			select {
 			case <-ctx.Done():
-				reason := "user_requested_stop"
-				sr.updateSessionTerminal("stopped", reason)
+				reason := string(model.ResolveCancelCause(ctx))
+				sr.updateSessionTerminal(cancellationSessionStatus(ctx), reason)
 				return &SessionResult{
 					SessionID:       sr.sessionID,
 					FinishReason:    reason,
@@ -375,12 +447,29 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 			default:
 			}
 
+			// Check global tool call gate if configured
+			if sr.toolCallGate != nil {
+				if !sr.toolCallGate.TryAcquire() {
+					reason := "tool_calls_exhausted"
+					sr.updateSessionTerminal("failed", reason)
+					return &SessionResult{
+						SessionID:       sr.sessionID,
+						FinishReason:    reason,
+						ModelCallsCount: modelCallCount,
+						ToolCallsCount:  toolCallCount,
+						TotalTokens:     totalTokens,
+					}, nil
+				}
+			}
+
 			toolCallCount++
 			argsBytes := []byte(tc.Function.Arguments)
 
 			// Persistence check #1: If saving tool request fails, DO NOT execute tool!
-			tcRec, err := sr.runService.CreateAgentToolCallWithSession(
-				context.Background(), sr.runID, &sr.sessionID, &modelCallRec.ID, tc.ID, tc.Function.Name, argsBytes)
+			tcRec, err := persistCall(func(dbCtx context.Context) (*model.AgentToolCall, error) {
+				return sr.runService.CreateAgentToolCallWithSession(
+					dbCtx, sr.runID, &sr.sessionID, &modelCallRec.ID, tc.ID, tc.Function.Name, argsBytes)
+			})
 			if err != nil {
 				slog.Error("session runner: failed to persist tool call, aborting tool execution",
 					"session_id", sr.sessionID, "call_id", tc.ID, "error", err)
@@ -398,8 +487,10 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 				slog.Error("session runner: tool validation failed", "tool", tc.Function.Name, "error", valErr)
 				errMsg := valErr.Error()
 				now := time.Now()
-				if err := sr.runService.UpdateAgentToolCall(
-					context.Background(), tcRec.ID, "rejected", "", &errMsg, &now, &now); err != nil {
+				if err := persistWrite(func(dbCtx context.Context) error {
+					return sr.runService.UpdateAgentToolCall(
+						dbCtx, tcRec.ID, "rejected", "", &errMsg, &now, &now)
+				}); err != nil {
 					slog.Error("session runner: failed to update rejected tool call", "session_id", sr.sessionID, "error", err)
 					sr.updateSessionTerminal("failed", "persistence_error")
 					return nil, fmt.Errorf("%w: update rejected tool call: %v", ErrPersistenceFailure, err)
@@ -412,8 +503,10 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 				})
 
 				toolErrOutput := fmt.Sprintf("Error: %s", errMsg)
-				if _, err := sr.runService.InsertAgentMessageWithSession(
-					context.Background(), sr.runID, &sr.sessionID, "tool", toolErrOutput, &tc.ID, nil); err != nil {
+				if _, err := persistCall(func(dbCtx context.Context) (*model.AgentMessage, error) {
+					return sr.runService.InsertAgentMessageWithSession(
+						dbCtx, sr.runID, &sr.sessionID, "tool", toolErrOutput, &tc.ID, nil)
+				}); err != nil {
 					slog.Error("session runner: failed to persist tool error message", "session_id", sr.sessionID, "error", err)
 					sr.updateSessionTerminal("failed", "persistence_error")
 					return nil, fmt.Errorf("%w: insert tool error message: %v", ErrPersistenceFailure, err)
@@ -466,7 +559,9 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 				status = "success"
 				storedOutStr = string(out)
 				toolMsgContent = storedOutStr
-				if len(toolMsgContent) > sr.budget.MaxToolOutputBytes {
+				if tc.Function.Name == "get_endpoint" || tc.Function.Name == "read_sample" {
+					toolMsgContent = evidenceToolMessage(storedOutStr, tcRec.ID.String(), tc.ID, sr.budget.MaxToolOutputBytes)
+				} else if len(toolMsgContent) > sr.budget.MaxToolOutputBytes {
 					toolMsgContent = truncateUTF8(toolMsgContent, sr.budget.MaxToolOutputBytes) + "\n...[truncated: output exceeded model context budget limit]"
 				}
 				sr.insertSessionEvent("tool_call_success", map[string]interface{}{
@@ -477,8 +572,10 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 			}
 
 			// Persistence check #2: If saving tool result fails, DO NOT continue or claim completion!
-			if err := sr.runService.UpdateAgentToolCall(
-				context.Background(), tcRec.ID, status, storedOutStr, errMsg, &startTime, &finishTime); err != nil {
+			if err := persistWrite(func(dbCtx context.Context) error {
+				return sr.runService.UpdateAgentToolCall(
+					dbCtx, tcRec.ID, status, storedOutStr, errMsg, &startTime, &finishTime)
+			}); err != nil {
 				slog.Error("session runner: failed to persist tool result, stopping execution",
 					"session_id", sr.sessionID, "call_id", tc.ID, "error", err)
 				sr.updateSessionTerminal("failed", "persistence_error")
@@ -486,8 +583,10 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 			}
 
 			// Persistence check #3: Save tool message to conversation
-			if _, err := sr.runService.InsertAgentMessageWithSession(
-				context.Background(), sr.runID, &sr.sessionID, "tool", toolMsgContent, &tc.ID, nil); err != nil {
+			if _, err := persistCall(func(dbCtx context.Context) (*model.AgentMessage, error) {
+				return sr.runService.InsertAgentMessageWithSession(
+					dbCtx, sr.runID, &sr.sessionID, "tool", toolMsgContent, &tc.ID, nil)
+			}); err != nil {
 				slog.Error("session runner: failed to persist tool message", "session_id", sr.sessionID, "error", err)
 				sr.updateSessionTerminal("failed", "persistence_error")
 				return nil, fmt.Errorf("%w: insert tool message: %v", ErrPersistenceFailure, err)
@@ -503,12 +602,16 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 }
 
 func (sr *SessionRunner) updateSessionTerminal(status string, finishReason string) {
-	_ = sr.runService.UpdateSessionStatus(context.Background(), sr.sessionID, status, &finishReason)
+	_ = persistWrite(func(dbCtx context.Context) error {
+		return sr.runService.UpdateSessionStatus(dbCtx, sr.sessionID, status, &finishReason)
+	})
 }
 
 func (sr *SessionRunner) insertSessionEvent(eventType string, payload map[string]interface{}) {
 	payloadBytes, _ := json.Marshal(payload)
-	_, _ = sr.runService.InsertRunEventWithContext(context.Background(), sr.runID, &sr.sessionID, nil, nil, eventType, payloadBytes)
+	_, _ = persistCall(func(dbCtx context.Context) (*model.RunEvent, error) {
+		return sr.runService.InsertRunEventWithContext(dbCtx, sr.runID, &sr.sessionID, nil, nil, eventType, payloadBytes)
+	})
 }
 
 func truncateUTF8(s string, maxBytes int) string {
@@ -519,4 +622,24 @@ func truncateUTF8(s string, maxBytes int) string {
 		maxBytes--
 	}
 	return s[:maxBytes]
+}
+
+func cancellationSessionStatus(ctx context.Context) string {
+	if model.ResolveCancelCause(ctx) == model.CauseShutdown {
+		return "interrupted"
+	}
+	return "stopped"
+}
+
+// Persistence must survive execution cancellation long enough to record its
+// outcome, while retaining a short independent timeout for every database call.
+func persistCall[T any](operation func(context.Context) (T, error)) (T, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	return operation(ctx)
+}
+
+func persistWrite(operation func(context.Context) error) error {
+	_, err := persistCall(func(ctx context.Context) (struct{}, error) { return struct{}{}, operation(ctx) })
+	return err
 }

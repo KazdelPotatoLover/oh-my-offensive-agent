@@ -52,8 +52,11 @@ type Engine struct {
 	onWorkerActiveHook func(delta int)
 
 	// Global budget tracking across Planner and all Workers
-	globalModelCalls int32
-	globalToolCalls  int32
+	budgetMgr         *BudgetManager
+	executionCtx      context.Context
+	cancelWorkerCause context.CancelCauseFunc
+	activeWorkerCount atomic.Int32
+	wrapupOnce        sync.Once
 }
 
 func NewEngine(
@@ -73,11 +76,34 @@ func NewEngine(
 		provider:   p,
 		budget:     budget,
 		maxWorkers: maxWorkers,
+		budgetMgr:  NewBudgetManager(budget, time.Now()),
 	}
 	for _, opt := range opts {
 		opt(eng)
 	}
 	return eng
+}
+
+func (e *Engine) TryAcquireModelCall() bool {
+	return e.budgetMgr.AcquireModelCall(e.callContext(), false) == nil
+}
+
+func (e *Engine) TryAcquireToolCall() bool {
+	return e.budgetMgr.AcquireToolCall(e.callContext()) == nil
+}
+
+func waitWithContext(ctx context.Context, wg *sync.WaitGroup) error {
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-done:
+		return nil
+	}
 }
 
 func (e *Engine) Run(ctx context.Context) {
@@ -90,10 +116,15 @@ func (e *Engine) Run(ctx context.Context) {
 		return
 	}
 
+	if run.Status.IsTerminal() {
+		return
+	}
+
 	// Early stop check
 	if run.Status == model.RunStatusStopping {
-		reason := "user_requested_stop"
-		e.runService.TransitionState(context.Background(), e.runID, model.RunStatusStopping, model.RunStatusStopped, &reason)
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = e.runService.FinalizeTerminatedRun(cleanupCtx, e.runID, model.RunStatusStopped, "user_requested_stop")
 		return
 	}
 
@@ -124,6 +155,8 @@ func (e *Engine) Run(ctx context.Context) {
 	}
 	runCtx, cancelRun := context.WithTimeout(ctx, runTimeout)
 	defer cancelRun()
+	e.executionCtx = runCtx
+	e.budgetMgr = NewBudgetManager(e.budget, time.Now())
 
 	// 3. Round 1: Planner submits initial plan
 	roundNum := 1
@@ -134,16 +167,18 @@ func (e *Engine) Run(ctx context.Context) {
 	prRound1, err := e.runService.CreatePlannerRound(ctx, e.runID, roundNum, "initial", nil)
 	if err != nil {
 		slog.Error("engine: failed to create planner round 1", "run_id", e.runID, "error", err)
-		reason := "persistence_error"
-		e.runService.TransitionState(context.Background(), e.runID, model.RunStatusRunning, model.RunStatusFailed, &reason)
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		e.coordinateWrapup(cleanupCtx, model.TerminationCause("persistence_error"), nil, nil, nil)
 		return
 	}
 
 	sess1, err := e.runService.CreateSession(ctx, e.runID, "planner", &roundNum, nil, nil, run.ExecutionInput)
 	if err != nil {
 		slog.Error("engine: failed to create planner session 1", "run_id", e.runID, "error", err)
-		reason := "persistence_error"
-		e.runService.TransitionState(context.Background(), e.runID, model.RunStatusRunning, model.RunStatusFailed, &reason)
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		e.coordinateWrapup(cleanupCtx, model.TerminationCause("persistence_error"), nil, nil, nil)
 		return
 	}
 	_ = e.runService.UpdatePlannerRound(ctx, prRound1.ID, "running", nil)
@@ -169,18 +204,19 @@ func (e *Engine) Run(ctx context.Context) {
 		"You are the Lead Security Planner. Break down the task into discrete work items and submit a plan.\nObjective: %s\nScope: %s%s",
 		objective, string(scopeBytes), assetInfo.String())
 	plannerMessages := []provider.ChatMessage{
-		{Role: provider.RoleSystem, Content: "You are the Lead Security Planner. Use submit_plan to create work items."},
+		{Role: provider.RoleSystem, Content: plannerContract + fmt.Sprintf("\nRun budget: %+v", e.budget)},
 		{Role: provider.RoleUser, Content: plannerPrompt},
 	}
 
 	srPlanner1 := agent.NewSessionRunner(
 		sess1.ID, e.runID, "planner", e.runService, e.provider, plannerRegistry, e.budget,
-		agent.WithSessionModelCallHook(func(r int) {
-			atomic.AddInt32(&e.globalModelCalls, 1)
+		agent.WithModelCallGate(agent.CallGateFunc(e.TryAcquireModelCall)),
+		agent.WithSessionModelCallFinishHook(func(round int, err error) {
+			if e.budgetMgr != nil {
+				e.budgetMgr.ReleaseModelCall()
+			}
 		}),
-		agent.WithSessionToolCallHook(func(id, name string) {
-			atomic.AddInt32(&e.globalToolCalls, 1)
-		}),
+		agent.WithToolCallGate(agent.CallGateFunc(e.TryAcquireToolCall)),
 	)
 	pRes1, pErr1 := srPlanner1.Run(runCtx, plannerMessages)
 
@@ -190,9 +226,14 @@ func (e *Engine) Run(ctx context.Context) {
 	}
 	if pErr1 != nil || pRes1 == nil || !planSubmitted {
 		slog.Error("engine: planner round 1 failed to submit plan", "run_id", e.runID, "error", pErr1)
-		reason := "planner_failed"
-		_ = e.runService.UpdatePlannerRound(context.Background(), prRound1.ID, "failed", nil)
-		e.runService.TransitionState(context.Background(), e.runID, model.RunStatusRunning, model.RunStatusFailed, &reason)
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = e.runService.UpdatePlannerRound(cleanupCtx, prRound1.ID, "failed", nil)
+		cause := model.CauseInternalError
+		if pRes1 != nil && pRes1.FinishReason == string(model.CauseModelBudgetExhausted) {
+			cause = model.CauseModelBudgetExhausted
+		}
+		e.coordinateWrapup(cleanupCtx, cause, nil, nil, nil)
 		return
 	}
 	planSummary := "Initial plan submitted"
@@ -207,9 +248,14 @@ func (e *Engine) Run(ctx context.Context) {
 	}
 	var workerErr atomic.Value
 
+	workerCtx, cancelWorkerCause := context.WithCancelCause(runCtx)
+	e.cancelWorkerCause = cancelWorkerCause
+	cancelWorkers := func() { cancelWorkerCause(model.CauseInternalError) }
+	defer cancelWorkers()
+
 	for {
 		// 4a. Dispatch workers for any pending work items
-		if err := e.dispatchWorkers(runCtx, workerTokens, workCompletedChan, &activeWorkers, &workerErr); err != nil {
+		if err := e.dispatchWorkers(workerCtx, cancelWorkers, workerTokens, workCompletedChan, &activeWorkers, &workerErr); err != nil {
 			return
 		}
 
@@ -223,16 +269,18 @@ func (e *Engine) Run(ctx context.Context) {
 		prRound, err := e.runService.CreatePlannerRound(ctx, e.runID, roundNum, roundType, nil)
 		if err != nil {
 			slog.Error("engine: failed to create planner round", "run_id", e.runID, "round", roundNum, "error", err)
-			reason := "persistence_error"
-			e.runService.TransitionState(context.Background(), e.runID, model.RunStatusRunning, model.RunStatusFailed, &reason)
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			e.coordinateWrapup(cleanupCtx, model.TerminationCause("persistence_error"), nil, cancelWorkers, &activeWorkers)
 			return
 		}
 
 		sess, err := e.runService.CreateSession(ctx, e.runID, "planner", &roundNum, nil, nil, nil)
 		if err != nil {
 			slog.Error("engine: failed to create planner session", "run_id", e.runID, "round", roundNum, "error", err)
-			reason := "persistence_error"
-			e.runService.TransitionState(context.Background(), e.runID, model.RunStatusRunning, model.RunStatusFailed, &reason)
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			e.coordinateWrapup(cleanupCtx, model.TerminationCause("persistence_error"), nil, cancelWorkers, &activeWorkers)
 			return
 		}
 		_ = e.runService.UpdatePlannerRound(ctx, prRound.ID, "running", nil)
@@ -289,18 +337,19 @@ func (e *Engine) Run(ctx context.Context) {
 			"Review current execution progress and observations. You can either call submit_plan to schedule additional follow-up work items, or call suggest_completion to finish the run.\n%s",
 			obsInfo.String())
 		evalMessages := []provider.ChatMessage{
-			{Role: provider.RoleSystem, Content: "You are the Lead Security Planner. Evaluate progress and either submit follow-up plan or suggest completion."},
+			{Role: provider.RoleSystem, Content: plannerContract + fmt.Sprintf("\nObjective: %s\nScope: %s\nRun budget: %+v; consumed model calls=%d, tool calls=%d", objective, scopeBytes, e.budget, e.budgetMgr.ConsumedModelCalls(), e.budgetMgr.ConsumedToolCalls())},
 			{Role: provider.RoleUser, Content: evalPrompt},
 		}
 
 		srPlanner := agent.NewSessionRunner(
 			sess.ID, e.runID, "planner", e.runService, e.provider, evalRegistry, e.budget,
-			agent.WithSessionModelCallHook(func(r int) {
-				atomic.AddInt32(&e.globalModelCalls, 1)
+			agent.WithModelCallGate(agent.CallGateFunc(e.TryAcquireModelCall)),
+			agent.WithSessionModelCallFinishHook(func(round int, err error) {
+				if e.budgetMgr != nil {
+					e.budgetMgr.ReleaseModelCall()
+				}
 			}),
-			agent.WithSessionToolCallHook(func(id, name string) {
-				atomic.AddInt32(&e.globalToolCalls, 1)
-			}),
+			agent.WithToolCallGate(agent.CallGateFunc(e.TryAcquireToolCall)),
 		)
 		pRes, pErr := srPlanner.Run(runCtx, evalMessages)
 
@@ -311,9 +360,14 @@ func (e *Engine) Run(ctx context.Context) {
 
 		if pErr != nil || pRes == nil || (!followUpPlanSubmitted && !completionSuggested) {
 			slog.Error("engine: planner round failed", "run_id", e.runID, "round", roundNum, "error", pErr)
-			reason := "planner_failed"
-			_ = e.runService.UpdatePlannerRound(context.Background(), prRound.ID, "failed", nil)
-			e.runService.TransitionState(context.Background(), e.runID, model.RunStatusRunning, model.RunStatusFailed, &reason)
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			_ = e.runService.UpdatePlannerRound(cleanupCtx, prRound.ID, "failed", nil)
+			cause := model.CauseInternalError
+			if pRes != nil && pRes.FinishReason == string(model.CauseModelBudgetExhausted) {
+				cause = model.CauseModelBudgetExhausted
+			}
+			e.coordinateWrapup(cleanupCtx, cause, nil, cancelWorkers, &activeWorkers)
 			return
 		}
 
@@ -327,10 +381,7 @@ func (e *Engine) Run(ctx context.Context) {
 				finalSummaryResult = "Execution finished with conclusion: " + finalConclusion
 			}
 
-			_, err = e.runService.CompleteRunWithOutput(context.Background(), e.runID, "completed", finalSummaryResult)
-			if err != nil {
-				slog.Error("engine: failed to complete run with output", "run_id", e.runID, "error", err)
-			}
+			e.coordinateWrapup(context.Background(), model.CauseCompleted, &finalSummaryResult, cancelWorkers, &activeWorkers)
 			return
 		}
 
@@ -342,6 +393,7 @@ func (e *Engine) Run(ctx context.Context) {
 
 func (e *Engine) dispatchWorkers(
 	ctx context.Context,
+	cancelWorkers context.CancelFunc,
 	workerTokens chan struct{},
 	workCompletedChan chan struct{},
 	activeWorkers *sync.WaitGroup,
@@ -350,24 +402,31 @@ func (e *Engine) dispatchWorkers(
 	for {
 		select {
 		case <-ctx.Done():
-			e.handleCancellation(ctx)
-			activeWorkers.Wait()
+			e.coordinateWrapup(ctx, model.ResolveCancelCause(ctx), nil, cancelWorkers, activeWorkers)
 			return ctx.Err()
 		default:
 		}
 
-		// Check global budget limits
-		if atomic.LoadInt32(&e.globalModelCalls) >= int32(e.budget.MaxModelCalls) {
-			reason := "model_calls_exhausted"
-			e.runService.TransitionState(context.Background(), e.runID, model.RunStatusRunning, model.RunStatusFailed, &reason)
-			activeWorkers.Wait()
-			return errors.New("model_calls_exhausted")
+		if e.activeWorkerCount.Load() == 0 && workerErr.Load() != nil {
+			e.coordinateWrapup(ctx, model.TerminationCause("persistence_error"), nil, cancelWorkers, activeWorkers)
+			return errors.New("worker persistence error")
 		}
-		if atomic.LoadInt32(&e.globalToolCalls) >= int32(e.budget.MaxToolCalls) {
-			reason := "tool_calls_exhausted"
-			e.runService.TransitionState(context.Background(), e.runID, model.RunStatusRunning, model.RunStatusFailed, &reason)
-			activeWorkers.Wait()
-			return errors.New("tool_calls_exhausted")
+		// Stop admitting work at the exploration boundary. A worker owns its slot
+		// until its final database writes finish, not merely until the model returns.
+		if !e.budgetMgr.CanClaimWorkItem(ctx) {
+			if e.activeWorkerCount.Load() > 0 {
+				select {
+				case <-ctx.Done():
+					e.coordinateWrapup(ctx, model.ResolveCancelCause(ctx), nil, cancelWorkers, activeWorkers)
+					return ctx.Err()
+				case <-workCompletedChan:
+				case <-time.After(100 * time.Millisecond):
+				}
+				continue
+			}
+			cause := e.budgetMgr.ExhaustionCause()
+			e.coordinateWrapup(ctx, cause, nil, cancelWorkers, activeWorkers)
+			return cause
 		}
 
 		// Try acquiring worker concurrency token
@@ -378,15 +437,16 @@ func (e *Engine) dispatchWorkers(
 			if claimErr != nil {
 				workerTokens <- token
 				slog.Error("engine: claim work item error", "run_id", e.runID, "error", claimErr)
-				reason := "claim_failed"
-				e.runService.TransitionState(context.Background(), e.runID, model.RunStatusRunning, model.RunStatusFailed, &reason)
-				activeWorkers.Wait()
+				cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				e.coordinateWrapup(cleanupCtx, model.TerminationCause("claim_failed"), nil, cancelWorkers, activeWorkers)
 				return claimErr
 			}
 
 			if wi != nil && att != nil && sess != nil {
 				// Successfully claimed! Launch worker goroutine
 				activeWorkers.Add(1)
+				e.activeWorkerCount.Add(1)
 				if e.onWorkItemHook != nil {
 					e.onWorkItemHook(wi.Key)
 				}
@@ -400,8 +460,12 @@ func (e *Engine) dispatchWorkers(
 							e.onWorkerActiveHook(-1)
 						}
 						workerTokens <- tok
+						e.activeWorkerCount.Add(-1)
 						activeWorkers.Done()
-						workCompletedChan <- struct{}{}
+						select {
+						case workCompletedChan <- struct{}{}:
+						default:
+						}
 					}()
 
 					e.executeWorkerSession(ctx, item, attempt, s, workerErr)
@@ -421,9 +485,9 @@ func (e *Engine) dispatchWorkers(
 		items, err := e.runService.ListWorkItemsByRun(ctx, e.runID)
 		if err != nil {
 			slog.Error("engine: failed to list work items", "run_id", e.runID, "error", err)
-			reason := "persistence_error"
-			e.runService.TransitionState(context.Background(), e.runID, model.RunStatusRunning, model.RunStatusFailed, &reason)
-			activeWorkers.Wait()
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			e.coordinateWrapup(cleanupCtx, model.TerminationCause("persistence_error"), nil, cancelWorkers, activeWorkers)
 			return err
 		}
 
@@ -454,17 +518,16 @@ func (e *Engine) dispatchWorkers(
 		if hasBlocked && !hasRunning {
 			// Stuck due to failed/blocked prerequisites
 			slog.Warn("engine: run blocked due to failed work item dependencies", "run_id", e.runID)
-			reason := "work_item_blocked"
-			e.runService.TransitionState(context.Background(), e.runID, model.RunStatusRunning, model.RunStatusFailed, &reason)
-			activeWorkers.Wait()
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			e.coordinateWrapup(cleanupCtx, model.TerminationCause("work_item_blocked"), nil, cancelWorkers, activeWorkers)
 			return errors.New("work_item_blocked")
 		}
 
 		// Wait for next work completion notification or cancellation
 		select {
 		case <-ctx.Done():
-			e.handleCancellation(ctx)
-			activeWorkers.Wait()
+			e.coordinateWrapup(ctx, model.ResolveCancelCause(ctx), nil, cancelWorkers, activeWorkers)
 			return ctx.Err()
 		case <-workCompletedChan:
 			// A worker completed, check loop again!
@@ -473,13 +536,17 @@ func (e *Engine) dispatchWorkers(
 		}
 	}
 
-	activeWorkers.Wait()
+	if err := waitWithContext(ctx, activeWorkers); err != nil {
+		e.coordinateWrapup(ctx, model.ResolveCancelCause(ctx), nil, cancelWorkers, activeWorkers)
+		return err
+	}
 
 	// Check if any worker reported terminal failure
 	if wErrVal := workerErr.Load(); wErrVal != nil {
 		slog.Error("engine: worker reported fatal failure", "run_id", e.runID, "error", wErrVal)
-		reason := "worker_failed"
-		e.runService.TransitionState(context.Background(), e.runID, model.RunStatusRunning, model.RunStatusFailed, &reason)
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		e.coordinateWrapup(cleanupCtx, model.TerminationCause("worker_failed"), nil, cancelWorkers, activeWorkers)
 		return fmt.Errorf("worker failed: %v", wErrVal)
 	}
 
@@ -493,19 +560,32 @@ func (e *Engine) executeWorkerSession(
 	sess *model.AgentSession,
 	workerErr *atomic.Value,
 ) {
+	finish := func(success bool, output json.RawMessage, reason string) {
+		finishCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := e.runService.FinishWorkItem(finishCtx, wi.ID, att.ID, sess.ID, success, output, reason); err != nil {
+			workerErr.CompareAndSwap(nil, err.Error())
+			slog.Error("engine: failed to persist work completion", "run_id", e.runID, "work_item_id", wi.ID, "error", err)
+		}
+	}
 	// Construct worker tools based on work_type
 	workerRegistry := tools.NewRegistry()
-	if wi.WorkType == "aggregate_summary" {
+	switch wi.WorkType {
+	case "aggregate_summary":
 		workerRegistry.Register(tools.NewReadObservationsTool(e.runID, e.runService))
-	} else if wi.WorkType == "inspect_http_endpoint" {
+	case "inspect_http_endpoint":
 		workerRegistry.Register(tools.NewGetEndpointTool(e.runID, wi.ID, e.runService))
 		workerRegistry.Register(tools.NewExtractEndpointLinksTool(e.runID, wi.ID, sess.ID, e.runService))
 		workerRegistry.Register(tools.NewRecordObservationToolWithSession(e.runID, att.ID, sess.ID, e.runService))
-	} else {
+	case "analyze_sample", "inspect_sample_endpoint":
 		workerRegistry.Register(tools.NewReadSampleToolWithScope(e.runID, func(ctx context.Context, sampleID string) (bool, error) {
 			return e.runService.IsSampleInRunScope(ctx, e.runID, sampleID)
 		}))
 		workerRegistry.Register(tools.NewRecordObservationToolWithSession(e.runID, att.ID, sess.ID, e.runService))
+	default:
+		// Also protect against unsupported records created by an older server.
+		finish(false, nil, "unsupported_work_type")
+		return
 	}
 
 	workerPrompt := fmt.Sprintf(
@@ -513,23 +593,25 @@ func (e *Engine) executeWorkerSession(
 		wi.Key, wi.Title, wi.Objective, string(wi.InputData))
 
 	workerMessages := []provider.ChatMessage{
-		{Role: provider.RoleSystem, Content: fmt.Sprintf("You are Worker for task %s (%s). Execute tools and submit results.", wi.Key, wi.WorkType)},
+		{Role: provider.RoleSystem, Content: fmt.Sprintf("You are Worker for task %s (%s).", wi.Key, wi.WorkType) + workerContract(wi.WorkType)},
 		{Role: provider.RoleUser, Content: workerPrompt},
 	}
 
 	sr := agent.NewSessionRunner(
 		sess.ID, e.runID, "worker", e.runService, e.provider, workerRegistry, e.budget,
-		agent.WithSessionModelCallHook(func(r int) {
-			atomic.AddInt32(&e.globalModelCalls, 1)
+		agent.WithModelCallGate(agent.CallGateFunc(e.TryAcquireModelCall)),
+		agent.WithSessionModelCallFinishHook(func(round int, err error) {
+			if e.budgetMgr != nil {
+				e.budgetMgr.ReleaseModelCall()
+			}
 		}),
-		agent.WithSessionToolCallHook(func(id, name string) {
-			atomic.AddInt32(&e.globalToolCalls, 1)
-		}),
+		agent.WithToolCallGate(agent.CallGateFunc(e.TryAcquireToolCall)),
 	)
 
 	res, err := sr.Run(ctx, workerMessages)
 	if ctx.Err() != nil {
-		_ = e.runService.FinishWorkItem(context.Background(), wi.ID, att.ID, sess.ID, false, nil, "user_requested_stop")
+		cause := model.ResolveCancelCause(ctx)
+		finish(false, nil, string(cause))
 		return
 	}
 
@@ -538,39 +620,107 @@ func (e *Engine) executeWorkerSession(
 		if res != nil && res.FinishReason != "" {
 			finishReason = res.FinishReason
 		}
-		_ = e.runService.FinishWorkItem(context.Background(), wi.ID, att.ID, sess.ID, false, nil, finishReason)
+		finish(false, nil, finishReason)
 		return
+	}
+	if wi.WorkType == "inspect_http_endpoint" {
+		observations, obsErr := e.runService.ListObservationsByRun(ctx, e.runID)
+		hasEvidence := false
+		for _, obs := range observations {
+			if obs.AttemptID == att.ID {
+				hasEvidence = true
+				break
+			}
+		}
+		if obsErr != nil || !hasEvidence {
+			finish(false, nil, "missing_http_evidence")
+			return
+		}
 	}
 
 	outputMap := map[string]interface{}{
 		"summary": res.FinalContent,
 	}
 	outBytes, _ := json.Marshal(outputMap)
-	_ = e.runService.FinishWorkItem(context.Background(), wi.ID, att.ID, sess.ID, true, outBytes, "completed")
+	finish(true, outBytes, "completed")
+}
+
+func (e *Engine) coordinateWrapup(
+	ctx context.Context,
+	cause model.TerminationCause,
+	finalOutput *string,
+	cancelWorkers context.CancelFunc,
+	activeWorkers *sync.WaitGroup,
+) {
+	e.wrapupOnce.Do(func() {
+		e.budgetMgr.MarkWrapupStarted()
+		// Cancellation is delivered before waiting. Database finalization is bounded
+		// independently of a model/tool that fails to honor its context.
+		if e.cancelWorkerCause != nil {
+			e.cancelWorkerCause(cause)
+		}
+		if cancelWorkers != nil {
+			cancelWorkers()
+		}
+		if activeWorkers != nil {
+			drainCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			if err := waitWithContext(drainCtx, activeWorkers); err != nil {
+				slog.Warn("engine: worker drain grace expired", "run_id", e.runID)
+			}
+			cancel()
+		}
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if e.executionCtx != nil && e.executionCtx.Err() != nil {
+			cause = model.ResolveCancelCause(e.executionCtx)
+		}
+		if run, err := e.runService.Get(cleanupCtx, e.runID); err == nil && run.Status == model.RunStatusStopping {
+			cause = model.CauseUserStop
+		}
+		summaryText := ""
+		if finalOutput != nil {
+			summaryText = *finalOutput
+		}
+		if summaryText == "" {
+			summaryText = GenerateProgrammaticSummary(cleanupCtx, e.runID, e.runService, cause)
+			if cause == model.CauseModelBudgetExhausted || cause == model.CauseToolBudgetExhausted {
+				summaryText = e.summarizeWithReservedCall(cleanupCtx, cause, summaryText)
+			}
+		}
+		if e.executionCtx != nil && e.executionCtx.Err() != nil {
+			latestCause := model.ResolveCancelCause(e.executionCtx)
+			if latestCause != cause {
+				cause = latestCause
+				summaryText = GenerateProgrammaticSummary(cleanupCtx, e.runID, e.runService, cause)
+			}
+		}
+		if err := e.runService.FinalizeRunWrapup(cleanupCtx, e.runID, cause, &summaryText); err != nil {
+			slog.Error("engine: failed to finalize run wrapup", "run_id", e.runID, "error", err)
+		}
+	})
 }
 
 func (e *Engine) handleCancellation(ctx context.Context) {
-	cleanupCtx := context.Background()
-	run, err := e.runService.Get(cleanupCtx, e.runID)
-	if err != nil || run.Status.IsTerminal() {
-		return
-	}
-
-	reason := "user_requested_stop"
-	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		reason = "timeout"
-	}
-	_, _ = e.runService.TransitionState(cleanupCtx, e.runID, run.Status, model.RunStatusStopped, &reason)
+	e.coordinateWrapup(ctx, model.ResolveCancelCause(ctx), nil, nil, nil)
 }
 
 func (e *Engine) ensureStoppingTerminal() {
-	cleanupCtx := context.Background()
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	run, err := e.runService.Get(cleanupCtx, e.runID)
 	if err != nil {
 		return
 	}
 	if run.Status == model.RunStatusStopping {
-		reason := "user_requested_stop"
-		_, _ = e.runService.TransitionState(cleanupCtx, e.runID, model.RunStatusStopping, model.RunStatusStopped, &reason)
+		if err := e.runService.FinalizeRunWrapup(cleanupCtx, e.runID, model.CauseUserStop, nil); err != nil {
+			slog.Error("engine: failed to finalize stop", "run_id", e.runID, "error", err)
+		}
 	}
+}
+
+func (e *Engine) callContext() context.Context {
+	if e.executionCtx != nil {
+		return e.executionCtx
+	}
+	return context.Background()
 }

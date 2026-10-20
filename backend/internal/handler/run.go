@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
+	"time"
 
 	"agent-workbench/backend/internal/agent"
 	"agent-workbench/backend/internal/model"
@@ -156,7 +159,11 @@ func (h *RunHandler) Create(w http.ResponseWriter, r *http.Request) {
 			p, providerErr := provider.FromSnapshot(agentCfg, scenario)
 			if providerErr != nil {
 				reason := "provider_config_error"
-				_, _ = h.runService.TransitionState(r.Context(), run.ID, model.RunStatusQueued, model.RunStatusFailed, &reason)
+				cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				if err := h.runService.FinalizeRunWrapup(cleanupCtx, run.ID, model.TerminationCause(reason), nil); err != nil {
+					slog.Error("failed to finalize provider configuration error", "run_id", run.ID, "error", err)
+				}
+				cancel()
 				respondError(w, http.StatusBadRequest, providerErr.Error())
 				return
 			}
@@ -185,6 +192,11 @@ func (h *RunHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if startErr != nil {
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			if err := h.runService.FinalizeRunWrapup(cleanupCtx, run.ID, model.CauseShutdown, nil); err != nil {
+				slog.Error("failed to finalize rejected executor", "run_id", run.ID, "error", err)
+			}
+			cancel()
 			respondError(w, http.StatusServiceUnavailable, "service is shutting down")
 			return
 		}
@@ -237,7 +249,13 @@ func (h *RunHandler) Stop(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Signal worker to stop
-	h.manager.Stop(runID)
+	if err := h.manager.StopAndFinalizeIfIdle(r.Context(), runID); err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to finalize run stop")
+		return
+	}
+	if latest, getErr := h.runService.Get(r.Context(), runID); getErr == nil {
+		run = latest
+	}
 
 	respondJSON(w, http.StatusOK, run)
 }

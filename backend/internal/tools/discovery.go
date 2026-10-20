@@ -47,7 +47,7 @@ func (t *ExtractEndpointLinksTool) Parameters() json.RawMessage {
 		"properties": {
 			"source_tool_call_id": {
 				"type": "string",
-				"description": "ID or call_id of the get_endpoint tool call whose HTML response body should be parsed for links"
+				"description": "Copy _execution.source_tool_call_id from a successful get_endpoint result, not asset_id. The exact original call_id is also accepted. Parses the stored HTML evidence, including when the model preview was shortened."
 			}
 		},
 		"required": ["source_tool_call_id"]
@@ -417,7 +417,35 @@ func (t *ExtractEndpointLinksTool) Execute(ctx context.Context, argsBytes []byte
 
 	// Get current attempt ID for session
 	var attemptID *uuid.UUID
-	_ = tx.QueryRow(ctx, `SELECT attempt_id FROM agent_sessions WHERE id = $1`, t.sessionID).Scan(&attemptID)
+	err = tx.QueryRow(ctx, `SELECT attempt_id FROM agent_sessions WHERE id = $1`, t.sessionID).Scan(&attemptID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return "", fmt.Errorf("get session attempt_id: %w", err)
+	}
+
+	// Calculate shortest discovery depth of source asset from seeds (BFS with cycle detection)
+	maxDepth := discPolicy.MaxDepth
+	if maxDepth <= 0 {
+		maxDepth = 2
+	}
+	var sourceDepth *int
+	err = tx.QueryRow(ctx, `
+ WITH RECURSIVE reachable(asset_id, depth) AS (
+   SELECT asset_id, 0 FROM run_assets WHERE run_id=$1 AND is_seed
+   UNION
+   SELECT ad.target_asset_id, r.depth+1
+   FROM reachable r JOIN asset_discoveries ad ON ad.source_asset_id=r.asset_id
+   WHERE ad.run_id=$1 AND r.depth < $3
+ )
+ SELECT MIN(depth) FROM reachable WHERE asset_id=$2
+ `, t.runID, sourceAssetUUID, maxDepth).Scan(&sourceDepth)
+	if err != nil {
+		return "", fmt.Errorf("calculate discovery depth for source asset: %w", err)
+	}
+	if sourceDepth == nil {
+		return "", fmt.Errorf("source asset is not reachable from a seed within depth limit")
+	}
+
+	candidateDepth := *sourceDepth + 1
 
 	for _, c := range candidates {
 		targetKey := "GET " + c.fullURL
@@ -441,11 +469,14 @@ func (t *ExtractEndpointLinksTool) Execute(ctx context.Context, argsBytes []byte
 
 			// Record discovery relationship if not yet present (skip self-loops where source == target)
 			if existingAssetID != sourceAssetUUID {
-				_, _ = tx.Exec(ctx,
+				_, err = tx.Exec(ctx,
 					`INSERT INTO asset_discoveries (id, run_id, source_asset_id, source_tool_call_id, target_asset_id, raw_href)
 					 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
 					 ON CONFLICT (run_id, source_asset_id, target_asset_id, raw_href) DO NOTHING`,
 					t.runID, sourceAssetUUID, tcID, existingAssetID, c.rawHref)
+				if err != nil {
+					return "", fmt.Errorf("insert existing asset discovery edge: %w", err)
+				}
 			}
 			continue
 		}
@@ -455,26 +486,6 @@ func (t *ExtractEndpointLinksTool) Execute(ctx context.Context, argsBytes []byte
 		}
 
 		// Check discovery depth limit (default 2)
-		maxDepth := discPolicy.MaxDepth
-		if maxDepth <= 0 {
-			maxDepth = 2
-		}
-		var sourceDepth int
-		_ = tx.QueryRow(ctx, `
-			WITH RECURSIVE discovery_chain AS (
-				SELECT target_asset_id, source_asset_id, 1 as depth
-				FROM asset_discoveries
-				WHERE run_id = $1 AND target_asset_id = $2
-				UNION ALL
-				SELECT ad.target_asset_id, ad.source_asset_id, dc.depth + 1
-				FROM asset_discoveries ad
-				JOIN discovery_chain dc ON ad.target_asset_id = dc.source_asset_id
-				WHERE ad.run_id = $1
-			)
-			SELECT COALESCE(MAX(depth), 0) FROM discovery_chain
-		`, t.runID, sourceAssetUUID).Scan(&sourceDepth)
-
-		candidateDepth := sourceDepth + 1
 		if candidateDepth > maxDepth {
 			rejected = append(rejected, RejectedItem{
 				RawHref: c.rawHref,
@@ -489,7 +500,10 @@ func (t *ExtractEndpointLinksTool) Execute(ctx context.Context, argsBytes []byte
 			maxPages = 20
 		}
 		var currentAssetCount int
-		_ = tx.QueryRow(ctx, `SELECT COUNT(*) FROM run_assets WHERE run_id = $1`, t.runID).Scan(&currentAssetCount)
+		err = tx.QueryRow(ctx, `SELECT COUNT(*) FROM run_assets WHERE run_id = $1`, t.runID).Scan(&currentAssetCount)
+		if err != nil {
+			return "", fmt.Errorf("count run assets: %w", err)
+		}
 		if currentAssetCount >= maxPages {
 			rejected = append(rejected, RejectedItem{
 				RawHref: c.rawHref,
@@ -540,28 +554,31 @@ func (t *ExtractEndpointLinksTool) Execute(ctx context.Context, argsBytes []byte
 		snapJSON, _ := json.Marshal(map[string]interface{}{
 			"kind":         "http_endpoint",
 			"external_key": targetKey,
+			"is_seed":      false,
 			"metadata": map[string]interface{}{
 				"url":    c.fullURL,
 				"method": "GET",
 			},
 		})
 		_, err = tx.Exec(ctx,
-			`INSERT INTO run_assets (run_id, asset_id, snapshot)
-			 VALUES ($1, $2, $3)
+			`INSERT INTO run_assets (run_id, asset_id, snapshot, depth)
+			 VALUES ($1, $2, $3, $4)
 			 ON CONFLICT (run_id, asset_id) DO NOTHING`,
-			t.runID, targetAssetID, snapJSON)
+			t.runID, targetAssetID, snapJSON, candidateDepth)
 		if err != nil {
 			return "", fmt.Errorf("insert run_asset: %w", err)
 		}
 
-		// Insert asset_discoveries
-		_, err = tx.Exec(ctx,
-			`INSERT INTO asset_discoveries (id, run_id, source_asset_id, source_tool_call_id, target_asset_id, raw_href)
-			 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
-			 ON CONFLICT (run_id, source_asset_id, target_asset_id, raw_href) DO NOTHING`,
-			t.runID, sourceAssetUUID, tcID, targetAssetID, c.rawHref)
-		if err != nil {
-			return "", fmt.Errorf("insert asset discovery: %w", err)
+		// Insert asset_discoveries (skip self-loops)
+		if targetAssetID != sourceAssetUUID {
+			_, err = tx.Exec(ctx,
+				`INSERT INTO asset_discoveries (id, run_id, source_asset_id, source_tool_call_id, target_asset_id, raw_href)
+				 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
+				 ON CONFLICT (run_id, source_asset_id, target_asset_id, raw_href) DO NOTHING`,
+				t.runID, sourceAssetUUID, tcID, targetAssetID, c.rawHref)
+			if err != nil {
+				return "", fmt.Errorf("insert asset discovery: %w", err)
+			}
 		}
 
 		// Record observation on SOURCE asset
@@ -586,7 +603,10 @@ func (t *ExtractEndpointLinksTool) Execute(ctx context.Context, argsBytes []byte
 
 		// Insert run_event
 		var nextSeq int
-		_ = tx.QueryRow(ctx, `SELECT COALESCE(MAX(seq), 0) + 1 FROM run_events WHERE run_id = $1`, t.runID).Scan(&nextSeq)
+		err = tx.QueryRow(ctx, `SELECT COALESCE(MAX(seq), 0) + 1 FROM run_events WHERE run_id = $1`, t.runID).Scan(&nextSeq)
+		if err != nil {
+			return "", fmt.Errorf("get next run_events seq: %w", err)
+		}
 		eventPayload, _ := json.Marshal(map[string]interface{}{
 			"observation_id": newObsID,
 			"asset_id":       sourceAssetUUID,
@@ -594,10 +614,13 @@ func (t *ExtractEndpointLinksTool) Execute(ctx context.Context, argsBytes []byte
 			"obs_type":       "discovered_links",
 			"content":        obsContent,
 		})
-		_, _ = tx.Exec(ctx,
+		_, err = tx.Exec(ctx,
 			`INSERT INTO run_events (id, run_id, seq, type, payload)
 			 VALUES (gen_random_uuid(), $1, $2, 'observation', $3)`,
 			t.runID, nextSeq, eventPayload)
+		if err != nil {
+			return "", fmt.Errorf("insert run event: %w", err)
+		}
 
 		discovered = append(discovered, DiscoveredItem{
 			AssetID: targetAssetID,
@@ -605,6 +628,22 @@ func (t *ExtractEndpointLinksTool) Execute(ctx context.Context, argsBytes []byte
 			Path:    c.path,
 			RawHref: c.rawHref,
 		})
+	}
+
+	// Refresh shortest distances, including existing assets reached via a shorter
+	// route. UNION deduplicates (asset,depth); the bound prevents cyclic expansion.
+	if _, err = tx.Exec(ctx, `
+ WITH RECURSIVE reachable(asset_id, depth) AS (
+   SELECT asset_id, 0 FROM run_assets WHERE run_id=$1 AND is_seed
+   UNION
+   SELECT ad.target_asset_id, r.depth+1
+   FROM reachable r JOIN asset_discoveries ad ON ad.source_asset_id=r.asset_id
+   WHERE ad.run_id=$1 AND r.depth < $2
+ ), distances AS (SELECT asset_id, MIN(depth) AS depth FROM reachable GROUP BY asset_id)
+ UPDATE run_assets ra SET depth=d.depth FROM distances d
+ WHERE ra.run_id=$1 AND ra.asset_id=d.asset_id
+ `, t.runID, maxDepth); err != nil {
+		return "", fmt.Errorf("refresh discovery depths: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {

@@ -42,7 +42,6 @@ func getTestDBURL(t *testing.T) string {
 	return url
 }
 
-
 type TestEnv struct {
 	pool        *pgxpool.Pool
 	taskService *service.TaskService
@@ -427,7 +426,7 @@ func TestScenario_StopRun(t *testing.T) {
 		t.Fatalf("expected status stopped after worker exit, got: %+v", finalRun)
 	}
 
-	expectedReason := "user requested stop"
+	expectedReason := "user_requested_stop"
 	if finalRun.FinishReason == nil || *finalRun.FinishReason != expectedReason {
 		t.Fatalf("expected finish_reason '%s', got: %v", expectedReason, finalRun.FinishReason)
 	}
@@ -482,8 +481,8 @@ func TestScenario_RestartInterruptedAndHistory(t *testing.T) {
 		t.Fatalf("insert event: %v", err)
 	}
 
-	// Call MarkInterruptedRuns (simulating server startup)
-	if err := db.MarkInterruptedRuns(ctx, env.pool); err != nil {
+	// Call RecoverActiveRuns (simulating server startup)
+	if _, err := env.runService.RecoverActiveRuns(ctx); err != nil {
 		t.Fatalf("mark interrupted runs: %v", err)
 	}
 
@@ -495,8 +494,8 @@ func TestScenario_RestartInterruptedAndHistory(t *testing.T) {
 	if r.Status != model.RunStatusInterrupted {
 		t.Fatalf("expected status interrupted, got %s", r.Status)
 	}
-	if r.FinishReason == nil || *r.FinishReason != "server restarted" {
-		t.Fatalf("expected finish_reason 'server restarted', got: %v", r.FinishReason)
+	if r.FinishReason == nil || *r.FinishReason != "shutdown" {
+		t.Fatalf("expected finish_reason 'shutdown', got: %v", r.FinishReason)
 	}
 
 	// Verify event sequence: seq 1 = queued, seq 2 = interrupted
@@ -646,8 +645,8 @@ func TestScenario_StopBeforeWorkerRegistration(t *testing.T) {
 	if finalRun.Status != model.RunStatusStopped {
 		t.Fatalf("expected run to reach terminal status stopped, got: %s", finalRun.Status)
 	}
-	if finalRun.FinishReason == nil || *finalRun.FinishReason != "user requested stop" {
-		t.Fatalf("expected finish_reason 'user requested stop', got: %v", finalRun.FinishReason)
+	if finalRun.FinishReason == nil || *finalRun.FinishReason != "user_requested_stop" {
+		t.Fatalf("expected finish_reason 'user_requested_stop', got: %v", finalRun.FinishReason)
 	}
 
 	// Verify the task slot is released by starting another run
@@ -1018,13 +1017,13 @@ func TestScenario_WorkerManagerShutdownSequence(t *testing.T) {
 		t.Fatalf("wait for workers failed: %v", err)
 	}
 
-	// Step 4: Verify the run reached stopped terminal status
+	// Step 4: Process shutdown is distinct from an explicit user stop.
 	finalRun, err := env.runService.Get(ctx, run.ID)
 	if err != nil {
 		t.Fatalf("get run: %v", err)
 	}
-	if finalRun.Status != model.RunStatusStopped {
-		t.Fatalf("expected run to be stopped, got: %s", finalRun.Status)
+	if finalRun.Status != model.RunStatusInterrupted {
+		t.Fatalf("expected run to be interrupted on shutdown, got: %s", finalRun.Status)
 	}
 
 	t.Log("Requirement 5 verified: worker manager orderly shutdown: stop receiving work -> cancel execution -> wait exit -> close")

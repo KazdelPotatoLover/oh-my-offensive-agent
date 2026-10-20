@@ -32,7 +32,7 @@ func (s RunStatus) IsActive() bool {
 func IsAllowedTransition(from, to RunStatus) bool {
 	switch from {
 	case RunStatusQueued:
-		return to == RunStatusRunning || to == RunStatusStopping || to == RunStatusStopped || to == RunStatusInterrupted
+		return to == RunStatusRunning || to == RunStatusStopping || to == RunStatusStopped || to == RunStatusInterrupted || to == RunStatusFailed
 	case RunStatusRunning:
 		return to == RunStatusCompleted || to == RunStatusFailed || to == RunStatusStopping || to == RunStatusInterrupted
 	case RunStatusStopping:
@@ -282,6 +282,8 @@ type RunAsset struct {
 	RunID     uuid.UUID       `json:"run_id"`
 	AssetID   uuid.UUID       `json:"asset_id"`
 	Snapshot  json.RawMessage `json:"snapshot"`
+	IsSeed    bool            `json:"is_seed"`
+	Depth     int             `json:"depth"`
 	CreatedAt time.Time       `json:"created_at"`
 }
 

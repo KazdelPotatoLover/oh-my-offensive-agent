@@ -43,7 +43,7 @@ func (t *SubmitPlanTool) Name() string {
 }
 
 func (t *SubmitPlanTool) Description() string {
-	return "Submit a structured plan consisting of work items, dependencies, and target assets."
+	return "Submit executable work items. HTTP targets MUST use inspect_http_endpoint with input_data.asset_id and asset_ids from list_run_assets; this worker fetches one asset and extracts links. Samples use analyze_sample with input_data.sample_id. aggregate_summary reads existing observations. Never invent work types, URLs, asset IDs, worklist references, or executable pipeline stages."
 }
 
 func (t *SubmitPlanTool) Parameters() json.RawMessage {
@@ -60,8 +60,8 @@ func (t *SubmitPlanTool) Parameters() json.RawMessage {
 						"key": {"type": "string", "description": "Unique stable identifier for the work item (e.g. analyze_home)"},
 						"title": {"type": "string", "description": "Human-readable title"},
 						"objective": {"type": "string", "description": "Detailed goal of this work item"},
-						"work_type": {"type": "string", "description": "Type of work, e.g. analyze_sample or aggregate_summary"},
-						"input_data": {"type": "object", "description": "Parameters for the worker (e.g. sample_id)"},
+						"work_type": {"type": "string", "enum": ["inspect_http_endpoint", "analyze_sample", "inspect_sample_endpoint", "aggregate_summary"], "description": "Exact supported executor type. HTTP assets require inspect_http_endpoint; crawl_page and frontier_reconcile do not exist."},
+						"input_data": {"type": "object", "description": "inspect_http_endpoint: {asset_id: UUID from asset_ids}; analyze_sample: {sample_id: scoped sample key}; aggregate_summary: {}. Dependencies control order only; they do not inject worklist artifacts.", "properties": {"asset_id": {"type": "string"}, "sample_id": {"type": "string"}}},
 						"dependencies": {
 							"type": "array",
 							"items": {"type": "string"},
@@ -78,7 +78,7 @@ func (t *SubmitPlanTool) Parameters() json.RawMessage {
 							"description": "UUIDs of prior observations that triggered this work item"
 						}
 					},
-					"required": ["key", "title", "objective"]
+					"required": ["key", "title", "objective", "work_type"]
 				}
 			}
 		},
@@ -99,6 +99,9 @@ func (t *SubmitPlanTool) Validate(argumentsJSON []byte) error {
 	for _, item := range payload.Items {
 		if item.Key == "" || item.Title == "" || item.Objective == "" {
 			return errors.New("each item must specify non-empty key, title, and objective")
+		}
+		if !model.IsSupportedWorkType(item.WorkType) {
+			return fmt.Errorf("%w: %q", service.ErrUnsupportedWorkType, item.WorkType)
 		}
 	}
 	return nil
@@ -139,9 +142,9 @@ func (t *SubmitPlanTool) Execute(ctx context.Context, argumentsJSON []byte) (str
 
 // SuggestCompletionTool allows the Planner to suggest completing the Run once all work items are done.
 type SuggestCompletionTool struct {
-	runID          uuid.UUID
-	runService     *service.RunService
-	onCompletion   func(summary, conclusion string)
+	runID        uuid.UUID
+	runService   *service.RunService
+	onCompletion func(summary, conclusion string)
 }
 
 func NewSuggestCompletionTool(runID uuid.UUID, runService *service.RunService, onCompletion func(summary, conclusion string)) *SuggestCompletionTool {
@@ -259,7 +262,7 @@ func (t *RecordObservationTool) Parameters() json.RawMessage {
 			"obs_type": {"type": "string", "description": "Type of observation, e.g. http_status, page_title, server_header"},
 			"content": {"type": "string", "description": "Text description of the observation"},
 			"data": {"type": "object", "description": "Structured data extracted from tool output"},
-			"source_tool_call_id": {"type": "string", "description": "The exact call_id or tool_call database UUID representing the underlying evidence"},
+			"source_tool_call_id": {"type": "string", "description": "Copy _execution.source_tool_call_id from a successful get_endpoint/read_sample result. This evidence record UUID is different from asset_id. The exact original call_id is also accepted."},
 			"asset_id": {"type": "string", "description": "Optional UUID of the target asset"}
 		},
 		"required": ["obs_type", "content", "source_tool_call_id"]
