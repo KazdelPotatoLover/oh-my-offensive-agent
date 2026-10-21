@@ -175,11 +175,11 @@ func GenerateProgrammaticSummary(ctx context.Context, runID uuid.UUID, runServic
 				cr.Status, cr.CheckName, cr.CheckVersion, cr.AssetID, cr.Explanation, sourceRef))
 		}
 
-		// Candidate Findings for Human Review
+		// Candidate Findings Snapshot at Closeout
 		if fErr == nil {
-			sb.WriteString(fmt.Sprintf("\n### Candidate Findings (Pending Review) (%d):\n", len(findings)))
+			sb.WriteString(fmt.Sprintf("\n### Candidate Findings Snapshot at Closeout (%d):\n", len(findings)))
 			if len(findings) == 0 {
-				sb.WriteString("  - None recorded.\n")
+				sb.WriteString("  - None recorded at closeout.\n")
 			}
 			for _, f := range findings {
 				srcRef := "none"
@@ -213,7 +213,7 @@ func GenerateProgrammaticSummary(ctx context.Context, runID uuid.UUID, runServic
 		}
 	}
 
-	sb.WriteString("- **Snapshot note**: counts are a snapshot before the terminal cleanup transaction; pending/blocked work is unstarted and cancelled, and running work is interrupted at closeout. Tool call counts are not page counts.\n")
+	sb.WriteString("- **Snapshot note**: counts are a snapshot before the terminal cleanup transaction; pending/blocked work is unstarted and cancelled, and running work is interrupted at closeout. Tool call counts are not page counts. Candidate findings listed above reflect status at closeout; inspect current finding report for latest human reviews.\n")
 
 	return sb.String()
 }

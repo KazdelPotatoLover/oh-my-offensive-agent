@@ -38,11 +38,11 @@ const (
 )
 
 type MockProvider struct {
-	mu           sync.Mutex
-	scenario     MockScenario
-	callCount    int
-	delay        time.Duration
-	onCallHook   func(round int, messages []ChatMessage)
+	mu         sync.Mutex
+	scenario   MockScenario
+	callCount  int
+	delay      time.Duration
+	onCallHook func(round int, messages []ChatMessage)
 }
 
 func NewMockProvider(scenario MockScenario) *MockProvider {
@@ -1324,4 +1324,3 @@ func (m *MockProvider) handleOrchestrationFlow(round int, messages []ChatMessage
 
 	return m.handleNormalFlow(round, messages)
 }
-

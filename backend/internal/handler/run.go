@@ -6,7 +6,9 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"agent-workbench/backend/internal/agent"
 	"agent-workbench/backend/internal/checker"
@@ -451,4 +453,167 @@ func (h *RunHandler) GetFindings(w http.ResponseWriter, r *http.Request) {
 func (h *RunHandler) GetCheckCatalog(w http.ResponseWriter, r *http.Request) {
 	catalog := checker.GetCatalog()
 	respondJSON(w, http.StatusOK, map[string]interface{}{"checks": catalog})
+}
+
+type CreateFindingReviewRequest struct {
+	Status          model.FindingStatus `json:"status"`
+	Comment         string              `json:"comment"`
+	Reviewer        string              `json:"reviewer"`
+	ExpectedVersion *int                `json:"expected_version"`
+	RequestID       *uuid.UUID          `json:"request_id"`
+}
+
+func (h *RunHandler) CreateFindingReview(w http.ResponseWriter, r *http.Request) {
+	runID, err := uuid.Parse(chi.URLParam(r, "runID"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid run ID")
+		return
+	}
+	findingID, err := uuid.Parse(chi.URLParam(r, "findingID"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid finding ID")
+		return
+	}
+
+	// Limit request body size to 32 KiB
+	const maxBodyBytes = 32 * 1024
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+
+	var req CreateFindingReviewRequest
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&req); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			respondError(w, http.StatusRequestEntityTooLarge, "request body exceeds 32KB limit")
+			return
+		}
+		respondError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+		return
+	}
+
+	if req.ExpectedVersion == nil {
+		respondError(w, http.StatusBadRequest, "expected_version is required")
+		return
+	}
+	if *req.ExpectedVersion < 0 {
+		respondError(w, http.StatusBadRequest, "expected_version cannot be negative")
+		return
+	}
+	if req.RequestID == nil || *req.RequestID == uuid.Nil {
+		respondError(w, http.StatusBadRequest, "request_id is required")
+		return
+	}
+	reviewer := strings.TrimSpace(req.Reviewer)
+	if reviewer == "" {
+		respondError(w, http.StatusBadRequest, "reviewer is required")
+		return
+	}
+	if utf8.RuneCountInString(reviewer) > 100 {
+		respondError(w, http.StatusBadRequest, "reviewer name exceeds 100 characters")
+		return
+	}
+	comment := strings.TrimSpace(req.Comment)
+	if comment == "" {
+		respondError(w, http.StatusBadRequest, "comment is required")
+		return
+	}
+	if utf8.RuneCountInString(comment) > 2000 {
+		respondError(w, http.StatusBadRequest, "review comment exceeds 2000 characters")
+		return
+	}
+	if !req.Status.IsValid() {
+		respondError(w, http.StatusBadRequest, "invalid status")
+		return
+	}
+
+	finding, review, replayed, err := h.runService.ReviewFinding(r.Context(), runID, findingID, service.ReviewFindingInput{
+		Status:          req.Status,
+		Comment:         req.Comment,
+		Reviewer:        req.Reviewer,
+		ExpectedVersion: req.ExpectedVersion,
+		RequestID:       *req.RequestID,
+	})
+	if err != nil {
+		if errors.Is(err, service.ErrFindingNotFound) {
+			respondError(w, http.StatusNotFound, "finding not found in run")
+			return
+		}
+		if errors.Is(err, service.ErrFindingMissingVersion) ||
+			errors.Is(err, service.ErrFindingNegativeVersion) ||
+			errors.Is(err, service.ErrFindingMissingRequestID) ||
+			errors.Is(err, service.ErrFindingEmptyReviewer) ||
+			errors.Is(err, service.ErrReviewerTooLong) ||
+			errors.Is(err, service.ErrFindingEmptyComment) ||
+			errors.Is(err, service.ErrFindingCommentTooLong) ||
+			errors.Is(err, service.ErrFindingInvalidStatus) {
+			respondError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if errors.Is(err, service.ErrFindingVersionMismatch) ||
+			errors.Is(err, service.ErrFindingSameStatus) ||
+			errors.Is(err, service.ErrFindingIdempotentConflict) {
+			respondJSON(w, http.StatusConflict, map[string]interface{}{
+				"error": err.Error(),
+			})
+			return
+		}
+		slog.Error("failed to review finding", "error", err, "run_id", runID, "finding_id", findingID)
+		respondError(w, http.StatusInternalServerError, "failed to review finding")
+		return
+	}
+
+	statusCode := http.StatusOK
+	if !replayed {
+		statusCode = http.StatusCreated
+	}
+	respondJSON(w, statusCode, map[string]interface{}{
+		"finding":  finding,
+		"review":   review,
+		"replayed": replayed,
+	})
+}
+
+func (h *RunHandler) ListFindingReviews(w http.ResponseWriter, r *http.Request) {
+	runID, err := uuid.Parse(chi.URLParam(r, "runID"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid run ID")
+		return
+	}
+	findingID, err := uuid.Parse(chi.URLParam(r, "findingID"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid finding ID")
+		return
+	}
+
+	reviews, err := h.runService.ListFindingReviews(r.Context(), runID, findingID)
+	if err != nil {
+		if errors.Is(err, service.ErrFindingNotFound) {
+			respondError(w, http.StatusNotFound, "finding not found in run")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to list finding reviews")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{"reviews": reviews})
+}
+
+func (h *RunHandler) GetFindingReport(w http.ResponseWriter, r *http.Request) {
+	runID, err := uuid.Parse(chi.URLParam(r, "runID"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid run ID")
+		return
+	}
+
+	report, err := h.runService.GetFindingReport(r.Context(), runID)
+	if err != nil {
+		if errors.Is(err, service.ErrNotFound) {
+			respondError(w, http.StatusNotFound, "run not found")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to get finding report")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, report)
 }

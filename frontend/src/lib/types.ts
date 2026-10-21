@@ -329,12 +329,63 @@ export interface CheckResult {
 }
 export interface Finding {
   id: string;
+  run_id: string;
   asset_id: string;
   check_result_id: string;
   title: string;
+  category: string;
   severity: string;
   status: 'pending_review' | 'confirmed' | 'false_positive' | 'ignored';
   description: string;
   remediation: string;
   source_tool_call_id?: string;
+  evidence_ref?: Record<string, unknown>;
+  created_at: string;
+  review_version: number;
+  last_reviewed_at?: string;
+  last_reviewer?: string;
+  last_review_comment?: string;
+}
+
+export interface FindingReview {
+  id: string;
+  finding_id: string;
+  run_id: string;
+  from_status: 'pending_review' | 'confirmed' | 'false_positive' | 'ignored';
+  to_status: 'pending_review' | 'confirmed' | 'false_positive' | 'ignored';
+  from_version: number;
+  to_version: number;
+  reviewer: string;
+  comment: string;
+  request_id: string;
+  created_at: string;
+}
+
+export interface FindingReportSummary {
+  total: number;
+  pending_review: number;
+  confirmed: number;
+  false_positive: number;
+  ignored: number;
+}
+
+export interface FindingReportItem {
+  finding: Finding;
+  check_result: {
+    id: string;
+    check_id: string;
+    check_name: string;
+    check_version: string;
+    status: CheckStatus;
+    explanation: string;
+    source_tool_call_id?: string;
+    evidence_snapshot?: Record<string, unknown>;
+  };
+}
+
+export interface FindingReport {
+  run_id: string;
+  generated_at: string;
+  summary: FindingReportSummary;
+  findings: FindingReportItem[];
 }

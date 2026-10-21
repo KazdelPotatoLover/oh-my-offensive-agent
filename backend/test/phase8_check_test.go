@@ -1047,8 +1047,8 @@ func TestPhase8_ClosedLoop_OrchestrationWithSummary(t *testing.T) {
 	if !strings.Contains(summary, "Deterministic Check Results") {
 		t.Fatalf("expected summary to contain 'Deterministic Check Results', got:\n%s", summary)
 	}
-	if !strings.Contains(summary, "Candidate Findings (Pending Review)") {
-		t.Fatalf("expected summary to contain 'Candidate Findings (Pending Review)', got:\n%s", summary)
+	if !strings.Contains(summary, "Candidate Findings Snapshot at Closeout") {
+		t.Fatalf("expected summary to contain 'Candidate Findings Snapshot at Closeout', got:\n%s", summary)
 	}
 	if !strings.Contains(summary, "Unchecked Assets") {
 		t.Fatalf("expected summary to contain 'Unchecked Assets', got:\n%s", summary)

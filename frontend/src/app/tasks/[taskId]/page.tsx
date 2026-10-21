@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Task, Run } from '@/lib/types';
@@ -19,6 +19,27 @@ export default function TaskDetailPage() {
   const [startingRun, setStartingRun] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [failAtStep, setFailAtStep] = useState<string>('');
+  const [deletingTask, setDeletingTask] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const router = useRouter();
+
+  const handleDeleteTask = async () => {
+    if (!confirm('确定要删除此任务吗？')) return;
+    setDeletingTask(true);
+    setDeleteError(null);
+    try {
+      await api.deleteTask(taskId);
+      router.push('/tasks');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setDeleteError(err.message);
+      } else {
+        setDeleteError('删除任务失败');
+      }
+    } finally {
+      setDeletingTask(false);
+    }
+  };
 
   const loadData = useCallback(async (isInitial = false) => {
     if (isInitial) setLoading(true);
@@ -206,14 +227,31 @@ export default function TaskDetailPage() {
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
           <div className="space-y-2 max-w-3xl">
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
                 {task.name}
               </h1>
               <span className="font-mono text-xs px-2 py-0.5 bg-gray-800 text-gray-400 rounded border border-gray-700">
                 {task.id.slice(0, 8)}
               </span>
+              <button
+                type="button"
+                onClick={handleDeleteTask}
+                disabled={deletingTask || hasActiveRun}
+                className="px-2.5 py-1 bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-800/60 rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                title={hasActiveRun ? '存在活动运行中的任务无法删除' : '删除任务'}
+              >
+                {deletingTask ? '删除中...' : '删除任务'}
+              </button>
             </div>
+            {deleteError && (
+              <div role="alert" className="p-3 bg-red-500/10 border border-red-500/30 text-red-300 rounded-lg text-xs mt-2 flex items-center gap-2">
+                <svg className="w-4 h-4 flex-shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{deleteError}</span>
+              </div>
+            )}
             <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
               {task.objective || (
                 <span className="text-gray-500 italic">No objective provided</span>

@@ -1,6 +1,8 @@
 import {
   CheckResult,
   Finding,
+  FindingReview,
+  FindingReport,
   Task,
   Run,
   RunEvent,
@@ -226,6 +228,36 @@ export const api = {
   async getRunFindings(runId: string): Promise<Finding[]> {
     const data = await request<{ findings: Finding[] }>(`/api/runs/${runId}/findings`);
     return data.findings || [];
+  },
+
+  async getFindingReviews(runId: string, findingId: string): Promise<FindingReview[]> {
+    const data = await request<{ reviews: FindingReview[] }>(`/api/runs/${runId}/findings/${findingId}/reviews`);
+    return data.reviews || [];
+  },
+
+  async reviewFinding(
+    runId: string,
+    findingId: string,
+    input: {
+      status: 'pending_review' | 'confirmed' | 'false_positive' | 'ignored';
+      comment: string;
+      reviewer: string;
+      expected_version: number;
+      request_id: string;
+    }
+  ): Promise<{ finding: Finding; review: FindingReview; replayed: boolean }> {
+    return request<{ finding: Finding; review: FindingReview; replayed: boolean }>(
+      `/api/runs/${runId}/findings/${findingId}/reviews`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      }
+    );
+  },
+
+  async getFindingReport(runId: string): Promise<FindingReport> {
+    return request<FindingReport>(`/api/runs/${runId}/finding-report`);
   },
 
   async getRunObservations(runId: string): Promise<Observation[]> {

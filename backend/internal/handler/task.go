@@ -121,6 +121,10 @@ func (h *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
 			respondError(w, http.StatusConflict, "cannot delete task with active runs")
 			return
 		}
+		if errors.Is(err, service.ErrTaskHasReviewHistory) {
+			respondError(w, http.StatusConflict, "该任务包含人工审核历史，暂不支持删除")
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "failed to delete task")
 		return
 	}

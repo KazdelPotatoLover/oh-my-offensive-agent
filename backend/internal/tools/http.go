@@ -386,10 +386,10 @@ func (t *GetEndpointTool) Execute(ctx context.Context, argumentsJSON []byte) (st
 		StartedAt string `json:"started_at"`
 	}
 	type toolOutput struct {
-		Error     interface{}       `json:"error"`
-		Integrity integrityPayload  `json:"integrity"`
-		Request   requestPayload    `json:"request"`
-		Response  responsePayload   `json:"response"`
+		Error     interface{}      `json:"error"`
+		Integrity integrityPayload `json:"integrity"`
+		Request   requestPayload   `json:"request"`
+		Response  responsePayload  `json:"response"`
 	}
 	outData := toolOutput{
 		Error: nil,

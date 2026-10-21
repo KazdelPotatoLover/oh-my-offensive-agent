@@ -231,12 +231,12 @@ func TestObservation_StrictValidation(t *testing.T) {
 	pr, _ := env.runService.CreatePlannerRound(ctx, run.ID, roundNum, "initial", nil)
 	_, err = env.runService.SubmitPlanWithRound(ctx, run.ID, &pr.ID, []service.PlanItemSpec{
 		{
-			Key:        "check_home",
-			Title:      "Check Home",
-			Objective:  "Inspect home",
-			WorkType:   "analyze_sample",
-			InputData:  map[string]interface{}{"sample_id": "sample_home"},
-			AssetIDs:   []uuid.UUID{homeAsset.ID},
+			Key:       "check_home",
+			Title:     "Check Home",
+			Objective: "Inspect home",
+			WorkType:  "analyze_sample",
+			InputData: map[string]interface{}{"sample_id": "sample_home"},
+			AssetIDs:  []uuid.UUID{homeAsset.ID},
 		},
 	})
 	if err != nil {
@@ -507,10 +507,10 @@ func TestAsset_ScopeEnforcement(t *testing.T) {
 	fakeAssetID := uuid.New()
 	_, err = env.runService.SubmitPlan(ctx, run.ID, []service.PlanItemSpec{
 		{
-			Key:       "bad_item",
-			Title:     "Bad",
-			WorkType:  "analyze_sample",
-			AssetIDs:  []uuid.UUID{fakeAssetID},
+			Key:      "bad_item",
+			Title:    "Bad",
+			WorkType: "analyze_sample",
+			AssetIDs: []uuid.UUID{fakeAssetID},
 		},
 	})
 	if !errors.Is(err, service.ErrAssetOutOfScope) {

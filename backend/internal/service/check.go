@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
+	"unicode/utf8"
 
 	"agent-workbench/backend/internal/checker"
 	"agent-workbench/backend/internal/model"
@@ -16,6 +18,20 @@ import (
 var (
 	ErrRunTerminalCannotWriteChecks = errors.New("cannot record check results: run is stopping or in terminal state")
 	ErrAssetNotInRunScope           = errors.New("target asset is not in run scope")
+
+	// Phase 9 review errors
+	ErrFindingNotFound           = errors.New("finding not found in run scope")
+	ErrFindingVersionMismatch    = errors.New("finding review version mismatch")
+	ErrFindingSameStatus         = errors.New("cannot review to the same status")
+	ErrFindingInvalidStatus      = errors.New("invalid finding review status")
+	ErrFindingEmptyComment       = errors.New("review comment cannot be empty")
+	ErrFindingCommentTooLong     = errors.New("review comment exceeds 2000 characters")
+	ErrFindingEmptyReviewer      = errors.New("reviewer cannot be empty")
+	ErrReviewerTooLong           = errors.New("reviewer name exceeds 100 characters")
+	ErrFindingMissingVersion     = errors.New("expected_version is required")
+	ErrFindingNegativeVersion    = errors.New("expected_version cannot be negative")
+	ErrFindingMissingRequestID   = errors.New("request_id is required")
+	ErrFindingIdempotentConflict = errors.New("idempotency key conflict with different payload")
 )
 
 type CheckResultInput struct {
@@ -161,11 +177,12 @@ func (s *RunService) RecordCheckResults(
 			output.DeduplicatedCount++
 			output.CheckResults = append(output.CheckResults, existingCR)
 
-			// Load associated finding if any
+			// Load associated finding if any, preserving its human review status and version!
 			var existingF model.Finding
 			rowF := tx.QueryRow(ctx, `
 				SELECT id, run_id, check_result_id, asset_id, title, category, severity,
-				       status, description, remediation, source_tool_call_id, evidence_ref, created_at
+				       status, description, remediation, source_tool_call_id, evidence_ref, created_at,
+				       review_version, last_reviewed_at, last_reviewer, last_review_comment
 				FROM findings
 				WHERE check_result_id = $1`, existingCR.ID)
 			if scanErr := rowF.Scan(
@@ -173,6 +190,7 @@ func (s *RunService) RecordCheckResults(
 				&existingF.Title, &existingF.Category, &existingF.Severity, &existingF.Status,
 				&existingF.Description, &existingF.Remediation, &existingF.SourceToolCallID,
 				&existingF.EvidenceRef, &existingF.CreatedAt,
+				&existingF.ReviewVersion, &existingF.LastReviewedAt, &existingF.LastReviewer, &existingF.LastReviewComment,
 			); scanErr == nil {
 				output.Findings = append(output.Findings, existingF)
 			} else if !errors.Is(scanErr, pgx.ErrNoRows) {
@@ -252,16 +270,19 @@ func (s *RunService) RecordCheckResults(
 			err = tx.QueryRow(ctx, `
 				INSERT INTO findings (
 					id, run_id, check_result_id, asset_id, title, category,
-					severity, status, description, remediation, source_tool_call_id, evidence_ref
-				) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'pending_review', $7, $8, $9, $10)
+					severity, status, description, remediation, source_tool_call_id, evidence_ref,
+					review_version
+				) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'pending_review', $7, $8, $9, $10, 0)
 				RETURNING id, run_id, check_result_id, asset_id, title, category,
-				          severity, status, description, remediation, source_tool_call_id, evidence_ref, created_at`,
+				          severity, status, description, remediation, source_tool_call_id, evidence_ref, created_at,
+				          review_version, last_reviewed_at, last_reviewer, last_review_comment`,
 				runID, cr.ID, cr.AssetID, title, cat,
 				sev, in.FindingDescription, in.FindingRemediation, in.SourceToolCallID, evidenceSnap,
 			).Scan(
 				&f.ID, &f.RunID, &f.CheckResultID, &f.AssetID, &f.Title, &f.Category,
 				&f.Severity, &f.Status, &f.Description, &f.Remediation, &f.SourceToolCallID,
 				&f.EvidenceRef, &f.CreatedAt,
+				&f.ReviewVersion, &f.LastReviewedAt, &f.LastReviewer, &f.LastReviewComment,
 			)
 			if err != nil {
 				return nil, fmt.Errorf("insert candidate finding for check %d: %w", i, err)
@@ -390,7 +411,8 @@ func (s *RunService) ListCheckResultsByAttempt(ctx context.Context, attemptID uu
 func (s *RunService) ListFindingsByRun(ctx context.Context, runID uuid.UUID) ([]model.Finding, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, run_id, check_result_id, asset_id, title, category,
-		       severity, status, description, remediation, source_tool_call_id, evidence_ref, created_at
+		       severity, status, description, remediation, source_tool_call_id, evidence_ref, created_at,
+		       review_version, last_reviewed_at, last_reviewer, last_review_comment
 		FROM findings
 		WHERE run_id = $1
 		ORDER BY created_at ASC`, runID)
@@ -406,12 +428,289 @@ func (s *RunService) ListFindingsByRun(ctx context.Context, runID uuid.UUID) ([]
 			&f.ID, &f.RunID, &f.CheckResultID, &f.AssetID, &f.Title, &f.Category,
 			&f.Severity, &f.Status, &f.Description, &f.Remediation, &f.SourceToolCallID,
 			&f.EvidenceRef, &f.CreatedAt,
+			&f.ReviewVersion, &f.LastReviewedAt, &f.LastReviewer, &f.LastReviewComment,
 		); err != nil {
 			return nil, fmt.Errorf("scan finding: %w", err)
 		}
 		findings = append(findings, f)
 	}
 	return findings, rows.Err()
+}
+
+type ReviewFindingInput struct {
+	Status          model.FindingStatus
+	Comment         string
+	Reviewer        string
+	ExpectedVersion *int
+	RequestID       uuid.UUID
+}
+
+// ReviewFinding executes an atomic human review transition on a candidate finding.
+// It enforces row-level locking, expected_version concurrency checks, request_id idempotency,
+// and state transition validations.
+func (s *RunService) ReviewFinding(
+	ctx context.Context,
+	runID, findingID uuid.UUID,
+	input ReviewFindingInput,
+) (*model.Finding, *model.FindingReview, bool, error) {
+	// 1. Parameter Validation
+	if input.ExpectedVersion == nil {
+		return nil, nil, false, ErrFindingMissingVersion
+	}
+	if *input.ExpectedVersion < 0 {
+		return nil, nil, false, ErrFindingNegativeVersion
+	}
+	if input.RequestID == uuid.Nil {
+		return nil, nil, false, ErrFindingMissingRequestID
+	}
+	reviewer := strings.TrimSpace(input.Reviewer)
+	if reviewer == "" {
+		return nil, nil, false, ErrFindingEmptyReviewer
+	}
+	if utf8.RuneCountInString(reviewer) > 100 {
+		return nil, nil, false, ErrReviewerTooLong
+	}
+	comment := strings.TrimSpace(input.Comment)
+	if comment == "" {
+		return nil, nil, false, ErrFindingEmptyComment
+	}
+	if utf8.RuneCountInString(comment) > 2000 {
+		return nil, nil, false, ErrFindingCommentTooLong
+	}
+	if !input.Status.IsValid() {
+		return nil, nil, false, ErrFindingInvalidStatus
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("begin review transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// 2. Lock Finding row and verify scope (must belong to runID)
+	var f model.Finding
+	err = tx.QueryRow(ctx, `
+		SELECT id, run_id, check_result_id, asset_id, title, category, severity,
+		       status, description, remediation, source_tool_call_id, evidence_ref, created_at,
+		       review_version, last_reviewed_at, last_reviewer, last_review_comment
+		FROM findings
+		WHERE id = $1 AND run_id = $2
+		FOR UPDATE`, findingID, runID).Scan(
+		&f.ID, &f.RunID, &f.CheckResultID, &f.AssetID, &f.Title, &f.Category,
+		&f.Severity, &f.Status, &f.Description, &f.Remediation, &f.SourceToolCallID,
+		&f.EvidenceRef, &f.CreatedAt,
+		&f.ReviewVersion, &f.LastReviewedAt, &f.LastReviewer, &f.LastReviewComment,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil, false, ErrFindingNotFound
+		}
+		return nil, nil, false, fmt.Errorf("lock finding: %w", err)
+	}
+
+	// 3. Idempotency Check prior to version check:
+	// "在版本检查前查询 request_id：相同请求内容重试返回原审核记录，不再次写入；同 request_id 不同内容返回 409。
+	// 比较规范化后的业务请求内容，不受后来状态变化影响。即使之后发生新审核，旧请求重试也不再执行转换。"
+	var existingReview model.FindingReview
+	err = tx.QueryRow(ctx, `
+		SELECT id, finding_id, run_id, from_status, to_status, from_version, to_version,
+		       reviewer, comment, request_id, created_at
+		FROM finding_reviews
+		WHERE finding_id = $1 AND request_id = $2`, findingID, input.RequestID).Scan(
+		&existingReview.ID, &existingReview.FindingID, &existingReview.RunID,
+		&existingReview.FromStatus, &existingReview.ToStatus, &existingReview.FromVersion,
+		&existingReview.ToVersion, &existingReview.Reviewer, &existingReview.Comment,
+		&existingReview.RequestID, &existingReview.CreatedAt,
+	)
+	if err == nil {
+		// Found existing review with this request_id
+		// Content comparison includes expected_version matching original from_version:
+		if existingReview.ToStatus == input.Status &&
+			existingReview.Reviewer == reviewer &&
+			existingReview.Comment == comment &&
+			existingReview.FromVersion == *input.ExpectedVersion {
+			// Idempotent retry: return current finding state and original review, no writes
+			_ = tx.Rollback(ctx)
+			return &f, &existingReview, true, nil
+		}
+		// Same request_id but different content (different status, reviewer, comment, or expected_version): conflict
+		return nil, nil, false, ErrFindingIdempotentConflict
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil, false, fmt.Errorf("check request_id: %w", err)
+	}
+
+	// 4. Version Check
+	if f.ReviewVersion != *input.ExpectedVersion {
+		return nil, nil, false, fmt.Errorf("%w: expected %d, current %d",
+			ErrFindingVersionMismatch, *input.ExpectedVersion, f.ReviewVersion)
+	}
+
+	// 5. State Transition Check: disallow same status
+	if f.Status == input.Status {
+		return nil, nil, false, fmt.Errorf("%w: finding is already in status %s", ErrFindingSameStatus, f.Status)
+	}
+
+	// 6. Perform review transition
+	fromStatus := f.Status
+	toStatus := input.Status
+	fromVersion := f.ReviewVersion
+	toVersion := fromVersion + 1
+
+	var review model.FindingReview
+	err = tx.QueryRow(ctx, `
+		INSERT INTO finding_reviews (
+			id, finding_id, run_id, from_status, to_status, from_version, to_version,
+			reviewer, comment, request_id, created_at
+		) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+		RETURNING id, finding_id, run_id, from_status, to_status, from_version, to_version,
+		          reviewer, comment, request_id, created_at`,
+		findingID, runID, fromStatus, toStatus, fromVersion, toVersion,
+		reviewer, comment, input.RequestID,
+	).Scan(
+		&review.ID, &review.FindingID, &review.RunID, &review.FromStatus, &review.ToStatus,
+		&review.FromVersion, &review.ToVersion, &review.Reviewer, &review.Comment,
+		&review.RequestID, &review.CreatedAt,
+	)
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("insert finding review: %w", err)
+	}
+
+	// 7. Update finding row
+	now := review.CreatedAt
+	err = tx.QueryRow(ctx, `
+		UPDATE findings
+		SET status = $1,
+		    review_version = $2,
+		    last_reviewed_at = $3,
+		    last_reviewer = $4,
+		    last_review_comment = $5
+		WHERE id = $6
+		RETURNING id, run_id, check_result_id, asset_id, title, category, severity,
+		          status, description, remediation, source_tool_call_id, evidence_ref, created_at,
+		          review_version, last_reviewed_at, last_reviewer, last_review_comment`,
+		toStatus, toVersion, now, reviewer, comment, findingID,
+	).Scan(
+		&f.ID, &f.RunID, &f.CheckResultID, &f.AssetID, &f.Title, &f.Category,
+		&f.Severity, &f.Status, &f.Description, &f.Remediation, &f.SourceToolCallID,
+		&f.EvidenceRef, &f.CreatedAt,
+		&f.ReviewVersion, &f.LastReviewedAt, &f.LastReviewer, &f.LastReviewComment,
+	)
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("update finding: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, nil, false, fmt.Errorf("commit review transaction: %w", err)
+	}
+
+	return &f, &review, false, nil
+}
+
+// ListFindingReviews retrieves the audit review history for a finding ordered by version.
+func (s *RunService) ListFindingReviews(ctx context.Context, runID, findingID uuid.UUID) ([]model.FindingReview, error) {
+	// First check finding existence and scope
+	var exists bool
+	err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM findings WHERE id = $1 AND run_id = $2)`, findingID, runID).Scan(&exists)
+	if err != nil {
+		return nil, fmt.Errorf("check finding: %w", err)
+	}
+	if !exists {
+		return nil, ErrFindingNotFound
+	}
+
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, finding_id, run_id, from_status, to_status, from_version, to_version,
+		       reviewer, comment, request_id, created_at
+		FROM finding_reviews
+		WHERE finding_id = $1 AND run_id = $2
+		ORDER BY to_version ASC`, findingID, runID)
+	if err != nil {
+		return nil, fmt.Errorf("list finding reviews: %w", err)
+	}
+	defer rows.Close()
+
+	reviews := make([]model.FindingReview, 0)
+	for rows.Next() {
+		var rev model.FindingReview
+		if err := rows.Scan(
+			&rev.ID, &rev.FindingID, &rev.RunID, &rev.FromStatus, &rev.ToStatus,
+			&rev.FromVersion, &rev.ToVersion, &rev.Reviewer, &rev.Comment,
+			&rev.RequestID, &rev.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan finding review: %w", err)
+		}
+		reviews = append(reviews, rev)
+	}
+	return reviews, rows.Err()
+}
+
+// GetFindingReport builds a live finding review report in an atomic snapshot query.
+func (s *RunService) GetFindingReport(ctx context.Context, runID uuid.UUID) (*model.FindingReport, error) {
+	var runExists bool
+	if err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM runs WHERE id = $1)`, runID).Scan(&runExists); err != nil {
+		return nil, fmt.Errorf("check run: %w", err)
+	}
+	if !runExists {
+		return nil, ErrNotFound
+	}
+
+	rows, err := s.pool.Query(ctx, `
+		SELECT f.id, f.run_id, f.check_result_id, f.asset_id, f.title, f.category,
+		       f.severity, f.status, f.description, f.remediation, f.source_tool_call_id,
+		       f.evidence_ref, f.created_at, f.review_version, f.last_reviewed_at,
+		       f.last_reviewer, f.last_review_comment,
+		       cr.id, cr.check_id, cr.check_name, cr.check_version, cr.status,
+		       cr.explanation, cr.source_tool_call_id, cr.evidence_snapshot
+		FROM findings f
+		JOIN check_results cr ON cr.id = f.check_result_id
+		WHERE f.run_id = $1
+		ORDER BY f.created_at ASC`, runID)
+	if err != nil {
+		return nil, fmt.Errorf("query finding report: %w", err)
+	}
+	defer rows.Close()
+
+	report := &model.FindingReport{
+		RunID:       runID,
+		GeneratedAt: time.Now().UTC(),
+		Summary:     model.FindingReportSummary{},
+		Findings:    make([]model.FindingReportItem, 0),
+	}
+
+	for rows.Next() {
+		var item model.FindingReportItem
+		if err := rows.Scan(
+			&item.Finding.ID, &item.Finding.RunID, &item.Finding.CheckResultID, &item.Finding.AssetID,
+			&item.Finding.Title, &item.Finding.Category, &item.Finding.Severity, &item.Finding.Status,
+			&item.Finding.Description, &item.Finding.Remediation, &item.Finding.SourceToolCallID,
+			&item.Finding.EvidenceRef, &item.Finding.CreatedAt, &item.Finding.ReviewVersion,
+			&item.Finding.LastReviewedAt, &item.Finding.LastReviewer, &item.Finding.LastReviewComment,
+			&item.CheckResult.ID, &item.CheckResult.CheckID, &item.CheckResult.CheckName,
+			&item.CheckResult.CheckVersion, &item.CheckResult.Status, &item.CheckResult.Explanation,
+			&item.CheckResult.SourceToolCallID, &item.CheckResult.EvidenceSnapshot,
+		); err != nil {
+			return nil, fmt.Errorf("scan finding report item: %w", err)
+		}
+
+		report.Summary.Total++
+		switch item.Finding.Status {
+		case model.FindingStatusPendingReview:
+			report.Summary.PendingReview++
+		case model.FindingStatusConfirmed:
+			report.Summary.Confirmed++
+		case model.FindingStatusFalsePositive:
+			report.Summary.FalsePositive++
+		case model.FindingStatusIgnored:
+			report.Summary.Ignored++
+		}
+
+		report.Findings = append(report.Findings, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return report, nil
 }
 
 // Recompute from the stored response rather than accepting caller-authored

@@ -96,6 +96,9 @@ func setupTestEnv(t *testing.T) *TestEnv {
 		r.Get("/runs/{runID}/events", runHandler.GetEvents)
 		r.Get("/runs/{runID}/checks", runHandler.GetCheckResults)
 		r.Get("/runs/{runID}/findings", runHandler.GetFindings)
+		r.Post("/runs/{runID}/findings/{findingID}/reviews", runHandler.CreateFindingReview)
+		r.Get("/runs/{runID}/findings/{findingID}/reviews", runHandler.ListFindingReviews)
+		r.Get("/runs/{runID}/finding-report", runHandler.GetFindingReport)
 		r.Get("/checks/catalog", runHandler.GetCheckCatalog)
 	})
 
