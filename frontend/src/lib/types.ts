@@ -5,7 +5,8 @@ export type RunStatus =
   | 'completed'
   | 'failed'
   | 'stopped'
-  | 'interrupted';
+  | 'interrupted'
+  | 'paused';
 
 export interface Task {
   id: string;
@@ -18,6 +19,7 @@ export interface Task {
 }
 
 export interface Run {
+  current_epoch: number;
   id: string;
   task_id: string;
   idempotency_key?: string;
@@ -345,6 +347,71 @@ export interface Finding {
   last_reviewed_at?: string;
   last_reviewer?: string;
   last_review_comment?: string;
+  source_kind?: 'check_rule' | 'speculative' | 'empirical';
+  verification_state?: 'unverified' | 'verified' | 'retested';
+  retest_verdict?: string;
+  retest_notes?: string;
+  retest_at?: string;
+}
+
+export interface Goal extends ExplorationNode {
+  kind: 'goal';
+  state: 'open' | 'met' | 'blocked' | 'abandoned';
+  completed_at?: string;
+}
+
+export interface ExplorationNode {
+  id: string;
+  run_id: string;
+  kind: 'begin' | 'goal' | 'intent' | 'fact' | 'finding' | 'hint' | 'digest';
+  payload: Record<string, any>;
+  priority: number;
+  state: string;
+  origin?: string;
+  owner?: string;
+  work_item_id?: string;
+  finding_id?: string;
+  epoch_number: number;
+  created_at: string;
+}
+
+export interface ExecutionEpoch {
+  id: string;
+  run_id: string;
+  epoch_number: number;
+  status: string;
+  started_at: string;
+  finished_at?: string;
+  finish_reason?: string;
+  summary?: string;
+  created_at: string;
+}
+
+export interface BudgetGrant {
+  id: string;
+  run_id: string;
+  epoch_number: number;
+  granted_by: string;
+  additional_model_calls: number;
+  additional_tool_calls: number;
+  additional_seconds: number;
+  reason: string;
+  idempotency_key?: string;
+  created_at: string;
+}
+
+export interface FindingRetest {
+  id: string;
+  finding_id: string;
+  run_id: string;
+  status: string;
+  verdict?: 'still_reproducible' | 'fixed' | 'inconclusive';
+  notes: string;
+  evidence: string;
+  summary: string;
+  session_id?: string;
+  created_at: string;
+  finished_at?: string;
 }
 
 export interface FindingReview {
@@ -368,6 +435,23 @@ export interface FindingReportSummary {
   false_positive: number;
   ignored: number;
 }
+
+export interface EffectiveBudget {
+  context_window_bytes?: number;
+  max_model_calls: number;
+  max_tool_calls: number;
+  run_timeout_seconds: number;
+  model_timeout_seconds?: number;
+  tool_timeout_seconds?: number;
+  max_planner_rounds?: number;
+  max_work_items?: number;
+  worker_max_model_calls?: number;
+  worker_max_tool_calls?: number;
+  worker_timeout_seconds?: number;
+  epoch_number?: number;
+}
+
+export type BudgetConfig = EffectiveBudget;
 
 export interface FindingReportItem {
   finding: Finding;

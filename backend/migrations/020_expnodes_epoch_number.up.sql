@@ -1,0 +1,1 @@
+ALTER TABLE exploration_nodes ADD COLUMN IF NOT EXISTS epoch_number INT NOT NULL DEFAULT 1;

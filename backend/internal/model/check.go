@@ -82,6 +82,25 @@ type Finding struct {
 	LastReviewedAt    *time.Time      `json:"last_reviewed_at,omitempty"`
 	LastReviewer      *string         `json:"last_reviewer,omitempty"`
 	LastReviewComment *string         `json:"last_review_comment,omitempty"`
+	SourceKind        string          `json:"source_kind"`        // 'check_rule', 'speculative', 'empirical'
+	VerificationState string          `json:"verification_state"` // 'unverified', 'verified', 'retested'
+	RetestVerdict     *string         `json:"retest_verdict,omitempty"`
+	RetestNotes       *string         `json:"retest_notes,omitempty"`
+	RetestAt          *time.Time      `json:"retest_at,omitempty"`
+}
+
+type FindingRetest struct {
+	ID         uuid.UUID  `json:"id"`
+	FindingID  uuid.UUID  `json:"finding_id"`
+	RunID      uuid.UUID  `json:"run_id"`
+	Status     string     `json:"status"` // 'running', 'completed', 'failed', 'stopped'
+	Verdict    *string    `json:"verdict,omitempty"` // 'still_reproducible', 'fixed', 'inconclusive'
+	Notes      string     `json:"notes"`
+	Evidence   string     `json:"evidence"`
+	Summary    string     `json:"summary"`
+	SessionID  *uuid.UUID `json:"session_id,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
+	FinishedAt *time.Time `json:"finished_at,omitempty"`
 }
 
 type FindingReview struct {

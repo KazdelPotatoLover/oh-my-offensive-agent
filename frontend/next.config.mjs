@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   async rewrites() {
     const apiUrl =
       process.env.INTERNAL_API_URL ||

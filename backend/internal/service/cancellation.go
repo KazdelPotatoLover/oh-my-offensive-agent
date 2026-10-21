@@ -22,11 +22,15 @@ import (
 //     updates finish_reason, final_output (if provided), and finished_at.
 //  4. Closes all unfinished children (work_items -> cancelled, attempts -> stopped, sessions -> stopped,
 //     calls -> interrupted, planner_rounds -> stopped).
-func (s *RunService) FinalizeRunWrapup(ctx context.Context, runID uuid.UUID, cause model.TerminationCause, finalOutput *string) error {
-	return s.finalizeRunWrapup(ctx, runID, cause, finalOutput, false)
+func (s *RunService) FinalizeRunWrapupWithEpoch(ctx context.Context, runID uuid.UUID, cause model.TerminationCause, finalOutput *string, expectedEpoch int) error {
+	return s.finalizeRunWrapup(ctx, runID, cause, finalOutput, false, expectedEpoch)
 }
 
-func (s *RunService) finalizeRunWrapup(ctx context.Context, runID uuid.UUID, cause model.TerminationCause, finalOutput *string, rejectTerminal bool) error {
+func (s *RunService) FinalizeRunWrapup(ctx context.Context, runID uuid.UUID, cause model.TerminationCause, finalOutput *string) error {
+	return s.finalizeRunWrapup(ctx, runID, cause, finalOutput, false, 0)
+}
+
+func (s *RunService) finalizeRunWrapup(ctx context.Context, runID uuid.UUID, cause model.TerminationCause, finalOutput *string, rejectTerminal bool, expectedEpoch int) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -35,16 +39,44 @@ func (s *RunService) finalizeRunWrapup(ctx context.Context, runID uuid.UUID, cau
 
 	var currentStatus model.RunStatus
 	var currentReason *string
-	if err = tx.QueryRow(ctx, `SELECT status, finish_reason FROM runs WHERE id=$1 FOR UPDATE`, runID).Scan(&currentStatus, &currentReason); err != nil {
+	var currentEpoch int
+	if err = tx.QueryRow(ctx, `SELECT status, finish_reason, current_epoch FROM runs WHERE id=$1 FOR UPDATE`, runID).Scan(&currentStatus, &currentReason, &currentEpoch); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		}
 		return err
 	}
 
+	if expectedEpoch > 0 && expectedEpoch != currentEpoch {
+		return fmt.Errorf("%w: cannot finalize run from stale epoch %d (current is %d)", ErrStaleEpoch, expectedEpoch, currentEpoch)
+	}
+
 	reasonStr := string(cause)
 	if reasonStr == "" {
 		reasonStr = string(model.CauseUserStop)
+	}
+
+	// Persist epoch termination as part of the same fenced transaction.
+	epochStatus, epochReason := cause.TargetRunStatus(), reasonStr
+	if currentStatus.IsTerminal() {
+		epochStatus = currentStatus
+		if currentReason != nil {
+			epochReason = *currentReason
+		}
+	}
+	if currentStatus == model.RunStatusStopping {
+		epochStatus = model.RunStatusStopped
+		epochReason = string(model.CauseUserStop)
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO execution_epochs(run_id,epoch_number,status,started_at)
+		SELECT id,current_epoch,'running',COALESCE(started_at,now()) FROM runs WHERE id=$1
+		ON CONFLICT(run_id,epoch_number) DO NOTHING`, runID); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `UPDATE execution_epochs SET status=CASE WHEN status='running' THEN $1 ELSE status END,
+		finished_at=COALESCE(finished_at,(SELECT finished_at FROM runs WHERE id=$4),now()),finish_reason=COALESCE(finish_reason,$2),summary=COALESCE(summary,$3)
+		WHERE run_id=$4 AND epoch_number=$5`, string(epochStatus), epochReason, finalOutput, runID, currentEpoch); err != nil {
+		return err
 	}
 
 	// Helper for cleaning up children
@@ -71,13 +103,13 @@ func (s *RunService) finalizeRunWrapup(ctx context.Context, runID uuid.UUID, cau
 		if _, err := tx.Exec(ctx, `UPDATE attempts SET status=$1,finish_reason=$2,finished_at=now() WHERE status='running' AND work_item_id IN (SELECT id FROM work_items WHERE run_id=$3)`, childStatus, childReason, runID); err != nil {
 			return fmt.Errorf("cleanup attempts: %w", err)
 		}
-		if _, err := tx.Exec(ctx, `UPDATE agent_sessions SET status=$1,finish_reason=$2,updated_at=now() WHERE run_id=$3 AND status='running'`, childStatus, childReason, runID); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE agent_sessions SET status=$1,finish_reason=$2,updated_at=now() WHERE run_id=$3 AND status='running' AND role!='verifier'`, childStatus, childReason, runID); err != nil {
 			return fmt.Errorf("cleanup agent_sessions: %w", err)
 		}
-		if _, err := tx.Exec(ctx, `UPDATE model_calls SET status='interrupted',error_message=$1,finished_at=now() WHERE run_id=$2 AND status='started'`, childReason, runID); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE model_calls SET status='interrupted',error_message=$1,finished_at=now() WHERE run_id=$2 AND status='started' AND (session_id IS NULL OR session_id IN (SELECT id FROM agent_sessions WHERE role!='verifier'))`, childReason, runID); err != nil {
 			return fmt.Errorf("cleanup model_calls: %w", err)
 		}
-		if _, err := tx.Exec(ctx, `UPDATE agent_tool_calls SET status='interrupted',error_message=$1,finished_at=now() WHERE run_id=$2 AND status IN ('pending','running')`, childReason, runID); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE agent_tool_calls SET status='interrupted',error_message=$1,finished_at=now() WHERE run_id=$2 AND status IN ('pending','running') AND (session_id IS NULL OR session_id IN (SELECT id FROM agent_sessions WHERE role!='verifier'))`, childReason, runID); err != nil {
 			return fmt.Errorf("cleanup agent_tool_calls: %w", err)
 		}
 		return nil
@@ -218,6 +250,19 @@ func (s *RunService) FinalizeCancelledRun(ctx context.Context, runID uuid.UUID, 
 
 // RecoverActiveRuns recovers any runs left in active states across process restarts.
 func (s *RunService) RecoverActiveRuns(ctx context.Context) ([]uuid.UUID, error) {
+	// Independent verifier sessions are also processes lost by a server restart,
+	// even when their original scan Run was already terminal.
+	if _, err := s.pool.Exec(ctx, `WITH stopped AS (UPDATE finding_retests SET status='stopped',summary='interrupted_by_restart',finished_at=now() WHERE status='running' RETURNING session_id)
+		UPDATE agent_sessions SET status='interrupted',finish_reason='interrupted_by_restart',updated_at=now() WHERE id IN (SELECT session_id FROM stopped) AND status='running'`); err != nil {
+		return nil, err
+	}
+	if _, err := s.pool.Exec(ctx, `UPDATE model_calls SET status='interrupted',error_message='interrupted_by_restart',finished_at=now() WHERE status='started' AND session_id IN (SELECT id FROM agent_sessions WHERE role='verifier' AND status='interrupted')`); err != nil {
+		return nil, err
+	}
+	if _, err := s.pool.Exec(ctx, `UPDATE agent_tool_calls SET status='interrupted',error_message='interrupted_by_restart',finished_at=now() WHERE status IN ('pending','running') AND session_id IN (SELECT id FROM agent_sessions WHERE role='verifier' AND status='interrupted')`); err != nil {
+		return nil, err
+	}
+
 	rows, err := s.pool.Query(ctx, `SELECT id, status FROM runs WHERE status IN ('queued', 'running', 'stopping')`)
 	if err != nil {
 		return nil, err

@@ -11,6 +11,7 @@ export default function AssetDetailPage() {
   const params = useParams();
   const assetId = params?.assetId as string;
 
+  const [relations, setRelations] = useState<{id:string;source_asset_id:string;target_asset_id:string;relation_type:string}[]>([]);
   const [data, setData] = useState<AssetDetailsResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,8 +23,8 @@ export default function AssetDetailPage() {
     async function loadDetails() {
       try {
         setLoading(true);
-        const res = await api.getAssetDetails(assetId);
-        setData(res);
+        const [res, relationData] = await Promise.all([api.getAssetDetails(assetId), api.getAssetRelations(assetId)]);
+        setData(res); setRelations(relationData);
       } catch (err: any) {
         setError(err.message || 'Failed to load asset details');
       } finally {
@@ -71,6 +72,8 @@ export default function AssetDetailPage() {
 
   return (
     <div className="space-y-8">
+      {relations.length > 0 && <section className="p-4 rounded-xl border border-gray-800 bg-gray-900/40"><h2 className="text-sm text-indigo-300 mb-2">资产关系</h2><ul className="space-y-2 text-xs">{relations.map(rel => { const related = rel.source_asset_id === assetId ? rel.target_asset_id : rel.source_asset_id; return <li key={rel.id} className="text-gray-400">{rel.relation_type} → <Link className="text-indigo-300 underline" href={`/assets/${related}`}>{related}</Link></li>; })}</ul></section>}
+
       {/* Navigation */}
       <div>
         <Link

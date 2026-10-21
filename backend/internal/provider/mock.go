@@ -418,6 +418,13 @@ func extractUUIDForAsset(text, key string) string {
 }
 
 func extractAssetIDFromPrompt(text string) string {
+	if idx := strings.Index(text, "Asset ID: "); idx != -1 {
+		rest := text[idx+len("Asset ID: "):]
+		fields := strings.Fields(rest)
+		if len(fields) > 0 {
+			return strings.Trim(fields[0], " \r\n\t,;\"'")
+		}
+	}
 	idx := strings.Index(text, `"asset_id":`)
 	if idx != -1 {
 		rest := text[idx+len(`"asset_id":`):]
@@ -589,6 +596,29 @@ func (m *MockProvider) handleOrchestrationFlow(round int, messages []ChatMessage
 	fullPrompt := ""
 	for _, msg := range messages {
 		fullPrompt += msg.Content + "\n"
+	}
+
+	// 0. Independent Security Verifier flow for finding retests
+	if strings.Contains(fullPrompt, "Independent Security Verifier") && m.hasTool(tools, "get_endpoint") {
+		assetID := extractAssetIDFromPrompt(fullPrompt)
+		lastMsg := messages[len(messages)-1]
+		if lastMsg.Role != RoleTool {
+			callID := "call_retest_endpoint"
+			return &ModelResponse{
+				ToolCalls: []ToolCall{
+					{
+						ID:       callID,
+						Type:     "function",
+						Function: FunctionCall{Name: "get_endpoint", Arguments: fmt.Sprintf(`{"asset_id":"%s"}`, assetID)},
+					},
+				},
+				FinishReason: "tool_calls",
+				Usage:        &ModelUsage{PromptTokens: 80, CompletionTokens: 20, TotalTokens: 100},
+				RequestID:    fmt.Sprintf("mock-retest-%d", round),
+			}, nil
+		}
+		return &ModelResponse{Content: "Target response collected. The server must evaluate the stored verification conditions; this text is not a verdict.", FinishReason: "stop", RequestID: fmt.Sprintf("mock-retest-stop-%d", round)}, nil
+
 	}
 
 	// 1a. Worker inspect_http_endpoint flow
@@ -1101,6 +1131,17 @@ func (m *MockProvider) handleOrchestrationFlow(round int, messages []ChatMessage
 				},
 				FinishReason: "tool_calls",
 				Usage:        &ModelUsage{PromptTokens: 120, CompletionTokens: 40, TotalTokens: 160},
+				RequestID:    fmt.Sprintf("mock-planner-round-%d", round),
+			}, nil
+		}
+
+		// If there are still active or pending work items, do not suggest completion.
+		// Instead, acknowledge progress and let workers continue.
+		if !strings.Contains(fullPrompt, "pending_or_running=0") && (strings.Contains(fullPrompt, "pending_or_running=") || strings.Contains(fullPrompt, "status: running") || strings.Contains(fullPrompt, "status: pending")) {
+			return &ModelResponse{
+				Content:      "Work items are currently in progress. Continuing to monitor execution.",
+				FinishReason: "stop",
+				Usage:        &ModelUsage{PromptTokens: 80, CompletionTokens: 20, TotalTokens: 100},
 				RequestID:    fmt.Sprintf("mock-planner-round-%d", round),
 			}, nil
 		}

@@ -1,0 +1,13 @@
+ALTER TABLE work_control_messages DROP CONSTRAINT control_work_scope;
+ALTER TABLE context_checkpoints DROP CONSTRAINT checkpoint_session_scope;
+ALTER TABLE artifacts DROP CONSTRAINT artifact_call_scope,DROP CONSTRAINT artifact_session_scope,DROP CONSTRAINT artifact_work_scope;
+ALTER TABLE exploration_nodes DROP CONSTRAINT exploration_finding_scope,DROP CONSTRAINT exploration_work_scope;
+ALTER TABLE exploration_anchors DROP CONSTRAINT exploration_anchor_asset_scope,DROP CONSTRAINT exploration_anchor_node_scope;
+ALTER TABLE exploration_edges DROP CONSTRAINT exploration_edge_target_scope,DROP CONSTRAINT exploration_edge_source_scope;
+ALTER TABLE findings DROP CONSTRAINT findings_run_identity;
+ALTER TABLE agent_tool_calls DROP CONSTRAINT agent_tool_calls_run_identity;
+ALTER TABLE agent_sessions DROP CONSTRAINT agent_sessions_run_identity;
+ALTER TABLE work_items DROP CONSTRAINT work_items_run_identity;
+ALTER TABLE exploration_nodes DROP CONSTRAINT exploration_nodes_run_identity;
+DROP INDEX exploration_fact_identity;
+ALTER TABLE exploration_nodes DROP COLUMN fact_fingerprint;

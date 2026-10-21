@@ -22,8 +22,11 @@ var (
 	ErrWorkItemConflict         = errors.New("work item key conflict with differing definition")
 	ErrAssetOutOfScope          = errors.New("asset is outside run or work item scope")
 	ErrAssetSampleMismatch      = errors.New("asset and sample_id mismatch")
-	ErrUnsupportedWorkType      = errors.New("unsupported work_type; supported: inspect_http_endpoint, analyze_sample, inspect_sample_endpoint, aggregate_summary, run_security_check")
+	ErrUnsupportedWorkType      = errors.New("unsupported work_type; supported: inspect_http_endpoint, analyze_sample, inspect_sample_endpoint, aggregate_summary, run_security_check, intent")
 	ErrUnknownCheckID           = errors.New("unknown check_id: must be a registered check in catalog")
+	ErrInvalidWorkItemState     = errors.New("invalid work item state for continuation/retry")
+	ErrAttemptConflict          = errors.New("expected attempt conflict")
+	ErrRunNotRunning            = errors.New("run is not running")
 )
 
 // --- Sessions ---
@@ -43,8 +46,8 @@ func (s *RunService) CreateSession(ctx context.Context, runID uuid.UUID, role st
 	}
 	var sess model.AgentSession
 	err = tx.QueryRow(ctx,
-		`INSERT INTO agent_sessions (id, run_id, role, round, work_item_id, attempt_id, status, input_snapshot)
-		 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'running', $6)
+		`INSERT INTO agent_sessions (id, run_id, role, round, work_item_id, attempt_id, status, input_snapshot, epoch_number)
+		 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'running', $6, COALESCE((SELECT current_epoch FROM runs WHERE id = $1), 1))
 		 RETURNING id, run_id, role, round, work_item_id, attempt_id, status, input_snapshot, finish_reason, created_at, updated_at`,
 		runID, role, round, workItemID, attemptID, inputSnapshot).Scan(
 		&sess.ID, &sess.RunID, &sess.Role, &sess.Round, &sess.WorkItemID, &sess.AttemptID,
@@ -129,7 +132,7 @@ func (s *RunService) InsertAgentMessageWithPayload(ctx context.Context, runID uu
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback(ctx)
-	if err = lockRunAdmission(ctx, tx, runID); err != nil {
+	if err = lockSessionAdmission(ctx, tx, runID, sessionID, true); err != nil {
 		return nil, err
 	}
 
@@ -238,6 +241,110 @@ func (s *RunService) LoadSessionConversation(ctx context.Context, sessionID uuid
 	return messages, nil
 }
 
+// LoadWorkItemConversation loads the continuous conversation across all historical attempts
+// of a stable work item. Protocol closures are synthesized for any unfulfilled tool calls
+// from prior exhausted/interrupted attempts to preserve Chat Completions and Responses invariants.
+func (s *RunService) LoadWorkItemConversation(ctx context.Context, workItemID uuid.UUID) ([]provider.ChatMessage, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT am.id, am.run_id, am.session_id, am.seq, am.role, am.content, am.tool_call_id, am.tool_calls, am.provider_payload, am.created_at
+		 FROM agent_messages am
+		 JOIN agent_sessions s ON am.session_id = s.id
+		 WHERE s.work_item_id = $1
+		 ORDER BY am.created_at ASC, am.seq ASC`, workItemID)
+	if err != nil {
+		return nil, fmt.Errorf("query work_item messages: %w", err)
+	}
+	defer rows.Close()
+
+	var records []model.AgentMessage
+	for rows.Next() {
+		var m model.AgentMessage
+		if err := rows.Scan(&m.ID, &m.RunID, &m.SessionID, &m.Seq, &m.Role, &m.Content, &m.ToolCallID, &m.ToolCalls, &m.ProviderPayload, &m.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan work_item message: %w", err)
+		}
+		records = append(records, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read work_item messages: %w", err)
+	}
+
+	messages := make([]provider.ChatMessage, 0, len(records))
+	var pendingToolCalls []provider.ToolCall
+	var pendingSessionID *uuid.UUID
+	var restoreErr error
+	flushPending := func() {
+		for _, tc := range pendingToolCalls {
+			content := `{"status":"unexecuted","reason":"not_admitted"}`
+			var id uuid.UUID
+			var status, output string
+			err := s.pool.QueryRow(ctx, `SELECT id,status,COALESCE(output,'') FROM agent_tool_calls WHERE session_id=$1 AND call_id=$2`, pendingSessionID, tc.ID).Scan(&id, &status, &output)
+			if err != nil && err != pgx.ErrNoRows {
+				restoreErr = err
+			}
+			if err == nil {
+				state := "outcome_unknown"
+				if status == "success" || status == "failed" || status == "rejected" {
+					state = status
+				}
+				preview := output
+				if len(preview) > 4096 {
+					preview = string([]rune(preview)[:min(1000, len([]rune(preview)))])
+				}
+				recovered, _ := json.Marshal(map[string]any{"status": state, "persisted_status": status, "recovered_result": true, "_execution": map[string]any{"source_tool_call_id": id, "call_id": tc.ID}, "output_preview": preview, "full_output_tool": "get_worker_output", "instruction": "An uncertain result must be inspected; do not automatically replay the external action."})
+				content = string(recovered)
+			}
+
+			messages = append(messages, provider.ChatMessage{
+				Role:       provider.RoleTool,
+				ToolCallID: tc.ID,
+				Content:    content,
+			})
+		}
+		pendingToolCalls = nil
+	}
+
+	for _, record := range records {
+		if record.Role == "user" || record.Role == "assistant" {
+			flushPending()
+		}
+
+		m := provider.ChatMessage{Role: provider.ChatRole(record.Role), Content: record.Content}
+		if record.ToolCallID != nil {
+			m.ToolCallID = *record.ToolCallID
+		}
+		if len(record.ToolCalls) > 0 {
+			if err := json.Unmarshal(record.ToolCalls, &m.ToolCalls); err != nil {
+				return nil, fmt.Errorf("decode persisted tool calls: %w", err)
+			}
+		}
+		if len(record.ProviderPayload) > 0 {
+			if err := json.Unmarshal(record.ProviderPayload, &m.NativePayload); err != nil {
+				return nil, fmt.Errorf("decode persisted provider payload: %w", err)
+			}
+		}
+		messages = append(messages, m)
+
+		if record.Role == "assistant" && len(m.ToolCalls) > 0 {
+			pendingToolCalls = append(pendingToolCalls, m.ToolCalls...)
+			pendingSessionID = record.SessionID
+		} else if record.Role == "tool" && m.ToolCallID != "" {
+			var remaining []provider.ToolCall
+			for _, ptc := range pendingToolCalls {
+				if ptc.ID != m.ToolCallID {
+					remaining = append(remaining, ptc)
+				}
+			}
+			pendingToolCalls = remaining
+		}
+	}
+	flushPending()
+
+	if restoreErr != nil {
+		return nil, restoreErr
+	}
+	return messages, nil
+}
+
 // --- Model Calls ---
 
 // CreateModelCall records the start of a model invocation.
@@ -252,13 +359,13 @@ func (s *RunService) CreateModelCallWithSession(ctx context.Context, runID uuid.
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
-	if err = lockRunAdmission(ctx, tx, runID); err != nil {
+	if err = lockSessionAdmission(ctx, tx, runID, sessionID); err != nil {
 		return nil, err
 	}
 	var call model.ModelCall
 	err = tx.QueryRow(ctx,
-		`INSERT INTO model_calls (id, run_id, session_id, round, status, started_at)
-		 VALUES (gen_random_uuid(), $1, $2, $3, 'started', now())
+		`INSERT INTO model_calls (id, run_id, session_id, round, status, started_at,epoch_number)
+		 VALUES (gen_random_uuid(), $1, $2, $3, 'started', now(),(SELECT current_epoch FROM runs WHERE id=$1))
 		 RETURNING id, run_id, session_id, round, status, finish_reason, request_id, response_id, usage_known, prompt_tokens, completion_tokens,
 		           total_tokens, error_message, started_at, finished_at, created_at`,
 		runID, sessionID, round).Scan(
@@ -333,13 +440,14 @@ func (s *RunService) CreateAgentToolCallWithSession(ctx context.Context, runID u
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
-	if err = lockRunAdmission(ctx, tx, runID); err != nil {
+	if err = lockSessionAdmission(ctx, tx, runID, sessionID); err != nil {
 		return nil, err
 	}
+
 	var tc model.AgentToolCall
 	err = tx.QueryRow(ctx,
-		`INSERT INTO agent_tool_calls (id, run_id, session_id, model_call_id, call_id, tool_name, arguments, status)
-		 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'pending')
+		`INSERT INTO agent_tool_calls (id, run_id, session_id, model_call_id, call_id, tool_name, arguments, status, epoch_number)
+		 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'pending', COALESCE((SELECT current_epoch FROM runs WHERE id = $1), 1))
 		 RETURNING id, run_id, session_id, model_call_id, call_id, tool_name, arguments, output, status,
 		           error_message, started_at, finished_at, created_at`,
 		runID, sessionID, modelCallID, callID, toolName, arguments).Scan(
@@ -471,6 +579,7 @@ type PlanItemSpec struct {
 	Dependencies         []string               `json:"dependencies"`           // keys of dependencies
 	AssetIDs             []uuid.UUID            `json:"asset_ids"`              // target assets
 	SourceObservationIDs []uuid.UUID            `json:"source_observation_ids"` // causal source observations
+	SourceFactIDs        []uuid.UUID            `json:"source_fact_ids"`
 }
 
 // SubmitPlan atomically validates and inserts a batch of planned work items and dependencies.
@@ -509,6 +618,38 @@ func (s *RunService) SubmitPlanWithRound(ctx context.Context, runID uuid.UUID, p
 	}
 	if runStatus != model.RunStatusRunning {
 		return nil, fmt.Errorf("cannot submit plan: run status is %s", runStatus)
+	}
+
+	var executionInput []byte
+	var planEpoch int
+	if err = tx.QueryRow(ctx, `SELECT execution_input,current_epoch FROM runs WHERE id=$1`, runID).Scan(&executionInput, &planEpoch); err != nil {
+		return nil, err
+	}
+	if err := validateContextEpoch(ctx, planEpoch); err != nil {
+		return nil, err
+	}
+	identities := map[string]string{}
+	for i := range planItems {
+		identity, err := prepareIntent(ctx, tx, runID, &planItems[i], executionInput)
+		if err != nil {
+			return nil, err
+		}
+		if identity != "" {
+			var key string
+			err = tx.QueryRow(ctx, `SELECT key FROM work_items WHERE run_id=$1 AND intent_fingerprint=$2`, runID, identity).Scan(&key)
+			if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+				return nil, err
+			}
+			if key != "" && key != planItems[i].Key {
+				return nil, fmt.Errorf("%w: this direction already exists as %s; continue/retry it", ErrWorkItemConflict, key)
+			}
+			for other, hash := range identities {
+				if hash == identity && other != planItems[i].Key {
+					return nil, fmt.Errorf("%w: duplicate intent direction", ErrWorkItemConflict)
+				}
+			}
+			identities[planItems[i].Key] = identity
+		}
 	}
 
 	// Load allowed assets for this run
@@ -566,6 +707,19 @@ func (s *RunService) SubmitPlanWithRound(ctx context.Context, runID uuid.UUID, p
 	}
 	existingRows.Close()
 
+	var limits struct {
+		Budget model.BudgetConfig `json:"budget"`
+	}
+	_ = json.Unmarshal(executionInput, &limits)
+	newItems := 0
+	for _, item := range planItems {
+		if _, exists := keyToItem[item.Key]; !exists {
+			newItems++
+		}
+	}
+	if limits.Budget.MaxWorkItems > 0 && len(keyToItem)+newItems > limits.Budget.MaxWorkItems {
+		return nil, fmt.Errorf("run work item limit exceeded")
+	}
 	// Validate keys in this batch for duplicates, asset scope, observation source, and conflict
 	batchKeys := make(map[string]bool)
 	for _, item := range planItems {
@@ -813,11 +967,11 @@ func (s *RunService) SubmitPlanWithRound(ctx context.Context, runID uuid.UUID, p
 
 			var wi model.WorkItem
 			err = tx.QueryRow(ctx,
-				`INSERT INTO work_items (id, run_id, key, title, objective, work_type, status, input_data, created_by_planner_round_id)
-				 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'pending', $6, $7)
+				`INSERT INTO work_items (id, run_id, key, title, objective, work_type, status, input_data, created_by_planner_round_id,intent_fingerprint)
+				 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'pending', $6, $7,NULLIF($8,''))
 				 RETURNING id, run_id, key, title, objective, work_type, status, blocked_reason, input_data,
 				           output_data, current_attempt_id, created_by_planner_round_id, created_at, updated_at`,
-				runID, item.Key, item.Title, item.Objective, workType, inBytes, plannerRoundID).Scan(
+				runID, item.Key, item.Title, item.Objective, workType, inBytes, plannerRoundID, identities[item.Key]).Scan(
 				&wi.ID, &wi.RunID, &wi.Key, &wi.Title, &wi.Objective, &wi.WorkType, &wi.Status,
 				&wi.BlockedReason, &wi.InputData, &wi.OutputData, &wi.CurrentAttemptID,
 				&wi.CreatedByPlannerRoundID, &wi.CreatedAt, &wi.UpdatedAt)
@@ -828,6 +982,11 @@ func (s *RunService) SubmitPlanWithRound(ctx context.Context, runID uuid.UUID, p
 			keyToID[item.Key] = itemID
 			resultItems = append(resultItems, wi)
 
+			if item.WorkType == "intent" {
+				if err = linkPlannedIntent(ctx, tx, runID, itemID, item); err != nil {
+					return nil, err
+				}
+			}
 			// Insert work_item_assets
 			for _, aid := range item.AssetIDs {
 				_, err = tx.Exec(ctx,
@@ -1066,8 +1225,8 @@ func (s *RunService) ClaimNextPendingWorkItem(ctx context.Context, runID uuid.UU
 	sessID := uuid.New()
 	var sess model.AgentSession
 	err = tx.QueryRow(ctx,
-		`INSERT INTO agent_sessions (id, run_id, role, work_item_id, status, input_snapshot)
-		 VALUES ($1, $2, 'worker', $3, 'running', $4)
+		`INSERT INTO agent_sessions (id, run_id, role, work_item_id, status, input_snapshot, epoch_number)
+		 VALUES ($1, $2, 'worker', $3, 'running', $4, COALESCE((SELECT current_epoch FROM runs WHERE id = $2), 1))
 		 RETURNING id, run_id, role, round, work_item_id, attempt_id, status, input_snapshot, finish_reason, created_at, updated_at`,
 		sessID, runID, wi.ID, wi.InputData).Scan(
 		&sess.ID, &sess.RunID, &sess.Role, &sess.Round, &sess.WorkItemID, &sess.AttemptID,
@@ -1086,10 +1245,10 @@ func (s *RunService) ClaimNextPendingWorkItem(ctx context.Context, runID uuid.UU
 
 	var att model.Attempt
 	err = tx.QueryRow(ctx,
-		`INSERT INTO attempts (id, work_item_id, attempt_number, session_id, status, started_at)
-		 VALUES (gen_random_uuid(), $1, $2, $3, 'running', now())
+		`INSERT INTO attempts (id, work_item_id, attempt_number, session_id, status, started_at, epoch_number)
+		 VALUES (gen_random_uuid(), $1, $2, $3, 'running', now(), COALESCE((SELECT current_epoch FROM runs WHERE id = $4), 1))
 		 RETURNING id, work_item_id, attempt_number, session_id, status, started_at, finished_at, finish_reason, created_at`,
-		wi.ID, nextAttemptNum, sess.ID).Scan(
+		wi.ID, nextAttemptNum, sess.ID, runID).Scan(
 		&att.ID, &att.WorkItemID, &att.AttemptNumber, &att.SessionID, &att.Status, &att.StartedAt,
 		&att.FinishedAt, &att.FinishReason, &att.CreatedAt)
 	if err != nil {
@@ -1187,6 +1346,18 @@ func (s *RunService) FinishWorkItem(ctx context.Context, workItemID, attemptID, 
 	if err = tx.QueryRow(ctx, `SELECT status FROM work_items WHERE id=$1 AND current_attempt_id=$2 FOR UPDATE`, workItemID, attemptID).Scan(&itemStatus); err != nil {
 		return err
 	}
+
+	var runEpoch, attEpoch int
+	err = tx.QueryRow(ctx, `
+		SELECT r.current_epoch, a.epoch_number
+		FROM runs r
+		JOIN work_items w ON w.run_id = r.id
+		JOIN attempts a ON a.work_item_id = w.id
+		WHERE w.id = $1 AND a.id = $2`, workItemID, attemptID).Scan(&runEpoch, &attEpoch)
+	if err == nil && attEpoch != runEpoch {
+		return fmt.Errorf("%w: attempt epoch %d != current run epoch %d", ErrStaleEpoch, attEpoch, runEpoch)
+	}
+
 	if itemStatus != model.WorkItemStatusRunning {
 		if err := closeAttemptAndSession(ctx, tx, attemptID, sessionID, "stopped", "work_item_already_finished"); err != nil {
 			return err
@@ -1200,7 +1371,11 @@ func (s *RunService) FinishWorkItem(ctx context.Context, workItemID, attemptID, 
 		targetItemStatus = model.WorkItemStatusFailed
 		targetAttemptStatus = "failed"
 	}
-	if finishReason == string(model.CauseModelBudgetExhausted) || finishReason == string(model.CauseToolBudgetExhausted) || finishReason == "max_model_calls_exceeded" || finishReason == "max_tool_calls_exceeded" {
+	if finishReason == string(model.CauseModelBudgetExhausted) || finishReason == string(model.CauseToolBudgetExhausted) ||
+		finishReason == "max_model_calls_exceeded" || finishReason == "max_tool_calls_exceeded" ||
+		finishReason == string(model.CauseWorkerModelBudgetExhausted) || finishReason == string(model.CauseWorkerToolBudgetExhausted) ||
+		finishReason == string(model.CauseWorkerTimeout) || finishReason == string(model.CauseWorkerSettlementComplete) ||
+		finishReason == "worker_exhausted" {
 		targetItemStatus = model.WorkItemStatusExhausted
 		targetAttemptStatus = "exhausted"
 	}
@@ -1243,7 +1418,240 @@ func (s *RunService) FinishWorkItem(ctx context.Context, workItemID, attemptID, 
 		return fmt.Errorf("update work_item: %w", err)
 	}
 
+	// 4. If work item completed, automatically unblock downstream dependencies whose prerequisites are now all satisfied
+	if targetItemStatus == model.WorkItemStatusCompleted {
+		_, err = tx.Exec(ctx,
+			`UPDATE work_items wi
+			 SET status = 'pending', blocked_reason = NULL, updated_at = now()
+			 WHERE wi.run_id = (SELECT run_id FROM work_items WHERE id = $1)
+			   AND wi.status = 'blocked'
+			   AND wi.blocked_reason = 'prerequisite work item failed or blocked'
+			   AND NOT EXISTS (
+			     SELECT 1 FROM work_dependencies wd
+			     JOIN work_items dep ON wd.depends_on_work_item_id = dep.id
+			     WHERE wd.work_item_id = wi.id AND dep.status != 'completed'
+			   )`, workItemID)
+		if err != nil {
+			return fmt.Errorf("unblock dependencies: %w", err)
+		}
+	}
+
 	return tx.Commit(ctx)
+}
+
+// ContinueWorkItem transitions an exhausted work item back to pending for a new attempt.
+// The new Attempt and Session will be atomically created when ClaimNextPendingWorkItem
+// claims it under active worker concurrency tokens, preventing zombie running records.
+func (s *RunService) ContinueWorkItem(
+	ctx context.Context,
+	runID, workItemID, expectedAttemptID uuid.UUID,
+	reason string,
+) (*model.WorkItem, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// 1. Lock Run and verify it is running
+	var runStatus model.RunStatus
+	err = tx.QueryRow(ctx, `SELECT status FROM runs WHERE id = $1 FOR UPDATE`, runID).Scan(&runStatus)
+	if err != nil {
+		return nil, fmt.Errorf("lock run: %w", err)
+	}
+	if runStatus != model.RunStatusRunning {
+		return nil, ErrRunNotRunning
+	}
+
+	// 2. Lock WorkItem and verify it is exhausted
+	var wi model.WorkItem
+	err = tx.QueryRow(ctx,
+		`SELECT id, run_id, key, title, objective, work_type, status, blocked_reason, input_data,
+		        output_data, current_attempt_id, created_at, updated_at
+		 FROM work_items
+		 WHERE id = $1 AND run_id = $2
+		 FOR UPDATE`, workItemID, runID).Scan(
+		&wi.ID, &wi.RunID, &wi.Key, &wi.Title, &wi.Objective, &wi.WorkType, &wi.Status,
+		&wi.BlockedReason, &wi.InputData, &wi.OutputData, &wi.CurrentAttemptID, &wi.CreatedAt, &wi.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("lock work_item: %w", err)
+	}
+	if wi.Status != model.WorkItemStatusExhausted {
+		return nil, fmt.Errorf("%w: status is %s, expected exhausted", ErrInvalidWorkItemState, wi.Status)
+	}
+	if expectedAttemptID != uuid.Nil && (wi.CurrentAttemptID == nil || *wi.CurrentAttemptID != expectedAttemptID) {
+		return nil, ErrAttemptConflict
+	}
+
+	// 3. Ensure no running attempt exists
+	var runningAttempts int
+	err = tx.QueryRow(ctx, `SELECT COUNT(*) FROM attempts WHERE work_item_id = $1 AND status = 'running'`, wi.ID).Scan(&runningAttempts)
+	if err != nil {
+		return nil, fmt.Errorf("check running attempts: %w", err)
+	}
+	if runningAttempts > 0 {
+		return nil, fmt.Errorf("%w: work item already has an active attempt", ErrAttemptConflict)
+	}
+
+	// 4. Update work item status to pending (clearing blocked_reason) so unified engine claims it
+	_, err = tx.Exec(ctx,
+		`UPDATE work_items SET status = 'pending', blocked_reason = NULL, updated_at = now() WHERE id = $1`,
+		wi.ID)
+	if err != nil {
+		return nil, fmt.Errorf("update work_item to pending: %w", err)
+	}
+	wi.Status = model.WorkItemStatusPending
+	wi.BlockedReason = nil
+
+	// 5. Emit RunEvent
+	var nextSeq int
+	err = tx.QueryRow(ctx, `SELECT COALESCE(MAX(seq), 0) + 1 FROM run_events WHERE run_id = $1`, runID).Scan(&nextSeq)
+	if err != nil {
+		return nil, fmt.Errorf("get next run_event seq: %w", err)
+	}
+	contPayload, _ := json.Marshal(map[string]interface{}{
+		"work_item_id":        wi.ID,
+		"key":                 wi.Key,
+		"reason":              reason,
+		"previous_attempt_id": wi.CurrentAttemptID,
+	})
+	_, err = tx.Exec(ctx,
+		`INSERT INTO run_events (id, run_id, seq, type, payload, work_item_id)
+		 VALUES (gen_random_uuid(), $1, $2, 'work_item_continued', $3, $4)`,
+		runID, nextSeq, contPayload, wi.ID)
+	if err != nil {
+		return nil, fmt.Errorf("insert continue event: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit continue: %w", err)
+	}
+	return &wi, nil
+}
+
+// RetryWorkItem transitions a failed or blocked work item back to pending for a new attempt.
+// The new Attempt and Session will be atomically created when ClaimNextPendingWorkItem claims it.
+func (s *RunService) RetryWorkItem(
+	ctx context.Context,
+	runID, workItemID, expectedAttemptID uuid.UUID,
+	reason string,
+) (*model.WorkItem, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// 1. Lock Run
+	var runStatus model.RunStatus
+	err = tx.QueryRow(ctx, `SELECT status FROM runs WHERE id = $1 FOR UPDATE`, runID).Scan(&runStatus)
+	if err != nil {
+		return nil, fmt.Errorf("lock run: %w", err)
+	}
+	if runStatus != model.RunStatusRunning {
+		return nil, ErrRunNotRunning
+	}
+
+	// 2. Lock WorkItem
+	var wi model.WorkItem
+	err = tx.QueryRow(ctx,
+		`SELECT id, run_id, key, title, objective, work_type, status, blocked_reason, input_data,
+		        output_data, current_attempt_id, created_at, updated_at
+		 FROM work_items
+		 WHERE id = $1 AND run_id = $2
+		 FOR UPDATE`, workItemID, runID).Scan(
+		&wi.ID, &wi.RunID, &wi.Key, &wi.Title, &wi.Objective, &wi.WorkType, &wi.Status,
+		&wi.BlockedReason, &wi.InputData, &wi.OutputData, &wi.CurrentAttemptID, &wi.CreatedAt, &wi.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("lock work_item: %w", err)
+	}
+	if wi.Status != model.WorkItemStatusFailed && wi.Status != model.WorkItemStatusBlocked {
+		return nil, fmt.Errorf("%w: status is %s, expected failed or blocked", ErrInvalidWorkItemState, wi.Status)
+	}
+	if expectedAttemptID != uuid.Nil && (wi.CurrentAttemptID == nil || *wi.CurrentAttemptID != expectedAttemptID) {
+		return nil, ErrAttemptConflict
+	}
+
+	// 3. Ensure no running attempt
+	var runningAttempts int
+	err = tx.QueryRow(ctx, `SELECT COUNT(*) FROM attempts WHERE work_item_id = $1 AND status = 'running'`, wi.ID).Scan(&runningAttempts)
+	if err != nil {
+		return nil, fmt.Errorf("check running attempts: %w", err)
+	}
+	if runningAttempts > 0 {
+		return nil, fmt.Errorf("%w: work item already has an active attempt", ErrAttemptConflict)
+	}
+
+	// 4. Update work item status to pending
+	_, err = tx.Exec(ctx,
+		`UPDATE work_items SET status = 'pending', blocked_reason = NULL, updated_at = now() WHERE id = $1`,
+		wi.ID)
+	if err != nil {
+		return nil, fmt.Errorf("update work_item to pending: %w", err)
+	}
+	wi.Status = model.WorkItemStatusPending
+	wi.BlockedReason = nil
+
+	// 5. Emit RunEvent
+	var nextSeq int
+	err = tx.QueryRow(ctx, `SELECT COALESCE(MAX(seq), 0) + 1 FROM run_events WHERE run_id = $1`, runID).Scan(&nextSeq)
+	if err != nil {
+		return nil, fmt.Errorf("get next run_event seq: %w", err)
+	}
+	retryPayload, _ := json.Marshal(map[string]interface{}{
+		"work_item_id":        wi.ID,
+		"key":                 wi.Key,
+		"reason":              reason,
+		"previous_attempt_id": wi.CurrentAttemptID,
+	})
+	_, err = tx.Exec(ctx,
+		`INSERT INTO run_events (id, run_id, seq, type, payload, work_item_id)
+		 VALUES (gen_random_uuid(), $1, $2, 'work_item_retried', $3, $4)`,
+		runID, nextSeq, retryPayload, wi.ID)
+	if err != nil {
+		return nil, fmt.Errorf("insert retry event: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit retry: %w", err)
+	}
+	return &wi, nil
+}
+
+// GetWorkItemByKey retrieves a work item by key in a run.
+func (s *RunService) GetWorkItemByKey(ctx context.Context, runID uuid.UUID, key string) (*model.WorkItem, error) {
+	var wi model.WorkItem
+	err := s.pool.QueryRow(ctx,
+		`SELECT id, run_id, key, title, objective, work_type, status, blocked_reason, input_data,
+		        output_data, current_attempt_id, created_at, updated_at
+		 FROM work_items WHERE run_id = $1 AND key = $2`, runID, key).Scan(
+		&wi.ID, &wi.RunID, &wi.Key, &wi.Title, &wi.Objective, &wi.WorkType, &wi.Status,
+		&wi.BlockedReason, &wi.InputData, &wi.OutputData, &wi.CurrentAttemptID, &wi.CreatedAt, &wi.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("get work_item by key: %w", err)
+	}
+	return &wi, nil
+}
+
+// ContinueWorkItemByKey transitions an exhausted work item to pending by its key.
+func (s *RunService) ContinueWorkItemByKey(ctx context.Context, runID uuid.UUID, key, reason string) (*model.WorkItem, error) {
+	wi, err := s.GetWorkItemByKey(ctx, runID, key)
+	if err != nil {
+		return nil, err
+	}
+	return s.ContinueWorkItem(ctx, runID, wi.ID, uuid.Nil, reason)
+}
+
+// RetryWorkItemByKey transitions a failed or blocked work item to pending by its key.
+func (s *RunService) RetryWorkItemByKey(ctx context.Context, runID uuid.UUID, key, reason string) (*model.WorkItem, error) {
+	wi, err := s.GetWorkItemByKey(ctx, runID, key)
+	if err != nil {
+		return nil, err
+	}
+	return s.RetryWorkItem(ctx, runID, wi.ID, uuid.Nil, reason)
 }
 
 // --- Attempts ---
@@ -1395,7 +1803,7 @@ func (s *RunService) CompleteRunWithOutput(ctx context.Context, runID uuid.UUID,
 	if finishReason == "" {
 		finishReason = "final_answer"
 	}
-	if err := s.finalizeRunWrapup(ctx, runID, model.TerminationCause(finishReason), &finalOutput, true); err != nil {
+	if err := s.finalizeRunWrapup(ctx, runID, model.TerminationCause(finishReason), &finalOutput, true, 0); err != nil {
 		return nil, err
 	}
 	return s.Get(ctx, runID)
@@ -1403,7 +1811,11 @@ func (s *RunService) CompleteRunWithOutput(ctx context.Context, runID uuid.UUID,
 
 func lockRunAdmission(ctx context.Context, tx pgx.Tx, runID uuid.UUID) error {
 	var status model.RunStatus
-	if err := tx.QueryRow(ctx, `SELECT status FROM runs WHERE id=$1 FOR UPDATE`, runID).Scan(&status); err != nil {
+	var epoch int
+	if err := tx.QueryRow(ctx, `SELECT status,current_epoch FROM runs WHERE id=$1 FOR UPDATE`, runID).Scan(&status, &epoch); err != nil {
+		return err
+	}
+	if err := validateContextEpoch(ctx, epoch); err != nil {
 		return err
 	}
 	if status.IsTerminal() || status == model.RunStatusStopping {

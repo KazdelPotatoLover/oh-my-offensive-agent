@@ -8,13 +8,20 @@ import (
 type TerminationCause string
 
 const (
-	CauseCompleted            TerminationCause = "completed"
-	CauseUserStop             TerminationCause = "user_requested_stop"
-	CauseTimeout              TerminationCause = "timeout"
-	CauseModelBudgetExhausted TerminationCause = "model_calls_exhausted"
-	CauseToolBudgetExhausted  TerminationCause = "tool_calls_exhausted"
-	CauseInternalError        TerminationCause = "internal_error"
-	CauseShutdown             TerminationCause = "shutdown"
+	CauseCompleted                  TerminationCause = "completed"
+	CausePartial                    TerminationCause = "partial"
+	CauseNeedsInput                 TerminationCause = "needs_input"
+	CauseUserStop                   TerminationCause = "user_requested_stop"
+	CauseTimeout                    TerminationCause = "timeout"
+	CauseModelBudgetExhausted       TerminationCause = "model_calls_exhausted"
+	CauseToolBudgetExhausted        TerminationCause = "tool_calls_exhausted"
+	CauseInternalError              TerminationCause = "internal_error"
+	CauseShutdown                   TerminationCause = "shutdown"
+	CauseWorkerModelBudgetExhausted TerminationCause = "worker_model_budget_exhausted"
+	CauseWorkerToolBudgetExhausted  TerminationCause = "worker_tool_budget_exhausted"
+	CauseWorkerTimeout              TerminationCause = "worker_timeout"
+	CauseWorkerSettlementComplete   TerminationCause = "worker_settlement_complete"
+	CauseWorkerKilled               TerminationCause = "worker_killed"
 )
 
 func (c TerminationCause) String() string {
@@ -26,14 +33,25 @@ func (c TerminationCause) Error() string {
 	return string(c)
 }
 
+func (c TerminationCause) IsWorkerLocal() bool {
+	return c == CauseWorkerModelBudgetExhausted ||
+		c == CauseWorkerToolBudgetExhausted ||
+		c == CauseWorkerTimeout ||
+		c == CauseWorkerSettlementComplete ||
+		c == CauseWorkerKilled ||
+		c == TerminationCause("worker_exhausted")
+}
+
 // TargetRunStatus maps the termination cause to its corresponding RunStatus
 func (c TerminationCause) TargetRunStatus() RunStatus {
 	switch c {
 	case CauseCompleted, TerminationCause("final_answer"), TerminationCause("all steps completed"):
 		return RunStatusCompleted
-	case CauseUserStop, CauseTimeout:
+	case CauseUserStop, CauseTimeout, CausePartial, CauseNeedsInput:
 		return RunStatusStopped
 	case CauseModelBudgetExhausted, CauseToolBudgetExhausted:
+		return RunStatusStopped
+	case CauseWorkerModelBudgetExhausted, CauseWorkerToolBudgetExhausted, CauseWorkerTimeout, CauseWorkerSettlementComplete, CauseWorkerKilled:
 		return RunStatusStopped
 	case CauseInternalError:
 		return RunStatusFailed
@@ -71,6 +89,16 @@ func ResolveCancelCause(ctx context.Context) TerminationCause {
 			return CauseShutdown
 		case string(CauseInternalError):
 			return CauseInternalError
+		case string(CauseWorkerModelBudgetExhausted):
+			return CauseWorkerModelBudgetExhausted
+		case string(CauseWorkerToolBudgetExhausted):
+			return CauseWorkerToolBudgetExhausted
+		case string(CauseWorkerTimeout):
+			return CauseWorkerTimeout
+		case string(CauseWorkerSettlementComplete):
+			return CauseWorkerSettlementComplete
+		case string(CauseWorkerKilled):
+			return CauseWorkerKilled
 		}
 	}
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {

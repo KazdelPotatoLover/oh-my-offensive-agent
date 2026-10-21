@@ -63,7 +63,7 @@ func (f semanticsProviderFunc) Call(ctx context.Context, m []provider.ChatMessag
 	return f(ctx, m, d, o)
 }
 
-func TestWorkerErrorAtExplorationBoundary_RemainsFailed(t *testing.T) {
+func TestWorkerErrorAtExplorationBoundary_PreservesChildFailure(t *testing.T) {
 	for _, scenario := range []string{"protocol_error", "provider_error"} {
 		t.Run(scenario, func(t *testing.T) {
 			env := setupTestEnv(t)
@@ -95,13 +95,21 @@ func TestWorkerErrorAtExplorationBoundary_RemainsFailed(t *testing.T) {
 			budget.MaxModelCalls = 4
 			orchestration.NewEngine(run.ID, env.runService, p, budget).Run(ctx)
 			final, err := env.runService.Get(ctx, run.ID)
-			if err != nil || final.Status != model.RunStatusFailed || final.FinishReason == nil || *final.FinishReason != scenario {
-				t.Fatalf("real error became a budget stop: final=%+v err=%v", final, err)
+			if err != nil || final.Status != model.RunStatusStopped || final.FinishReason == nil || *final.FinishReason != string(model.CauseModelBudgetExhausted) {
+				t.Fatalf("Run budget must remain separate from child failure: status=%s err=%v", final.Status, err)
+			}
+			var childStatus, childReason string
+			if err := env.pool.QueryRow(ctx, `SELECT a.status,a.finish_reason FROM attempts a JOIN work_items w ON w.id=a.work_item_id WHERE w.run_id=$1 AND w.key='review'`, run.ID).Scan(&childStatus, &childReason); err != nil {
+				t.Fatal(err)
+			}
+			if childStatus != "failed" || childReason != scenario {
+				t.Fatalf("worker error was erased: status=%s reason=%s", childStatus, childReason)
 			}
 			calls, err := env.runService.ListModelCalls(ctx, run.ID)
-			if err != nil || len(calls) != 3 {
-				t.Fatalf("unexpected extra summary request after failure: calls=%d err=%v", len(calls), err)
+			if err != nil || len(calls) < 3 || len(calls) > budget.MaxModelCalls {
+				t.Fatalf("calls exceeded shared hard cap: calls=%d err=%v", len(calls), err)
 			}
+
 			assertNoActiveChildren(t, env, run.ID)
 		})
 	}
@@ -279,7 +287,15 @@ func TestBudgetToolExhaustion_AllToolsSucceedAndEvidenceSurvives(t *testing.T) {
 	orchestration.NewEngine(run.ID, env.runService, p, budget).Run(ctx)
 	final, err := env.runService.Get(ctx, run.ID)
 	if err != nil || final.Status != model.RunStatusStopped || final.FinishReason == nil || *final.FinishReason != "tool_calls_exhausted" {
-		t.Fatalf("final=%+v err=%v", final, err)
+		fr := "<nil>"
+		if final != nil && final.FinishReason != nil {
+			fr = *final.FinishReason
+		}
+		fo := "<nil>"
+		if final != nil && final.FinalOutput != nil {
+			fo = *final.FinalOutput
+		}
+		t.Fatalf("final status=%s finish_reason=%s final_output=%s err=%v", final.Status, fr, fo, err)
 	}
 	obs, _ := env.runService.ListObservationsByRun(ctx, run.ID)
 	if len(obs) != 1 || !strings.Contains(string(obs[0].Data), `"content_summary"`) || obs[0].SourceToolCallID == uuid.Nil {

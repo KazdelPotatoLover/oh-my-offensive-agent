@@ -58,6 +58,12 @@ const statusConfig: Record<string, { bg: string; text: string; border: string; d
     border: 'border-purple-500/20',
     dot: 'bg-purple-400',
   },
+  paused: {
+    bg: 'bg-yellow-500/10',
+    text: 'text-yellow-300',
+    border: 'border-yellow-500/30',
+    dot: 'bg-yellow-300',
+  },
 };
 
 export function RunStatusBadge({ status, finishReason, size = 'sm', className = '' }: RunStatusBadgeProps) {

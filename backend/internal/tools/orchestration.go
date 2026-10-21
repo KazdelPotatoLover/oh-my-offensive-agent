@@ -44,7 +44,7 @@ func (t *SubmitPlanTool) Name() string {
 }
 
 func (t *SubmitPlanTool) Description() string {
-	return "Submit executable work items. HTTP targets MUST use inspect_http_endpoint with input_data.asset_id and asset_ids from list_run_assets; this worker fetches one asset and extracts links. Samples use analyze_sample with input_data.sample_id. aggregate_summary reads existing observations. Never invent work types, URLs, asset IDs, worklist references, or executable pipeline stages."
+	return "Submit work directions. Use intent with an authorized input_data.profile, a concrete objective, scoped asset_ids and source_fact_ids for open exploration; the Worker chooses available tools. list_capability_profiles lists authorized capabilities. Legacy inspect_http_endpoint/analyze_sample/run_security_check adapters remain available. Never invent tools or expand scope."
 }
 
 func (t *SubmitPlanTool) Parameters() json.RawMessage {
@@ -61,7 +61,7 @@ func (t *SubmitPlanTool) Parameters() json.RawMessage {
 						"key": {"type": "string", "description": "Unique stable identifier for the work item (e.g. analyze_home)"},
 						"title": {"type": "string", "description": "Human-readable title"},
 						"objective": {"type": "string", "description": "Detailed goal of this work item"},
-						"work_type": {"type": "string", "enum": ["inspect_http_endpoint", "analyze_sample", "inspect_sample_endpoint", "aggregate_summary", "run_security_check"], "description": "Exact supported executor type. HTTP assets require inspect_http_endpoint; security configuration reviews require run_security_check; crawl_page and frontier_reconcile do not exist."},
+						"work_type": {"type": "string", "enum": ["inspect_http_endpoint", "analyze_sample", "inspect_sample_endpoint", "aggregate_summary", "run_security_check", "intent"], "description": "Exact supported executor type. HTTP assets require inspect_http_endpoint; security configuration reviews require run_security_check; open exploration directions use intent."},
 						"input_data": {"type": "object", "description": "inspect_http_endpoint: {asset_id: UUID from asset_ids}; run_security_check: {asset_id: UUID from asset_ids, check_id: string}; analyze_sample: {sample_id: scoped sample key}; aggregate_summary: {}. Dependencies control order only; they do not inject worklist artifacts.", "properties": {"asset_id": {"type": "string"}, "sample_id": {"type": "string"}, "check_id": {"type": "string"}}},
 						"dependencies": {
 							"type": "array",
@@ -73,6 +73,7 @@ func (t *SubmitPlanTool) Parameters() json.RawMessage {
 							"items": {"type": "string"},
 							"description": "UUIDs of target assets in scope for this work item"
 						},
+						"source_fact_ids": {"type":"array","items":{"type":"string"},"description":"Fact node IDs in this Run that jointly motivated this direction"},
 						"source_observation_ids": {
 							"type": "array",
 							"items": {"type": "string"},
@@ -218,8 +219,11 @@ func (t *SuggestCompletionTool) Execute(ctx context.Context, argumentsJSON []byt
 		return "", err
 	}
 
-	if payload.Conclusion == "" {
+	if payload.Conclusion == "" || payload.Conclusion == "ok" || payload.Conclusion == "success" {
 		payload.Conclusion = "complete"
+	}
+	if payload.Conclusion != "complete" && payload.Conclusion != "partial" && payload.Conclusion != "blocked" && payload.Conclusion != "needs_input" {
+		return "", fmt.Errorf("unsupported completion conclusion")
 	}
 
 	// Verify that there are no active/pending items
@@ -230,6 +234,45 @@ func (t *SuggestCompletionTool) Execute(ctx context.Context, argumentsJSON []byt
 	for _, it := range items {
 		if it.Status == model.WorkItemStatusPending || it.Status == model.WorkItemStatusRunning {
 			return "", fmt.Errorf("cannot complete run: work item '%s' is still in status %s", it.Key, it.Status)
+		}
+	}
+
+	// If goals exist in exploration graph, verify all goals are met before allowing 'complete'
+	if payload.Conclusion == "complete" {
+		goals, err := t.runService.ListGoals(ctx, t.runID)
+		if err != nil {
+			return "", fmt.Errorf("list goals for completion check: %w", err)
+		}
+		if len(goals) > 0 {
+			var unmetGoals []string
+			for _, g := range goals {
+				if g.State != "met" {
+					unmetGoals = append(unmetGoals, g.ID.String())
+				}
+			}
+			if len(unmetGoals) > 0 {
+				return "", fmt.Errorf("cannot conclude 'complete': %d of %d goals are not met (%s). Goals must be proved using prove_goal before marking complete (or conclude 'partial')", len(unmetGoals), len(goals), strings.Join(unmetGoals, ", "))
+			}
+		} else {
+			// In exploration mode (or if exploration nodes exist), completing without any goals is guarded
+			var hasExpNodes bool
+			if t.runService.Pool() != nil {
+				_ = t.runService.Pool().QueryRow(ctx,
+					`SELECT EXISTS (SELECT 1 FROM exploration_nodes WHERE run_id = $1)`, t.runID).Scan(&hasExpNodes)
+			}
+			if hasExpNodes {
+				return "", fmt.Errorf("cannot conclude 'complete' in exploration mode without defining and proving goals; set goals with set_goals or conclude 'partial'")
+			}
+		}
+	}
+
+	if payload.Conclusion == "complete" {
+		cause, err := t.runService.CompletionCause(ctx, t.runID, "complete")
+		if err != nil {
+			return "", err
+		}
+		if cause != model.CauseCompleted {
+			return "", fmt.Errorf("cannot complete: goals are not met by current valid proofs or work remains; use partial/blocked when appropriate")
 		}
 	}
 
@@ -579,4 +622,243 @@ func (t *ReadObservationsTool) Execute(ctx context.Context, argumentsJSON []byte
 		return "", err
 	}
 	return string(out), nil
+}
+
+// ContinueWorkItemTool allows Planner to transition an exhausted work item back to pending for continuation.
+type ContinueWorkItemTool struct {
+	runID      uuid.UUID
+	runService *service.RunService
+	onContinue func(key string)
+}
+
+func NewContinueWorkItemTool(runID uuid.UUID, runService *service.RunService, onContinue func(key string)) *ContinueWorkItemTool {
+	return &ContinueWorkItemTool{
+		runID:      runID,
+		runService: runService,
+		onContinue: onContinue,
+	}
+}
+
+func (t *ContinueWorkItemTool) Name() string {
+	return "continue_work_item"
+}
+
+func (t *ContinueWorkItemTool) Description() string {
+	return "Continue an exhausted work item for a new attempt, preserving historical conversation and avoiding duplicate network operations."
+}
+
+func (t *ContinueWorkItemTool) Parameters() json.RawMessage {
+	return json.RawMessage(`{
+		"type": "object",
+		"properties": {
+			"work_item_key": {"type": "string", "description": "Key of the exhausted work item to continue"},
+			"reason": {"type": "string", "description": "Justification for continuation based on partial findings"}
+		},
+		"required": ["work_item_key", "reason"]
+	}`)
+}
+
+func (t *ContinueWorkItemTool) Validate(argumentsJSON []byte) error {
+	var payload struct {
+		WorkItemKey string `json:"work_item_key"`
+		Reason      string `json:"reason"`
+	}
+	if err := json.Unmarshal(argumentsJSON, &payload); err != nil {
+		return err
+	}
+	if payload.WorkItemKey == "" || payload.Reason == "" {
+		return errors.New("work_item_key and reason are required")
+	}
+	return nil
+}
+
+func (t *ContinueWorkItemTool) Execute(ctx context.Context, argumentsJSON []byte) (string, error) {
+	var payload struct {
+		WorkItemKey string `json:"work_item_key"`
+		Reason      string `json:"reason"`
+	}
+	if err := json.Unmarshal(argumentsJSON, &payload); err != nil {
+		return "", err
+	}
+	wi, err := t.runService.ContinueWorkItemByKey(ctx, t.runID, payload.WorkItemKey, payload.Reason)
+	if err != nil {
+		return "", fmt.Errorf("continue work item failed: %w", err)
+	}
+	if t.onContinue != nil {
+		t.onContinue(payload.WorkItemKey)
+	}
+	res, _ := json.Marshal(map[string]any{
+		"status":       "success",
+		"work_item_id": wi.ID,
+		"key":          wi.Key,
+		"item_status":  wi.Status,
+		"message":      "Work item successfully re-queued for next attempt",
+	})
+	return string(res), nil
+}
+
+// RetryWorkItemTool allows Planner to transition a failed or blocked work item back to pending.
+type RetryWorkItemTool struct {
+	runID      uuid.UUID
+	runService *service.RunService
+	onRetry    func(key string)
+}
+
+func NewRetryWorkItemTool(runID uuid.UUID, runService *service.RunService, onRetry func(key string)) *RetryWorkItemTool {
+	return &RetryWorkItemTool{
+		runID:      runID,
+		runService: runService,
+		onRetry:    onRetry,
+	}
+}
+
+func (t *RetryWorkItemTool) Name() string {
+	return "retry_work_item"
+}
+
+func (t *RetryWorkItemTool) Description() string {
+	return "Retry a failed or blocked work item for a new attempt."
+}
+
+func (t *RetryWorkItemTool) Parameters() json.RawMessage {
+	return json.RawMessage(`{
+		"type": "object",
+		"properties": {
+			"work_item_key": {"type": "string", "description": "Key of the failed/blocked work item to retry"},
+			"reason": {"type": "string", "description": "Justification for retry"}
+		},
+		"required": ["work_item_key", "reason"]
+	}`)
+}
+
+func (t *RetryWorkItemTool) Validate(argumentsJSON []byte) error {
+	var payload struct {
+		WorkItemKey string `json:"work_item_key"`
+		Reason      string `json:"reason"`
+	}
+	if err := json.Unmarshal(argumentsJSON, &payload); err != nil {
+		return err
+	}
+	if payload.WorkItemKey == "" || payload.Reason == "" {
+		return errors.New("work_item_key and reason are required")
+	}
+	return nil
+}
+
+func (t *RetryWorkItemTool) Execute(ctx context.Context, argumentsJSON []byte) (string, error) {
+	var payload struct {
+		WorkItemKey string `json:"work_item_key"`
+		Reason      string `json:"reason"`
+	}
+	if err := json.Unmarshal(argumentsJSON, &payload); err != nil {
+		return "", err
+	}
+	wi, err := t.runService.RetryWorkItemByKey(ctx, t.runID, payload.WorkItemKey, payload.Reason)
+	if err != nil {
+		return "", fmt.Errorf("retry work item failed: %w", err)
+	}
+	if t.onRetry != nil {
+		t.onRetry(payload.WorkItemKey)
+	}
+	res, _ := json.Marshal(map[string]any{
+		"status":       "success",
+		"work_item_id": wi.ID,
+		"key":          wi.Key,
+		"item_status":  wi.Status,
+		"message":      "Work item successfully re-queued for retry",
+	})
+	return string(res), nil
+}
+
+// ManagePlannerTodosTool allows Planner to manage cross-round persistent todos (ARTEX TodoStore).
+type ManagePlannerTodosTool struct {
+	runID      uuid.UUID
+	runService *service.RunService
+}
+
+func NewManagePlannerTodosTool(runID uuid.UUID, runService *service.RunService) *ManagePlannerTodosTool {
+	return &ManagePlannerTodosTool{
+		runID:      runID,
+		runService: runService,
+	}
+}
+
+func (t *ManagePlannerTodosTool) Name() string {
+	return "manage_planner_todos"
+}
+
+func (t *ManagePlannerTodosTool) Description() string {
+	return "Manage persistent cross-round planner todo items (ARTEX TodoStore), tracking planned objectives, dependencies, and hypotheses across rounds."
+}
+
+func (t *ManagePlannerTodosTool) Parameters() json.RawMessage {
+	return json.RawMessage(`{
+		"type": "object",
+		"properties": {
+			"action": {"type": "string", "enum": ["list", "add_or_update"], "description": "Action to perform"},
+			"item_key": {"type": "string", "description": "Unique key of the todo item (required for add_or_update)"},
+			"description": {"type": "string", "description": "Description of the task or hypothesis"},
+			"status": {"type": "string", "enum": ["pending", "in_progress", "completed", "cancelled"], "description": "Todo status"},
+			"depends_on": {
+				"type": "array",
+				"items": {"type": "string"},
+				"description": "Keys of prerequisite todos"
+			}
+		},
+		"required": ["action"]
+	}`)
+}
+
+func (t *ManagePlannerTodosTool) Validate(argumentsJSON []byte) error {
+	var payload struct {
+		Action  string `json:"action"`
+		ItemKey string `json:"item_key"`
+	}
+	if err := json.Unmarshal(argumentsJSON, &payload); err != nil {
+		return err
+	}
+	if payload.Action == "" {
+		return errors.New("action is required")
+	}
+	if payload.Action == "add_or_update" && payload.ItemKey == "" {
+		return errors.New("item_key is required for add_or_update")
+	}
+	return nil
+}
+
+func (t *ManagePlannerTodosTool) Execute(ctx context.Context, argumentsJSON []byte) (string, error) {
+	var payload struct {
+		Action      string   `json:"action"`
+		ItemKey     string   `json:"item_key"`
+		Description string   `json:"description"`
+		Status      string   `json:"status"`
+		DependsOn   []string `json:"depends_on"`
+	}
+	if err := json.Unmarshal(argumentsJSON, &payload); err != nil {
+		return "", err
+	}
+	switch payload.Action {
+	case "list":
+		todos, err := t.runService.ListPlannerTodos(ctx, t.runID)
+		if err != nil {
+			return "", err
+		}
+		res, _ := json.Marshal(map[string]any{
+			"total": len(todos),
+			"todos": todos,
+		})
+		return string(res), nil
+	case "add_or_update":
+		todo, err := t.runService.AddOrUpdatePlannerTodo(ctx, t.runID, payload.ItemKey, payload.Description, payload.Status, payload.DependsOn)
+		if err != nil {
+			return "", err
+		}
+		res, _ := json.Marshal(map[string]any{
+			"status": "success",
+			"todo":   todo,
+		})
+		return string(res), nil
+	default:
+		return "", fmt.Errorf("unknown action: %s", payload.Action)
+	}
 }

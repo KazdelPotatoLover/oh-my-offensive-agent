@@ -3,9 +3,10 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { api } from '@/lib/api';
-import { Run, RunEvent, AgentMessage, ModelCall, AgentToolCall, WorkItem, Observation, AgentSession, PlannerRound, Asset, WorkItemDetail, AssetDiscoveryDetail } from '@/lib/types';
+import { api, newRequestID } from '@/lib/api';
+import { Run, RunEvent, AgentMessage, ModelCall, AgentToolCall, WorkItem, Observation, AgentSession, PlannerRound, Asset, WorkItemDetail, AssetDiscoveryDetail, Goal, ExplorationNode, ExecutionEpoch, BudgetGrant, EffectiveBudget } from '@/lib/types';
 import { RunStatusBadge } from '@/components/RunStatusBadge';
+import { ExplorationResources } from '@/components/ExplorationResources';
 import { CheckResultsPanel } from '@/components/CheckResultsPanel';
 import { EventTimeline } from '@/components/EventTimeline';
 
@@ -81,13 +82,36 @@ export default function RunDetailPage() {
   const [plannerRounds, setPlannerRounds] = useState<PlannerRound[]>([]);
   const [runAssets, setRunAssets] = useState<Asset[]>([]);
   const [discoveries, setDiscoveries] = useState<AssetDiscoveryDetail[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [graphNodes, setGraphNodes] = useState<ExplorationNode[]>([]);
+  const [epochs, setEpochs] = useState<ExecutionEpoch[]>([]);
+  const [budgetGrants, setBudgetGrants] = useState<BudgetGrant[]>([]);
+  const [effectiveBudget, setEffectiveBudget] = useState<EffectiveBudget | null>(null);
+
+  const [steerTarget, setSteerTarget] = useState<{ id: string; title: string; instruction: string } | null>(null);
+  const [grantFormOpen, setGrantFormOpen] = useState(false);
+  const [controlPending, setControlPending] = useState(false);
+  const controlLock = useRef(false);
+  const steerRequest = useRef<{ signature: string; key: string } | null>(null);
+  const grantRequest = useRef<{ signature: string; key: string } | null>(null);
+  const beginControl = () => {
+    if (controlLock.current) return false;
+    controlLock.current = true; setControlPending(true); return true;
+  };
+  const endControl = () => { controlLock.current = false; setControlPending(false); };
+  const [grantModelCalls, setGrantModelCalls] = useState(10);
+  const [grantToolCalls, setGrantToolCalls] = useState(20);
+  const [grantSeconds, setGrantSeconds] = useState(60);
+  const [grantReason, setGrantReason] = useState('人工授权追加额度');
+  const [newEpochReason, setNewEpochReason] = useState('操作员手动推进新执行代次');
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [stopping, setStopping] = useState(false);
   const [stopError, setStopError] = useState<string | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'work_items' | 'discoveries' | 'observations' | 'sessions' | 'timeline' | 'model_calls' | 'tool_calls' | 'messages'>('work_items');
+  const [activeTab, setActiveTab] = useState<'work_items' | 'goals_graph' | 'control_budget' | 'discoveries' | 'observations' | 'sessions' | 'timeline' | 'model_calls' | 'tool_calls' | 'messages'>('goals_graph');
 
   const loadRunData = useCallback(async (isInitial = false) => {
     if (isInitial) setLoading(true);
@@ -106,6 +130,11 @@ export default function RunDetailPage() {
         plannerRoundsData,
         runAssetsData,
         discoveriesData,
+        goalsData,
+        graphData,
+        epochsData,
+        grantsData,
+        budgetData,
       ] = await Promise.all([
         api.getRun(runId),
         api.getRunEvents(runId),
@@ -119,6 +148,11 @@ export default function RunDetailPage() {
         api.getRunPlannerRounds(runId).catch(() => []),
         api.getRunAssets(runId).catch(() => []),
         api.getRunDiscoveries(runId).catch(() => []),
+        api.getGoals(runId).catch(() => []),
+        api.getGraphOverview(runId).catch(() => ({ nodes: [], total_nodes: 0 })),
+        api.listEpochs(runId).catch(() => []),
+        api.listBudgetGrants(runId).catch(() => []),
+        api.getEffectiveBudget(runId).catch(() => null),
       ]);
       setRun(runData);
       setEvents(eventsData);
@@ -132,12 +166,21 @@ export default function RunDetailPage() {
       setPlannerRounds(plannerRoundsData);
       setRunAssets(runAssetsData);
       setDiscoveries(discoveriesData);
+      setGoals(goalsData);
+      setGraphNodes(graphData.nodes || []);
+      setEpochs(epochsData);
+      setBudgetGrants(grantsData);
+      setEffectiveBudget(budgetData);
 
       // Default active tab selection
       if (isInitial) {
-        if (discoveriesData.length > 0 || (runData?.execution_input as any)?.discovery_policy) {
+        if (goalsData.length > 0 || (graphData.nodes && graphData.nodes.length > 0)) {
+          setActiveTab('goals_graph');
+        } else if (discoveriesData.length > 0 || (runData?.execution_input as any)?.discovery_policy) {
           setActiveTab('discoveries');
-        } else if (workItemsData.length === 0) {
+        } else if (workItemsData.length > 0) {
+          setActiveTab('work_items');
+        } else {
           setActiveTab('timeline');
         }
       }
@@ -156,68 +199,22 @@ export default function RunDetailPage() {
     loadRunData(true);
   }, [loadRunData]);
 
-  // Polling every 2s if run is active (queued, running, stopping)
+  // Refresh the complete projection, including goals, graph and epochs. A
+  // terminal status must not leave the other panels at their previous state.
   const isPollingRef = useRef(false);
   useEffect(() => {
-    if (!run) return;
-    const isActive = ['queued', 'running', 'stopping'].includes(
-      run.status.toLowerCase()
-    );
-
-    if (!isActive) return;
-
+    if (!run || !['queued', 'running', 'paused', 'stopping'].includes(run.status.toLowerCase())) return;
     const interval = setInterval(async () => {
       if (isPollingRef.current) return;
       isPollingRef.current = true;
-      try {
-        const [
-          updatedRun,
-          updatedEvents,
-          updatedMessages,
-          updatedModelCalls,
-          updatedToolCalls,
-          updatedWorkItems,
-          updatedWorkItemDetails,
-          updatedObservations,
-          updatedSessions,
-          updatedPlannerRounds,
-          updatedRunAssets,
-        ] = await Promise.all([
-          api.getRun(runId),
-          api.getRunEvents(runId),
-          api.getRunMessages(runId).catch(() => []),
-          api.getRunModelCalls(runId).catch(() => []),
-          api.getRunToolCalls(runId).catch(() => []),
-          api.getRunWorkItems(runId).catch(() => []),
-          api.getRunWorkItemDetails(runId).catch(() => []),
-          api.getRunObservations(runId).catch(() => []),
-          api.getRunSessions(runId).catch(() => []),
-          api.getRunPlannerRounds(runId).catch(() => []),
-          api.getRunAssets(runId).catch(() => []),
-        ]);
-        setRun(updatedRun);
-        setEvents(updatedEvents);
-        setMessages(updatedMessages);
-        setModelCalls(updatedModelCalls);
-        setToolCalls(updatedToolCalls);
-        setWorkItems(updatedWorkItems);
-        setWorkItemDetails(updatedWorkItemDetails);
-        setObservations(updatedObservations);
-        setSessions(updatedSessions);
-        setPlannerRounds(updatedPlannerRounds);
-        setRunAssets(updatedRunAssets);
-      } catch {
-        // Suppress polling error to avoid UI flicker
-      } finally {
-        isPollingRef.current = false;
-      }
+      try { await loadRunData(); }
+      finally { isPollingRef.current = false; }
     }, 2000);
-
     return () => clearInterval(interval);
-  }, [run, runId]);
+  }, [run?.status, loadRunData]);
 
   const handleStopRun = async () => {
-    if (!run || run.status !== 'running') return;
+    if (!run || !['queued', 'running', 'paused'].includes(run.status) || !beginControl()) return;
 
     setStopping(true);
     setStopError(null);
@@ -234,7 +231,82 @@ export default function RunDetailPage() {
       }
     } finally {
       setStopping(false);
+      endControl();
     }
+  };
+
+  const handlePause = async () => {
+    if (!beginControl()) return;
+    try {
+      await api.pauseRun(runId);
+      await loadRunData();
+    } catch (e: any) {
+      alert('暂停失败: ' + (e.message || e));
+    } finally { endControl(); }
+  };
+
+  const handleResume = async () => {
+    if (!beginControl()) return;
+    try {
+      await api.resumeRun(runId);
+      await loadRunData();
+    } catch (e: any) {
+      alert('恢复失败: ' + (e.message || e));
+    } finally { endControl(); }
+  };
+
+  const handleSteer = async () => {
+    if (!steerTarget || !beginControl()) return;
+    try {
+      const signature = JSON.stringify([runId, steerTarget.id, steerTarget.instruction]);
+      if (steerRequest.current?.signature !== signature) steerRequest.current = { signature, key: newRequestID() };
+      await api.steerWorkItem(runId, steerTarget.id, steerTarget.instruction, undefined, steerRequest.current.key);
+      steerRequest.current = null;
+      setSteerTarget(null);
+      await loadRunData();
+    } catch (e: any) {
+      alert('纠偏失败: ' + (e.message || e));
+    } finally { endControl(); }
+  };
+
+  const handleKill = async (wiId: string) => {
+    if (!confirm('确定要终止该工作项吗？') || !beginControl()) return;
+    try {
+      await api.killWorkItem(runId, wiId, 'killed_by_operator');
+      await loadRunData();
+    } catch (e: any) {
+      alert('终止工作项失败: ' + (e.message || e));
+    } finally { endControl(); }
+  };
+
+  const handleGrantBudget = async () => {
+    if (!beginControl()) return;
+    try {
+      const signature = JSON.stringify([runId, grantModelCalls, grantToolCalls, grantSeconds, grantReason]);
+      if (grantRequest.current?.signature !== signature) grantRequest.current = { signature, key: newRequestID() };
+      await api.grantBudget(runId, {
+        idempotency_key: grantRequest.current.key,
+        additional_model_calls: grantModelCalls,
+        additional_tool_calls: grantToolCalls,
+        additional_seconds: grantSeconds,
+        reason: grantReason,
+      });
+      grantRequest.current = null;
+      setGrantFormOpen(false);
+      await loadRunData();
+    } catch (e: any) {
+      alert('追加预算失败: ' + (e.message || e));
+    } finally { endControl(); }
+  };
+
+  const handleStartEpoch = async () => {
+    if (!beginControl()) return;
+    try {
+      await api.startNewEpoch(runId, newEpochReason, '操作员手动推进', run?.current_epoch);
+      await loadRunData();
+    } catch (e: any) {
+      alert('推进代次失败: ' + (e.message || e));
+    } finally { endControl(); }
   };
 
   const calculateDuration = (): string => {
@@ -402,6 +474,9 @@ export default function RunDetailPage() {
                 Run {run.id}
               </h1>
               <RunStatusBadge status={run.status} finishReason={run.finish_reason} size="lg" />
+              <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                Epoch #{(run as any).current_epoch || 1}
+              </span>
             </div>
             {isActive && (
               <p className="text-xs text-blue-400 flex items-center space-x-1.5 animate-pulse">
@@ -411,14 +486,39 @@ export default function RunDetailPage() {
             )}
           </div>
 
-          {/* Action: Stop Run */}
-          {run.status === 'running' && (
-            <div>
+          {/* Action: Run Controls */}
+          {(run.status === 'running' || run.status === 'paused') && (
+            <div className="flex items-center gap-2">
+              {run.status === 'running' ? (
+                <button
+                  type="button"
+                  onClick={handlePause}
+                  disabled={controlPending}
+                  className="px-3.5 py-2 bg-amber-600/90 hover:bg-amber-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center space-x-1.5 shadow-sm"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6" />
+                  </svg>
+                  <span>Pause (暂停)</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResume}
+                  disabled={controlPending}
+                  className="px-3.5 py-2 bg-emerald-600/90 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center space-x-1.5 shadow-sm"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  </svg>
+                  <span>Resume (恢复)</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleStopRun}
-                disabled={stopping}
-                className="px-4 py-2 bg-red-600/90 hover:bg-red-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center space-x-2 shadow-sm disabled:opacity-50"
+                disabled={stopping || controlPending}
+                className="px-3.5 py-2 bg-red-600/90 hover:bg-red-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center space-x-1.5 shadow-sm disabled:opacity-50"
               >
                 {stopping ? (
                   <>
@@ -574,9 +674,44 @@ export default function RunDetailPage() {
 
       <CheckResultsPanel runId={runId} status={run.status} toolCalls={toolCalls} />
 
+      <ExplorationResources runId={runId} onChanged={() => loadRunData()} />
+
       {/* Tabs for Timeline / Orchestration / Agent Details */}
       <div className="space-y-4">
         <div className="flex border-b border-gray-800 space-x-6 overflow-x-auto pb-px">
+          <button
+            type="button"
+            onClick={() => setActiveTab('goals_graph')}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center space-x-2 whitespace-nowrap ${
+              activeTab === 'goals_graph'
+                ? 'border-indigo-500 text-indigo-400'
+                : 'border-transparent text-gray-400 hover:text-white'
+            }`}
+          >
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
+              <span>目标与探索图 (Goals & Graph)</span>
+            </span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono">
+              {goals.length + graphNodes.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('control_budget')}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center space-x-2 whitespace-nowrap ${
+              activeTab === 'control_budget'
+                ? 'border-amber-500 text-amber-400'
+                : 'border-transparent text-gray-400 hover:text-white'
+            }`}
+          >
+            <span>执行控制与代次 (Control & Epochs)</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono">
+              E{epochs.length || 1}
+            </span>
+          </button>
+
           {(discoveries.length > 0 || (run?.execution_input as any)?.discovery_policy) && (
             <button
               type="button"
@@ -712,6 +847,308 @@ export default function RunDetailPage() {
             </>
           )}
         </div>
+
+        {/* Tab Content */}
+        {activeTab === 'goals_graph' && (
+          <div className="space-y-6">
+            {/* Section 1: Goals */}
+            <div className="p-5 bg-gray-900 border border-gray-800 rounded-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
+                  <span>目标与证明驱动 (Goal-Driven Exploration)</span>
+                </h3>
+                <span className="text-xs text-gray-400 font-mono">
+                  已证明目标: {goals.filter(g => g.state === 'met').length} / {goals.length}
+                </span>
+              </div>
+
+              {goals.length === 0 ? (
+                <div className="p-6 text-center text-gray-500 border border-gray-800/80 rounded-lg text-xs">
+                  当前 Run 尚未定义独立目标。
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {goals.map((g) => (
+                    <div key={g.id} className="p-4 bg-gray-950 border border-gray-800 rounded-lg space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-white text-sm">{String(g.payload.text || '未命名目标')}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${
+                            g.state === 'met'
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                              : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                          }`}>
+                            {g.state === 'met' ? '已证明 (Proved)' : '未达成 (Open)'}
+                          </span>
+
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-400 leading-relaxed">{String(g.payload.vulnclass || '')}</p>
+                      {g.completed_at && (
+                        <p className="text-[10px] font-mono text-emerald-400">
+                          证明于: {new Date(g.completed_at).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Section 2: Exploration Graph Nodes */}
+            <div className="p-5 bg-gray-900 border border-gray-800 rounded-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                  <span>探索图节点与事实线索 (Exploration Graph Nodes)</span>
+                </h3>
+                <span className="text-xs text-gray-400 font-mono">
+                  当前页节点: {graphNodes.length}（完整分页见上方探索关系）
+                </span>
+              </div>
+
+              {graphNodes.length === 0 ? (
+                <div className="p-6 text-center text-gray-500 border border-gray-800/80 rounded-lg text-xs">
+                  探索图尚未生成节点。
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs font-mono">
+                    <thead>
+                      <tr className="border-b border-gray-800 text-gray-400">
+                        <th className="py-2.5 px-3">类型 (Kind)</th>
+                        <th className="py-2.5 px-3">状态</th>
+                        <th className="py-2.5 px-3">代次</th>
+                        <th className="py-2.5 px-3">来源 / 属性</th>
+                        <th className="py-2.5 px-3">内容摘要 (Payload)</th>
+                        <th className="py-2.5 px-3">时间</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800/60">
+                      {graphNodes.map((n) => {
+                        const kindColor: Record<string, string> = {
+                          begin: 'bg-gray-800 text-gray-300 border-gray-700',
+                          goal: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+                          intent: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
+                          fact: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+                          finding: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+                          hint: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+                          digest: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+                        };
+                        return (
+                          <tr key={n.id} className="hover:bg-gray-950/60 transition-colors">
+                            <td className="py-2.5 px-3">
+                              <span className={`px-2 py-0.5 rounded text-[11px] font-bold border ${kindColor[n.kind] || 'bg-gray-800 text-gray-300'}`}>
+                                {n.kind.toUpperCase()}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-gray-300">{n.state}</td>
+                            <td className="py-2.5 px-3 text-amber-300 font-bold">E{n.epoch_number || 1}</td>
+                            <td className="py-2.5 px-3 text-gray-400">{n.origin || '-'}</td>
+                            <td className="py-2.5 px-3 text-gray-300 font-sans max-w-md truncate">
+                              {n.payload?.title || n.payload?.text || n.payload?.fact || n.payload?.description || JSON.stringify(n.payload)}
+                            </td>
+                            <td className="py-2.5 px-3 text-gray-500">{new Date(n.created_at).toLocaleTimeString()}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'control_budget' && (
+          <div className="space-y-6">
+            {/* Section 1: Effective Budget & Grants */}
+            <div className="p-5 bg-gray-900 border border-gray-800 rounded-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                  <span>有效预算与人工授权账本 (Authorized Budget Ledger)</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setGrantFormOpen(!grantFormOpen)}
+                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-medium transition-colors shadow-sm"
+                >
+                  {grantFormOpen ? '收起追加表单' : '追加预算授权 (Grant Budget)'}
+                </button>
+              </div>
+
+              {effectiveBudget && (
+                <div className="grid grid-cols-3 gap-4 bg-gray-950 p-4 rounded-lg border border-gray-800 text-center">
+                  <div>
+                    <span className="text-xs text-gray-500 block">有效模型调用上限</span>
+                    <span className="text-xl font-mono font-bold text-white mt-1 block">{effectiveBudget.max_model_calls}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 block">有效工具调用上限</span>
+                    <span className="text-xl font-mono font-bold text-white mt-1 block">{effectiveBudget.max_tool_calls}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 block">超时上限 (秒)</span>
+                    <span className="text-xl font-mono font-bold text-white mt-1 block">{effectiveBudget.run_timeout_seconds}s</span>
+                  </div>
+                </div>
+              )}
+
+              {grantFormOpen && (
+                <div className="p-4 bg-gray-950 border border-amber-500/40 rounded-lg space-y-3">
+                  <h4 className="text-xs font-bold text-amber-300">人工授权追加执行额度 (无需新建子 Run)</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-[11px] text-gray-400 block mb-1">追加模型调用次数</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={grantModelCalls}
+                        onChange={e => setGrantModelCalls(parseInt(e.target.value) || 0)}
+                        className="w-full text-xs bg-gray-900 border border-gray-700 rounded px-2.5 py-1.5 text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-gray-400 block mb-1">追加工具调用次数</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={grantToolCalls}
+                        onChange={e => setGrantToolCalls(parseInt(e.target.value) || 0)}
+                        className="w-full text-xs bg-gray-900 border border-gray-700 rounded px-2.5 py-1.5 text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-gray-400 block mb-1">追加运行秒数</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={grantSeconds}
+                        onChange={e => setGrantSeconds(parseInt(e.target.value) || 0)}
+                        className="w-full text-xs bg-gray-900 border border-gray-700 rounded px-2.5 py-1.5 text-white"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-400 block mb-1">授权理由说明</label>
+                    <input
+                      type="text"
+                      value={grantReason}
+                      onChange={e => setGrantReason(e.target.value)}
+                      className="w-full text-xs bg-gray-900 border border-gray-700 rounded px-2.5 py-1.5 text-white"
+                    />
+                  </div>
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="button"
+                      onClick={handleGrantBudget}
+                      disabled={controlPending || !grantReason.trim()}
+                      className="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-medium transition-colors shadow"
+                    >
+                      提交追加授权
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Grants Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead>
+                    <tr className="border-b border-gray-800 text-gray-400">
+                      <th className="py-2 px-3">代次</th>
+                      <th className="py-2 px-3">追加模型</th>
+                      <th className="py-2 px-3">追加工具</th>
+                      <th className="py-2 px-3">追加秒数</th>
+                      <th className="py-2 px-3">授权理由</th>
+                      <th className="py-2 px-3">授权人</th>
+                      <th className="py-2 px-3">时间</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800/60">
+                    {budgetGrants.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-4 text-center text-gray-500 italic">尚无追加授权记录。</td>
+                      </tr>
+                    ) : (
+                      budgetGrants.map(g => (
+                        <tr key={g.id}>
+                          <td className="py-2 px-3 text-amber-300">E{g.epoch_number}</td>
+                          <td className="py-2 px-3 text-emerald-400">+{g.additional_model_calls}</td>
+                          <td className="py-2 px-3 text-emerald-400">+{g.additional_tool_calls}</td>
+                          <td className="py-2 px-3 text-emerald-400">+{g.additional_seconds}s</td>
+                          <td className="py-2 px-3 text-gray-300 font-sans">{g.reason}</td>
+                          <td className="py-2 px-3 text-gray-400">{g.granted_by}</td>
+                          <td className="py-2 px-3 text-gray-500">{new Date(g.created_at).toLocaleTimeString()}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Section 2: Execution Epochs */}
+            <div className="p-5 bg-gray-900 border border-gray-800 rounded-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-purple-400"></span>
+                    <span>执行代次隔离 (Execution Epochs)</span>
+                  </h3>
+                  <p className="text-[11px] text-gray-400 mt-0.5">当前代次: Epoch #{(run as any).current_epoch || 1}。旧代次迟到的写入将被强制阻断以防污染。</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleStartEpoch}
+                  disabled={controlPending || !newEpochReason.trim() || ['completed', 'stopping'].includes(run.status)}
+                  className="px-3 py-1.5 bg-purple-700 hover:bg-purple-600 text-white rounded text-xs font-medium transition-colors shadow-sm"
+                >
+                  推进新执行代次 (Start New Epoch)
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead>
+                    <tr className="border-b border-gray-800 text-gray-400">
+                      <th className="py-2 px-3">代次编号</th>
+                      <th className="py-2 px-3">状态</th>
+                      <th className="py-2 px-3">启动时间</th>
+                      <th className="py-2 px-3">结束时间</th>
+                      <th className="py-2 px-3">结束原因</th>
+                      <th className="py-2 px-3">总结说明</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800/60">
+                    {epochs.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-4 text-center text-gray-500 italic">尚无代次变更记录。</td>
+                      </tr>
+                    ) : (
+                      epochs.map(ep => (
+                        <tr key={ep.id}>
+                          <td className="py-2 px-3 text-purple-300 font-bold">Epoch #{ep.epoch_number}</td>
+                          <td className="py-2 px-3">
+                            <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${ep.status === 'running' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-gray-800 text-gray-400'}`}>
+                              {ep.status}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-gray-400">{new Date(ep.started_at).toLocaleTimeString()}</td>
+                          <td className="py-2 px-3 text-gray-400">{ep.finished_at ? new Date(ep.finished_at).toLocaleTimeString() : '-'}</td>
+                          <td className="py-2 px-3 text-gray-300 font-sans">{ep.finish_reason || '-'}</td>
+                          <td className="py-2 px-3 text-gray-300 font-sans">{ep.summary || '-'}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tab Content */}
         {activeTab === 'discoveries' && (
@@ -1068,6 +1505,56 @@ export default function RunDetailPage() {
                       )}
                       <span>Created: {new Date(item.created_at).toLocaleTimeString()}</span>
                     </div>
+
+                    {/* Steer & Kill Controls */}
+                    {['pending', 'running', 'blocked', 'exhausted'].includes(item.status) && (
+                      <div className="pt-2 flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => setSteerTarget({ id: item.id, title: item.title, instruction: '' })}
+                          className="px-2.5 py-1 text-xs rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-colors"
+                        >
+                          人工纠偏 (Steer)
+                        </button>
+                        {['pending', 'running'].includes(item.status) && (
+                          <button
+                            onClick={() => handleKill(item.id)}
+                            className="px-2.5 py-1 text-xs rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition-colors"
+                          >
+                            强制终止 (Kill)
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {steerTarget && steerTarget.id === item.id && (
+                      <div className="p-3 bg-gray-950 border border-amber-500/40 rounded-lg space-y-2 mt-2">
+                        <div className="text-xs font-semibold text-amber-300">
+                          向工作项注入人工指导建议 (Steer Instruction)
+                        </div>
+                        <textarea
+                          value={steerTarget.instruction}
+                          onChange={(e) => setSteerTarget({ ...steerTarget, instruction: e.target.value })}
+                          placeholder="输入指导意见，例如：优先测试 /admin 路径下的导出接口..."
+                          rows={2}
+                          className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => setSteerTarget(null)}
+                            className="px-2.5 py-1 text-xs rounded bg-gray-800 text-gray-300 hover:bg-gray-700"
+                          >
+                            取消
+                          </button>
+                          <button
+                            onClick={handleSteer}
+                            disabled={controlPending || !steerTarget.instruction.trim()}
+                            className="px-2.5 py-1 text-xs rounded bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-50"
+                          >
+                            提交纠偏
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     {item.output_data && Object.keys(item.output_data).length > 0 && (
                       <div className="pt-2">

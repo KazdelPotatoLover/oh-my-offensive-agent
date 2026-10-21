@@ -23,3 +23,9 @@ frontend/tsconfig.tsbuildinfo
 # OS
 .DS_Store
 Thumbs.db
+
+# Isolated browser acceptance outputs
+frontend/.next-e2e/
+frontend/test-results/
+frontend/playwright-report/
+backend/data/workspaces/

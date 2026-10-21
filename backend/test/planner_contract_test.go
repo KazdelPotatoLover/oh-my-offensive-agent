@@ -155,7 +155,7 @@ func TestPlannerContract_RepairsPlanAndUsesHTTPEvidence(t *testing.T) {
 			}
 			final := waitForRunTerminal(t, env, run.ID, 5*time.Second)
 			if noEvidence {
-				if final.Status != model.RunStatusFailed {
+				if final.Status != model.RunStatusFailed && final.Status != model.RunStatusStopped {
 					t.Fatal("unverified worker text incorrectly completed run")
 				}
 				items, _ := env.runService.ListWorkItemsByRun(context.Background(), run.ID)

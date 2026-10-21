@@ -412,7 +412,8 @@ func (s *RunService) ListFindingsByRun(ctx context.Context, runID uuid.UUID) ([]
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, run_id, check_result_id, asset_id, title, category,
 		       severity, status, description, remediation, source_tool_call_id, evidence_ref, created_at,
-		       review_version, last_reviewed_at, last_reviewer, last_review_comment
+		       review_version, last_reviewed_at, last_reviewer, last_review_comment,
+		       source_kind, verification_state, retest_verdict, retest_notes, retest_at
 		FROM findings
 		WHERE run_id = $1
 		ORDER BY created_at ASC`, runID)
@@ -429,6 +430,7 @@ func (s *RunService) ListFindingsByRun(ctx context.Context, runID uuid.UUID) ([]
 			&f.Severity, &f.Status, &f.Description, &f.Remediation, &f.SourceToolCallID,
 			&f.EvidenceRef, &f.CreatedAt,
 			&f.ReviewVersion, &f.LastReviewedAt, &f.LastReviewer, &f.LastReviewComment,
+			&f.SourceKind, &f.VerificationState, &f.RetestVerdict, &f.RetestNotes, &f.RetestAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan finding: %w", err)
 		}
@@ -492,7 +494,8 @@ func (s *RunService) ReviewFinding(
 	err = tx.QueryRow(ctx, `
 		SELECT id, run_id, check_result_id, asset_id, title, category, severity,
 		       status, description, remediation, source_tool_call_id, evidence_ref, created_at,
-		       review_version, last_reviewed_at, last_reviewer, last_review_comment
+		       review_version, last_reviewed_at, last_reviewer, last_review_comment,
+		       source_kind, verification_state, retest_verdict, retest_notes, retest_at
 		FROM findings
 		WHERE id = $1 AND run_id = $2
 		FOR UPDATE`, findingID, runID).Scan(
@@ -500,6 +503,7 @@ func (s *RunService) ReviewFinding(
 		&f.Severity, &f.Status, &f.Description, &f.Remediation, &f.SourceToolCallID,
 		&f.EvidenceRef, &f.CreatedAt,
 		&f.ReviewVersion, &f.LastReviewedAt, &f.LastReviewer, &f.LastReviewComment,
+		&f.SourceKind, &f.VerificationState, &f.RetestVerdict, &f.RetestNotes, &f.RetestAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -587,16 +591,24 @@ func (s *RunService) ReviewFinding(
 		WHERE id = $6
 		RETURNING id, run_id, check_result_id, asset_id, title, category, severity,
 		          status, description, remediation, source_tool_call_id, evidence_ref, created_at,
-		          review_version, last_reviewed_at, last_reviewer, last_review_comment`,
+		          review_version, last_reviewed_at, last_reviewer, last_review_comment,
+		          source_kind, verification_state, retest_verdict, retest_notes, retest_at`,
 		toStatus, toVersion, now, reviewer, comment, findingID,
 	).Scan(
 		&f.ID, &f.RunID, &f.CheckResultID, &f.AssetID, &f.Title, &f.Category,
 		&f.Severity, &f.Status, &f.Description, &f.Remediation, &f.SourceToolCallID,
 		&f.EvidenceRef, &f.CreatedAt,
 		&f.ReviewVersion, &f.LastReviewedAt, &f.LastReviewer, &f.LastReviewComment,
+		&f.SourceKind, &f.VerificationState, &f.RetestVerdict, &f.RetestNotes, &f.RetestAt,
 	)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("update finding: %w", err)
+	}
+
+	if toStatus == model.FindingStatusFalsePositive {
+		if err := invalidateFindingProofs(ctx, tx, runID, findingID, "human_review_false_positive"); err != nil {
+			return nil, nil, false, err
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -659,6 +671,7 @@ func (s *RunService) GetFindingReport(ctx context.Context, runID uuid.UUID) (*mo
 		       f.severity, f.status, f.description, f.remediation, f.source_tool_call_id,
 		       f.evidence_ref, f.created_at, f.review_version, f.last_reviewed_at,
 		       f.last_reviewer, f.last_review_comment,
+		       f.source_kind, f.verification_state, f.retest_verdict, f.retest_notes, f.retest_at,
 		       cr.id, cr.check_id, cr.check_name, cr.check_version, cr.status,
 		       cr.explanation, cr.source_tool_call_id, cr.evidence_snapshot
 		FROM findings f
@@ -685,6 +698,7 @@ func (s *RunService) GetFindingReport(ctx context.Context, runID uuid.UUID) (*mo
 			&item.Finding.Description, &item.Finding.Remediation, &item.Finding.SourceToolCallID,
 			&item.Finding.EvidenceRef, &item.Finding.CreatedAt, &item.Finding.ReviewVersion,
 			&item.Finding.LastReviewedAt, &item.Finding.LastReviewer, &item.Finding.LastReviewComment,
+			&item.Finding.SourceKind, &item.Finding.VerificationState, &item.Finding.RetestVerdict, &item.Finding.RetestNotes, &item.Finding.RetestAt,
 			&item.CheckResult.ID, &item.CheckResult.CheckID, &item.CheckResult.CheckName,
 			&item.CheckResult.CheckVersion, &item.CheckResult.Status, &item.CheckResult.Explanation,
 			&item.CheckResult.SourceToolCallID, &item.CheckResult.EvidenceSnapshot,

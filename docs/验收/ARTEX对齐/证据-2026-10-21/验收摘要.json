@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-21",
+  "backend": {
+    "command": "TEST_DATABASE_URL=<dedicated> go test -race -count=1 -json ./...",
+    "status": "passed",
+    "integration_package_seconds": 195.3,
+    "top_level_passed": 186,
+    "subtests_passed": 95,
+    "skipped": [
+      "external target opt-in not enabled",
+      "empty-database migration acceptance executed separately"
+    ]
+  },
+  "migration": {
+    "status": "passed",
+    "elapsed_seconds": 2.647,
+    "versions": "15 -> 25; reversible empty suffix 25 -> 21 -> 25",
+    "data_preservation": [
+      "original task/run scope and closeout",
+      "original check evidence",
+      "finding review status and version",
+      "reviewer/comment/request ID"
+    ],
+    "rollback_guards": [
+      "014",
+      "015",
+      "016",
+      "022",
+      "024"
+    ]
+  },
+  "browser": {
+    "status": "passed",
+    "stats": {
+      "startTime": "2026-10-21T13:53:14.161Z",
+      "duration": 31477.697,
+      "expected": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "local_model": "Chat Completions fixture; no external model requests",
+    "identities": {
+      "taskID": "769acdf5-7f5c-4597-a296-9608d56086d3",
+      "runID": "c17c0d19-f6f9-4517-888a-5f5de8bcf6a0",
+      "resumedRun": "046fb052-65de-49b5-9190-f7618c79fdef"
+    },
+    "assertions": [
+      "custom profile and scoped real HTTP request",
+      "pause/steer/resume; paused tool admission blocked",
+      "explicit evidence proof and human hint with invalid UUID rejection",
+      "artifact and proof relation browsing",
+      "human review preserved after independent fixed retest",
+      "fixed invalidates goal proof",
+      "paused Run can be stopped",
+      "same WorkItem with new Attempt in Epoch 2",
+      "old Epoch stopped/new Epoch completed visible in UI",
+      "no unexpected alerts"
+    ]
+  },
+  "static_checks": {
+    "go_vet": "passed",
+    "frontend_production_build": "passed",
+    "git_diff_check": "passed"
+  },
+  "environment": {
+    "integration_database": "oma_final_20261021_d",
+    "migration_database": "oma_migration_20261021_f",
+    "browser_database": "oma_browser_20261021_e",
+    "schema_version": 25,
+    "temporary_databases": "removed after acceptance"
+  }
+}

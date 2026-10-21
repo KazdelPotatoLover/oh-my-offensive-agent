@@ -12,6 +12,7 @@ type RunStatus string
 const (
 	RunStatusQueued      RunStatus = "queued"
 	RunStatusRunning     RunStatus = "running"
+	RunStatusPaused      RunStatus = "paused"
 	RunStatusStopping    RunStatus = "stopping"
 	RunStatusCompleted   RunStatus = "completed"
 	RunStatusFailed      RunStatus = "failed"
@@ -24,7 +25,7 @@ func (s RunStatus) IsTerminal() bool {
 }
 
 func (s RunStatus) IsActive() bool {
-	return s == RunStatusQueued || s == RunStatusRunning || s == RunStatusStopping
+	return s == RunStatusQueued || s == RunStatusRunning || s == RunStatusStopping || s == RunStatusPaused
 }
 
 // IsAllowedTransition validates state transitions according to the explicit state machine.
@@ -34,7 +35,9 @@ func IsAllowedTransition(from, to RunStatus) bool {
 	case RunStatusQueued:
 		return to == RunStatusRunning || to == RunStatusStopping || to == RunStatusStopped || to == RunStatusInterrupted || to == RunStatusFailed
 	case RunStatusRunning:
-		return to == RunStatusCompleted || to == RunStatusFailed || to == RunStatusStopping || to == RunStatusInterrupted
+		return to == RunStatusCompleted || to == RunStatusFailed || to == RunStatusStopping || to == RunStatusInterrupted || to == RunStatusPaused
+	case RunStatusPaused:
+		return to == RunStatusRunning || to == RunStatusStopping || to == RunStatusStopped || to == RunStatusInterrupted || to == RunStatusFailed
 	case RunStatusStopping:
 		return to == RunStatusStopped || to == RunStatusInterrupted
 	default:
@@ -59,6 +62,7 @@ type Run struct {
 	ConfigSnapshot     json.RawMessage `json:"config_snapshot"`
 	ExecutionInput     json.RawMessage `json:"execution_input"`
 	ScopePolicyVersion string          `json:"scope_policy_version"`
+	CurrentEpoch       int             `json:"current_epoch"`
 	Status             RunStatus       `json:"status"`
 	FinishReason       *string         `json:"finish_reason,omitempty"`
 	FailAtStep         *int            `json:"fail_at_step,omitempty"`
@@ -88,6 +92,7 @@ type AgentSession struct {
 	Round         *int            `json:"round,omitempty"`
 	WorkItemID    *uuid.UUID      `json:"work_item_id,omitempty"`
 	AttemptID     *uuid.UUID      `json:"attempt_id,omitempty"`
+	Epoch         int             `json:"epoch"`
 	Status        string          `json:"status"` // 'running', 'completed', 'failed', 'exhausted', 'stopped', 'interrupted'
 	InputSnapshot json.RawMessage `json:"input_snapshot"`
 	FinishReason  *string         `json:"finish_reason,omitempty"`
@@ -151,6 +156,7 @@ type Attempt struct {
 	WorkItemID    uuid.UUID  `json:"work_item_id"`
 	AttemptNumber int        `json:"attempt_number"`
 	SessionID     *uuid.UUID `json:"session_id,omitempty"`
+	Epoch         int        `json:"epoch"`
 	Status        string     `json:"status"`
 	StartedAt     time.Time  `json:"started_at"`
 	FinishedAt    *time.Time `json:"finished_at,omitempty"`
@@ -190,6 +196,7 @@ type ModelCall struct {
 	RunID            uuid.UUID  `json:"run_id"`
 	SessionID        *uuid.UUID `json:"session_id,omitempty"`
 	Round            int        `json:"round"`
+	Epoch            int        `json:"epoch"`
 	Status           string     `json:"status"` // started, completed, failed, interrupted
 	FinishReason     *string    `json:"finish_reason,omitempty"`
 	RequestID        *string    `json:"request_id,omitempty"`
@@ -211,6 +218,7 @@ type AgentToolCall struct {
 	ToolName     string          `json:"tool_name"`
 	Arguments    json.RawMessage `json:"arguments"`
 	Output       string          `json:"output"`
+	Epoch        int             `json:"epoch"`
 	Status       string          `json:"status"` // pending, running, success, failed, rejected, interrupted
 	ErrorMessage *string         `json:"error_message,omitempty"`
 	StartedAt    *time.Time      `json:"started_at,omitempty"`
@@ -219,17 +227,22 @@ type AgentToolCall struct {
 }
 
 type BudgetConfig struct {
-	MaxModelCalls         int `json:"max_model_calls"`
-	MaxToolCalls          int `json:"max_tool_calls"`
-	RunTimeoutSeconds     int `json:"run_timeout_seconds"`
-	ModelTimeoutSeconds   int `json:"model_timeout_seconds"`
-	ToolTimeoutSeconds    int `json:"tool_timeout_seconds"`
-	SummaryTimeoutSeconds int `json:"summary_timeout_seconds"`
-	CleanupTimeoutSeconds int `json:"cleanup_timeout_seconds"`
-	MaxToolOutputBytes    int `json:"max_tool_output_bytes"`
-	MaxPlannerRounds      int `json:"max_planner_rounds"`
-	MaxWorkItems          int `json:"max_work_items"`
-	MaxParallelWorkers    int `json:"max_parallel_workers"`
+	MaxModelCalls                  int `json:"max_model_calls"`
+	MaxToolCalls                   int `json:"max_tool_calls"`
+	RunTimeoutSeconds              int `json:"run_timeout_seconds"`
+	ModelTimeoutSeconds            int `json:"model_timeout_seconds"`
+	ToolTimeoutSeconds             int `json:"tool_timeout_seconds"`
+	SummaryTimeoutSeconds          int `json:"summary_timeout_seconds"`
+	CleanupTimeoutSeconds          int `json:"cleanup_timeout_seconds"`
+	MaxToolOutputBytes             int `json:"max_tool_output_bytes"`
+	ContextWindowBytes             int `json:"context_window_bytes"`
+	MaxPlannerRounds               int `json:"max_planner_rounds"`
+	MaxWorkItems                   int `json:"max_work_items"`
+	MaxParallelWorkers             int `json:"max_parallel_workers"`
+	WorkerMaxModelCalls            int `json:"worker_max_model_calls"`
+	WorkerMaxToolCalls             int `json:"worker_max_tool_calls"`
+	WorkerTimeoutSeconds           int `json:"worker_timeout_seconds"`
+	WorkerSettlementTimeoutSeconds int `json:"worker_settlement_timeout_seconds"`
 }
 
 // BudgetSummary is the planner/report-facing snapshot. It keeps model rounds
@@ -243,18 +256,114 @@ type BudgetSummary struct {
 
 func DefaultBudgetConfig() BudgetConfig {
 	return BudgetConfig{
-		MaxModelCalls:         30,
-		MaxToolCalls:          30,
-		RunTimeoutSeconds:     120,
-		ModelTimeoutSeconds:   30,
-		ToolTimeoutSeconds:    5,
-		SummaryTimeoutSeconds: 30,
-		CleanupTimeoutSeconds: 10,
-		MaxToolOutputBytes:    8192,
-		MaxPlannerRounds:      8,
-		MaxWorkItems:          12,
-		MaxParallelWorkers:    1,
+		MaxModelCalls:                  30,
+		MaxToolCalls:                   30,
+		RunTimeoutSeconds:              120,
+		ModelTimeoutSeconds:            30,
+		ToolTimeoutSeconds:             5,
+		SummaryTimeoutSeconds:          30,
+		CleanupTimeoutSeconds:          10,
+		MaxToolOutputBytes:             8192,
+		ContextWindowBytes:             98304,
+		MaxPlannerRounds:               8,
+		MaxWorkItems:                   12,
+		MaxParallelWorkers:             1,
+		WorkerMaxModelCalls:            5,
+		WorkerMaxToolCalls:             10,
+		WorkerTimeoutSeconds:           60,
+		WorkerSettlementTimeoutSeconds: 15,
 	}
+}
+
+// --- ARTEX Alignment Core Models (Epochs, Grants, Dual Graph, Planner Todos) ---
+
+type ExecutionEpoch struct {
+	ID           uuid.UUID  `json:"id"`
+	RunID        uuid.UUID  `json:"run_id"`
+	EpochNumber  int        `json:"epoch_number"`
+	Status       string     `json:"status"` // 'running', 'completed', 'failed', 'stopped', 'interrupted'
+	StartedAt    time.Time  `json:"started_at"`
+	FinishedAt   *time.Time `json:"finished_at,omitempty"`
+	FinishReason *string    `json:"finish_reason,omitempty"`
+	Summary      *string    `json:"summary,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+}
+
+type BudgetGrant struct {
+	ID                   uuid.UUID `json:"id"`
+	RunID                uuid.UUID `json:"run_id"`
+	EpochNumber          int       `json:"epoch_number"`
+	GrantedBy            string    `json:"granted_by"`
+	AdditionalModelCalls int       `json:"additional_model_calls"`
+	AdditionalToolCalls  int       `json:"additional_tool_calls"`
+	AdditionalSeconds    int       `json:"additional_seconds"`
+	Reason               string    `json:"reason"`
+	IdempotencyKey       *string   `json:"idempotency_key,omitempty"`
+	CreatedAt            time.Time `json:"created_at"`
+}
+
+type PlannerTodo struct {
+	ID          uuid.UUID `json:"id"`
+	RunID       uuid.UUID `json:"run_id"`
+	ItemKey     string    `json:"item_key"`
+	Description string    `json:"description"`
+	Status      string    `json:"status"` // 'pending', 'in_progress', 'completed', 'dropped'
+	DependsOn   []string  `json:"depends_on"`
+	Version     int       `json:"version"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type GoalSpec struct {
+	Text      string `json:"text"`
+	VulnClass string `json:"vulnclass,omitempty"`
+}
+
+type ExplorationNode struct {
+	IsNew          bool            `json:"-"`
+	ID             uuid.UUID       `json:"id"`
+	RunID          uuid.UUID       `json:"run_id"`
+	Kind           string          `json:"kind"` // 'begin', 'goal', 'intent', 'fact', 'finding', 'hint', 'digest'
+	Payload        json.RawMessage `json:"payload"`
+	Priority       int             `json:"priority"`
+	State          string          `json:"state"`
+	Origin         *string         `json:"origin,omitempty"`
+	Owner          *string         `json:"owner,omitempty"`
+	BlockedReason  *string         `json:"blocked_reason,omitempty"`
+	DeleteReason   *string         `json:"delete_reason,omitempty"`
+	WorkItemID     *uuid.UUID      `json:"work_item_id,omitempty"`
+	FindingID      *uuid.UUID      `json:"finding_id,omitempty"`
+	ContentVersion int             `json:"content_version"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
+	CompletedAt    *time.Time      `json:"completed_at,omitempty"`
+}
+
+type ExplorationEdge struct {
+	ID        uuid.UUID `json:"id"`
+	RunID     uuid.UUID `json:"run_id"`
+	SrcID     uuid.UUID `json:"src_id"`
+	DstID     uuid.UUID `json:"dst_id"`
+	Rel       string    `json:"rel"` // 'spawns', 'derived_from', 'yields', 'proves', 'covers'
+	Reason    *string   `json:"reason,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type ExplorationAnchor struct {
+	ID        uuid.UUID `json:"id"`
+	RunID     uuid.UUID `json:"run_id"`
+	NodeID    uuid.UUID `json:"node_id"`
+	AssetID   uuid.UUID `json:"asset_id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type AssetRelation struct {
+	ID            uuid.UUID       `json:"id"`
+	SourceAssetID uuid.UUID       `json:"source_asset_id"`
+	TargetAssetID uuid.UUID       `json:"target_asset_id"`
+	RelationType  string          `json:"relation_type"`
+	Metadata      json.RawMessage `json:"metadata"`
+	CreatedAt     time.Time       `json:"created_at"`
 }
 
 type CreateTaskRequest struct {

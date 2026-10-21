@@ -21,11 +21,16 @@ import (
 )
 
 type RunService struct {
-	pool *pgxpool.Pool
+	pool          *pgxpool.Pool
+	workspaceRoot string
 }
 
 func NewRunService(pool *pgxpool.Pool) *RunService {
-	return &RunService{pool: pool}
+	root := os.Getenv("WORKSPACE_ROOT")
+	if root == "" {
+		root = "data/workspaces"
+	}
+	return &RunService{pool: pool, workspaceRoot: root}
 }
 
 func (s *RunService) Pool() *pgxpool.Pool {
@@ -34,8 +39,8 @@ func (s *RunService) Pool() *pgxpool.Pool {
 
 func (s *RunService) ListByTask(ctx context.Context, taskID uuid.UUID) ([]model.Run, error) {
 	rows, err := s.pool.Query(ctx,
-		`SELECT id, task_id, idempotency_key, config_snapshot, execution_input, scope_policy_version, status, finish_reason, 
-		        fail_at_step, final_output, started_at, finished_at, created_at, updated_at 
+		`SELECT id, task_id, idempotency_key, config_snapshot, execution_input, scope_policy_version, current_epoch, status, finish_reason,
+		        fail_at_step, final_output, started_at, finished_at, created_at, updated_at
 		 FROM runs WHERE task_id = $1 ORDER BY created_at DESC`, taskID)
 	if err != nil {
 		return nil, fmt.Errorf("query runs: %w", err)
@@ -46,7 +51,7 @@ func (s *RunService) ListByTask(ctx context.Context, taskID uuid.UUID) ([]model.
 	for rows.Next() {
 		var r model.Run
 		if err := rows.Scan(&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
-			&r.ScopePolicyVersion, &r.Status, &r.FinishReason, &r.FailAtStep, &r.FinalOutput, &r.StartedAt, &r.FinishedAt,
+			&r.ScopePolicyVersion, &r.CurrentEpoch, &r.Status, &r.FinishReason, &r.FailAtStep, &r.FinalOutput, &r.StartedAt, &r.FinishedAt,
 			&r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan run: %w", err)
 		}
@@ -61,11 +66,11 @@ func (s *RunService) ListByTask(ctx context.Context, taskID uuid.UUID) ([]model.
 func (s *RunService) Get(ctx context.Context, id uuid.UUID) (*model.Run, error) {
 	var r model.Run
 	err := s.pool.QueryRow(ctx,
-		`SELECT id, task_id, idempotency_key, config_snapshot, execution_input, scope_policy_version, status, finish_reason, 
-		        fail_at_step, final_output, started_at, finished_at, created_at, updated_at 
+		`SELECT id, task_id, idempotency_key, config_snapshot, execution_input, scope_policy_version, current_epoch, status, finish_reason,
+		        fail_at_step, final_output, started_at, finished_at, created_at, updated_at
 		 FROM runs WHERE id = $1`, id).Scan(
 		&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
-		&r.ScopePolicyVersion, &r.Status, &r.FinishReason, &r.FailAtStep, &r.FinalOutput, &r.StartedAt, &r.FinishedAt,
+		&r.ScopePolicyVersion, &r.CurrentEpoch, &r.Status, &r.FinishReason, &r.FailAtStep, &r.FinalOutput, &r.StartedAt, &r.FinishedAt,
 		&r.CreatedAt, &r.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -82,12 +87,12 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 	if idempotencyKey != nil && *idempotencyKey != "" {
 		var existing model.Run
 		err := s.pool.QueryRow(ctx,
-			`SELECT id, task_id, idempotency_key, config_snapshot, execution_input, scope_policy_version, status, finish_reason, 
-			        fail_at_step, final_output, started_at, finished_at, created_at, updated_at 
+			`SELECT id, task_id, idempotency_key, config_snapshot, execution_input, scope_policy_version, current_epoch, status, finish_reason,
+			        fail_at_step, final_output, started_at, finished_at, created_at, updated_at
 			 FROM runs WHERE task_id = $1 AND idempotency_key = $2`,
 			taskID, *idempotencyKey).Scan(
 			&existing.ID, &existing.TaskID, &existing.IdempotencyKey, &existing.ConfigSnapshot, &existing.ExecutionInput,
-			&existing.ScopePolicyVersion, &existing.Status, &existing.FinishReason, &existing.FailAtStep, &existing.FinalOutput,
+			&existing.ScopePolicyVersion, &existing.CurrentEpoch, &existing.Status, &existing.FinishReason, &existing.FailAtStep, &existing.FinalOutput,
 			&existing.StartedAt, &existing.FinishedAt, &existing.CreatedAt, &existing.UpdatedAt)
 		if err == nil {
 			// Found existing - check if params match
@@ -126,6 +131,13 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 	if len(taskConfig) > 0 && string(taskConfig) != "{}" {
 		var cfgMap map[string]interface{}
 		if err := json.Unmarshal(taskConfig, &cfgMap); err == nil {
+			if nested, ok := cfgMap["agent_config"].(map[string]interface{}); ok {
+				for key, value := range nested {
+					if _, exists := cfgMap[key]; !exists {
+						cfgMap[key] = value
+					}
+				}
+			}
 			if ex, ok := cfgMap["executor"].(string); ok && ex != "" {
 				executor = ex
 			}
@@ -174,6 +186,9 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 		}
 		if req.Budget.CleanupTimeoutSeconds > 0 {
 			budget.CleanupTimeoutSeconds = req.Budget.CleanupTimeoutSeconds
+		}
+		if req.Budget.ContextWindowBytes > 0 {
+			budget.ContextWindowBytes = req.Budget.ContextWindowBytes
 		}
 		if req.Budget.MaxToolOutputBytes > 0 {
 			budget.MaxToolOutputBytes = req.Budget.MaxToolOutputBytes
@@ -387,6 +402,22 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 		executionInputMap["agent_config"] = agentConfig
 		executionInputMap["budget"] = budget
 	}
+	executionInputMap["budget"] = budget
+
+	profileInput, _ := json.Marshal(executionInputMap)
+	profiles, profileErr := model.ProfilesFromInput(profileInput)
+	if profileErr != nil {
+		return nil, false, profileErr
+	}
+	executionInputMap["profiles"] = profiles
+	var taskMode struct {
+		Exploration bool `json:"exploration"`
+	}
+	_ = json.Unmarshal(taskConfig, &taskMode)
+	executionInputMap["exploration"] = taskMode.Exploration
+	if taskMode.Exploration && strings.TrimSpace(taskObjective) == "" {
+		return nil, false, fmt.Errorf("autonomous exploration requires an explicit user objective")
+	}
 
 	executionInputBytes, err := json.Marshal(executionInputMap)
 	if err != nil {
@@ -402,13 +433,13 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 
 	var r model.Run
 	err = tx.QueryRow(ctx,
-		`INSERT INTO runs (task_id, idempotency_key, config_snapshot, execution_input, scope_policy_version, status, fail_at_step) 
-		 VALUES ($1, $2, $3, $4, 'v1', 'queued', $5) 
-		 RETURNING id, task_id, idempotency_key, config_snapshot, execution_input, scope_policy_version, status, finish_reason, 
+		`INSERT INTO runs (task_id, idempotency_key, config_snapshot, execution_input, scope_policy_version, current_epoch, status, fail_at_step)
+		 VALUES ($1, $2, $3, $4, 'v1', 1, 'queued', $5)
+		 RETURNING id, task_id, idempotency_key, config_snapshot, execution_input, scope_policy_version, current_epoch, status, finish_reason,
 		          fail_at_step, final_output, started_at, finished_at, created_at, updated_at`,
 		taskID, idempotencyKey, taskConfig, executionInputBytes, req.FailAtStep).Scan(
 		&r.ID, &r.TaskID, &r.IdempotencyKey, &r.ConfigSnapshot, &r.ExecutionInput,
-		&r.ScopePolicyVersion, &r.Status, &r.FinishReason, &r.FailAtStep, &r.FinalOutput, &r.StartedAt, &r.FinishedAt,
+		&r.ScopePolicyVersion, &r.CurrentEpoch, &r.Status, &r.FinishReason, &r.FailAtStep, &r.FinalOutput, &r.StartedAt, &r.FinishedAt,
 		&r.CreatedAt, &r.UpdatedAt)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -417,12 +448,12 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 				// Check if conflict is due to concurrent insert with same idempotency key
 				var existing model.Run
 				readErr := s.pool.QueryRow(ctx,
-					`SELECT id, task_id, idempotency_key, config_snapshot, execution_input, scope_policy_version, status, finish_reason, 
-					        fail_at_step, final_output, started_at, finished_at, created_at, updated_at 
+					`SELECT id, task_id, idempotency_key, config_snapshot, execution_input, scope_policy_version, current_epoch, status, finish_reason,
+					        fail_at_step, final_output, started_at, finished_at, created_at, updated_at
 					 FROM runs WHERE task_id = $1 AND idempotency_key = $2`,
 					taskID, *idempotencyKey).Scan(
 					&existing.ID, &existing.TaskID, &existing.IdempotencyKey, &existing.ConfigSnapshot, &existing.ExecutionInput,
-					&existing.ScopePolicyVersion, &existing.Status, &existing.FinishReason, &existing.FailAtStep, &existing.FinalOutput, &existing.StartedAt,
+					&existing.ScopePolicyVersion, &existing.CurrentEpoch, &existing.Status, &existing.FinishReason, &existing.FailAtStep, &existing.FinalOutput, &existing.StartedAt,
 					&existing.FinishedAt, &existing.CreatedAt, &existing.UpdatedAt)
 				if readErr == nil {
 					if runRequestMatches(existing, req) {
@@ -501,6 +532,13 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 			r.ID, assetID, snapJSON)
 		if err != nil {
 			return nil, false, fmt.Errorf("link run_asset %s: %w", spec.ExternalKey, err)
+		}
+	}
+
+	if taskMode.Exploration {
+		payload, _ := json.Marshal(map[string]any{"text": taskObjective, "source": "user_objective", "acceptance": "evidence_review"})
+		if _, err := tx.Exec(ctx, `INSERT INTO exploration_nodes(run_id,kind,payload,state,origin,epoch_number) VALUES($1,'goal',$2,'open','user',1)`, r.ID, payload); err != nil {
+			return nil, false, err
 		}
 	}
 
@@ -622,6 +660,15 @@ func (s *RunService) TransitionState(ctx context.Context, runID uuid.UUID, fromS
 	if err != nil {
 		return nil, fmt.Errorf("update run status: %w", err)
 	}
+	if toStatus == model.RunStatusRunning || toStatus.IsTerminal() {
+		if _, err := tx.Exec(ctx, `INSERT INTO execution_epochs(run_id,epoch_number,status,started_at,finished_at,finish_reason)
+			SELECT id,current_epoch,CASE WHEN status IN ('completed','failed','stopped','interrupted') THEN status ELSE 'running' END,
+			COALESCE(started_at,now()),finished_at,finish_reason FROM runs WHERE id=$1
+			ON CONFLICT(run_id,epoch_number) DO UPDATE SET status=EXCLUDED.status,finished_at=EXCLUDED.finished_at,finish_reason=EXCLUDED.finish_reason
+			WHERE execution_epochs.status='running'`, runID); err != nil {
+			return nil, fmt.Errorf("record epoch state: %w", err)
+		}
+	}
 
 	// Get next seq
 	var nextSeq int
@@ -709,7 +756,7 @@ func (s *RunService) InsertRunEventWithContext(ctx context.Context, runID uuid.U
 	// Use the same Run-first lock order as the terminal transaction. Besides
 	// serializing event sequence allocation, this prevents a cancelling session
 	// from holding an event key while waiting on the finalizer's Run lock.
-	if err := lockRunAdmission(ctx, tx, runID); err != nil {
+	if err := lockSessionAdmission(ctx, tx, runID, sessionID, true); err != nil {
 		return nil, err
 	}
 

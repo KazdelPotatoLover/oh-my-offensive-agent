@@ -11,6 +11,8 @@ interface TaskFormProps {
 
 export function TaskForm({ onSuccess, onCancel }: TaskFormProps) {
   const [name, setName] = useState('');
+  const [autonomous, setAutonomous] = useState(true);
+  const [profileJSON, setProfileJSON] = useState('');
   const [objective, setObjective] = useState('');
   const [targetType, setTargetType] = useState<'discovery' | 'http' | 'samples'>('discovery');
   const [discoveryPreset, setDiscoveryPreset] = useState<'live' | 'fixture' | 'custom'>('live');
@@ -108,10 +110,14 @@ export function TaskForm({ onSuccess, onCancel }: TaskFormProps) {
         };
       }
 
+      if (autonomous && !objective.trim()) throw new Error('自主探索需要明确的交付目标。');
+      const profiles = profileJSON.trim() ? JSON.parse(profileJSON) : undefined;
+      if (profiles && !Array.isArray(profiles)) throw new Error('能力配置必须是 profile 数组。');
       const task = await api.createTask({
         name: name.trim(),
         objective: objective.trim(),
         scope: scopePayload,
+        config: { exploration: autonomous, executor: 'orchestrator', ...(profiles ? { profiles } : {}) },
       });
       onSuccess(task);
     } catch (err: unknown) {
@@ -418,6 +424,11 @@ export function TaskForm({ onSuccess, onCancel }: TaskFormProps) {
           )}
         </div>
 
+        <div className="p-4 border border-gray-800 rounded-lg space-y-3">
+          <label className="flex gap-2 text-sm text-gray-300"><input type="checkbox" checked={autonomous} onChange={e => setAutonomous(e.target.checked)} />自主探索：以交付目标和证据驱动规划</label>
+          <p className="text-xs text-gray-500">原始目标会保留为待证明目标；完成若干扫描步骤不代表目标已经达成。</p>
+          <details><summary className="text-xs text-indigo-300 cursor-pointer">自定义能力 profile（可选）</summary><textarea aria-label="能力 profile 配置" value={profileJSON} onChange={e => setProfileJSON(e.target.value)} rows={5} placeholder={'[{"name":"readonly","version":"1","tools":[{"name":"get_endpoint"},{"name":"inspect_artifact"}]}]'} className="mt-2 w-full p-2 bg-gray-950 border border-gray-700 rounded text-xs font-mono text-gray-300" /><p className="text-xs text-gray-500 mt-1">留空使用内置配置。这里只能启用服务器已注册的工具，不会新增网络或文件权限。</p></details>
+        </div>
         <div className="flex items-center justify-end space-x-3 pt-2">
           <button
             type="button"

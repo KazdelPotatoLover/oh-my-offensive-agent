@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { api } from '@/lib/api';
-import { AgentToolCall, CheckResult, Finding, FindingReview, FindingReport } from '@/lib/types';
+import { api, newRequestID } from '@/lib/api';
+import { AgentToolCall, CheckResult, Finding, FindingReview, FindingReport, FindingRetest } from '@/lib/types';
 
 const checkStatusLabels: Record<string, { label: string; color: string }> = {
   pass: { label: '检查通过', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
@@ -19,9 +19,9 @@ const findingStatusLabels: Record<string, { label: string; color: string; desc: 
     desc: '程序规则判定的配置风险，等待安全人员确认或处置',
   },
   confirmed: {
-    label: '已确认配置问题',
+    label: '人工已确认',
     color: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
-    desc: '确认配置风险成立（不代表已验证可利用漏洞）',
+    desc: '人工确认当前发现及其证据；可利用性以具体证据为准',
   },
   false_positive: {
     label: '判定误报',
@@ -55,9 +55,64 @@ export function CheckResultsPanel({ runId, status, toolCalls }: {
   const [report, setReport] = useState<FindingReport | null>(null);
   const [reviewsMap, setReviewsMap] = useState<Record<string, FindingReview[]>>({});
   const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
+  const [retestsMap, setRetestsMap] = useState<Record<string, FindingRetest[]>>({});
+  const [expandedRetests, setExpandedRetests] = useState<Record<string, boolean>>({});
+  const [retestForm, setRetestForm] = useState<{ findingId: string; notes: string; submitting: boolean; error: string | null } | null>(null);
+  const [finishRetestForm, setFinishRetestForm] = useState<{ findingId: string; retestId: string; verdict: 'still_reproducible' | 'fixed' | 'inconclusive'; evidence: string; summary: string; submitting: boolean; error: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviewForm, setReviewForm] = useState<ReviewFormState | null>(null);
+
+  const loadRetestsForFinding = async (findingId: string) => {
+    try {
+      const rts = await api.listFindingRetests(runId, findingId);
+      setRetestsMap(prev => ({ ...prev, [findingId]: rts }));
+    } catch (err) {
+      console.error('Failed to load retests for finding', findingId, err);
+    }
+  };
+
+  const toggleRetests = async (findingId: string) => {
+    const isExpanded = !!expandedRetests[findingId];
+    if (!isExpanded && !retestsMap[findingId]) {
+      await loadRetestsForFinding(findingId);
+    }
+    setExpandedRetests(prev => ({ ...prev, [findingId]: !isExpanded }));
+  };
+
+  const submitCreateRetest = async () => {
+    if (!retestForm) return;
+    setRetestForm(prev => prev ? { ...prev, submitting: true, error: null } : null);
+    try {
+      await api.createFindingRetest(runId, retestForm.findingId, retestForm.notes);
+      await loadData();
+      await loadRetestsForFinding(retestForm.findingId);
+      setExpandedRetests(prev => ({ ...prev, [retestForm.findingId]: true }));
+      setRetestForm(null);
+    } catch (err: any) {
+      setRetestForm(prev => prev ? { ...prev, submitting: false, error: err.message || '发起复测失败' } : null);
+    }
+  };
+
+  const submitFinishRetest = async () => {
+    if (!finishRetestForm) return;
+    setFinishRetestForm(prev => prev ? { ...prev, submitting: true, error: null } : null);
+    try {
+      if (finishRetestForm.verdict !== 'inconclusive') {
+        let reference: { source_tool_call_id?: unknown } | null = null;
+        try { reference = JSON.parse(finishRetestForm.evidence); } catch { /* Report the actionable validation message below. */ }
+        if (!reference || typeof reference.source_tool_call_id !== 'string' || !reference.source_tool_call_id.trim()) {
+          throw new Error('请引用本次复测的目标验证记录；证据不足时请选择“无法确认”。');
+        }
+      }
+      await api.finishFindingRetest(runId, finishRetestForm.findingId, finishRetestForm.retestId, finishRetestForm.verdict, finishRetestForm.evidence, finishRetestForm.summary);
+      await loadData();
+      await loadRetestsForFinding(finishRetestForm.findingId);
+      setFinishRetestForm(null);
+    } catch (err: any) {
+      setFinishRetestForm(prev => prev ? { ...prev, submitting: false, error: err.message || '提交复测结论失败' } : null);
+    }
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -85,6 +140,19 @@ export function CheckResultsPanel({ runId, status, toolCalls }: {
       return () => clearInterval(timer);
     }
   }, [runId, status, loadData]);
+
+  useEffect(() => {
+    const activeIds = Object.entries(retestsMap).filter(([, items]) => items.some(item => item.status === 'running')).map(([id]) => id);
+    if (!activeIds.length) return;
+    let polling = false;
+    const timer = setInterval(async () => {
+      if (polling) return;
+      polling = true;
+      try { await Promise.all([loadData(), ...activeIds.map(id => loadRetestsForFinding(id))]); }
+      finally { polling = false; }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [retestsMap, loadData]);
 
   const loadReviewsForFinding = async (findingId: string) => {
     try {
@@ -121,7 +189,7 @@ export function CheckResultsPanel({ runId, status, toolCalls }: {
       reviewer: savedReviewer,
       comment: '',
       expectedVersion: finding.review_version,
-      requestId: crypto.randomUUID(),
+      requestId: newRequestID(),
       submitting: false,
       error: null,
       conflict: false,
@@ -189,7 +257,7 @@ export function CheckResultsPanel({ runId, status, toolCalls }: {
             </span>
           </h2>
           <p className="text-xs text-gray-400 mt-1">
-            检查 {checks.length} 项 · 候选发现 {findings.length} 条。人工确认只代表配置问题成立，不代表已验证漏洞。
+            检查 {checks.length} 项 · 候选发现 {findings.length} 条。规则候选、实证来源、人工审核与复测结论分别保留。
           </p>
         </div>
         <button
@@ -232,7 +300,7 @@ export function CheckResultsPanel({ runId, status, toolCalls }: {
             <div className="p-3 rounded-lg bg-gray-900 border border-blue-500/30">
               <div className="text-[11px] text-blue-400 font-medium">已确认 (Confirmed)</div>
               <div className="text-xl font-bold font-mono text-white mt-0.5">{report.summary.confirmed}</div>
-              <div className="text-[10px] text-gray-500 mt-0.5">确认配置风险成立</div>
+              <div className="text-[10px] text-gray-500 mt-0.5">人工确认发现与证据</div>
             </div>
 
             <div className="p-3 rounded-lg bg-gray-900 border border-rose-500/30">
@@ -248,7 +316,7 @@ export function CheckResultsPanel({ runId, status, toolCalls }: {
             </div>
           </div>
           <p className="text-[11px] text-gray-500 pt-1">
-            * 报告直接从数据库生成实时一致快照；误报与忽略项单独归类，不混入已确认配置问题总数。
+            * 报告直接从数据库生成当前快照；误报与忽略项单独归类。
           </p>
         </div>
       )}
@@ -329,7 +397,7 @@ export function CheckResultsPanel({ runId, status, toolCalls }: {
                       {/* Finding Title & Status Badge */}
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-800 pb-2.5">
                         <div className="space-y-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${fStatusMeta.color}`}>
                               {fStatusMeta.label}
                             </span>
@@ -339,12 +407,42 @@ export function CheckResultsPanel({ runId, status, toolCalls }: {
                             <span className="text-xs text-gray-400 font-mono">
                               v{finding.review_version}
                             </span>
+                            {finding.source_kind === 'empirical' && (
+                              <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                                实证发现
+                              </span>
+                            )}
+                            {finding.source_kind === 'speculative' && (
+                              <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                推测线索
+                              </span>
+                            )}
+                            {finding.verification_state === 'retested' ? (
+                              <span className={`px-1.5 py-0.5 rounded text-[11px] font-semibold border ${
+                                finding.retest_verdict === 'fixed'
+                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                  : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                              }`}>
+                                复测: {finding.retest_verdict === 'fixed' ? '已修复' : finding.retest_verdict || '已复测'}
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded text-[11px] font-mono bg-gray-800 text-gray-400 border border-gray-700">
+                                {finding.verification_state === 'verified' ? '来源已核验' : '未复测'}
+                              </span>
+                            )}
                           </div>
                           <h4 className="text-sm font-bold text-white pt-0.5">{finding.title}</h4>
                         </div>
 
-                        {/* Review Action Trigger Button */}
+                        {/* Action Buttons */}
                         <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setRetestForm({ findingId: finding.id, notes: '', submitting: false, error: null })}
+                            className="px-2.5 py-1 bg-purple-700 hover:bg-purple-600 text-white rounded text-xs font-medium transition-colors shadow-sm"
+                          >
+                            发起独立复测
+                          </button>
                           <button
                             type="button"
                             onClick={() => openReviewForm(finding)}
@@ -405,7 +503,7 @@ export function CheckResultsPanel({ runId, status, toolCalls }: {
 
                           {/* Explanatory Callout */}
                           <div className="p-2.5 rounded bg-blue-500/10 border border-blue-500/30 text-[11px] text-blue-300 space-y-1">
-                            <p>⚠️ <strong>确认配置问题</strong>仅代表客观配置缺失成立，<strong>不代表已验证可利用漏洞</strong>。</p>
+                            <p>请核对本条发现的目标、原始响应与复现条件。人工确认保留为审核结论；来源校验和独立复测分别记录。</p>
                             <p>💡 <strong>忽略</strong>表示出于业务考量暂缓处理，<strong>不等于误报</strong>。</p>
                           </div>
 
@@ -537,6 +635,160 @@ export function CheckResultsPanel({ runId, status, toolCalls }: {
                                   </div>
                                   <div className="text-[10px] text-gray-600 font-mono">
                                     Request ID: {rev.request_id}
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Retest Form */}
+                      {retestForm && retestForm.findingId === finding.id && (
+                        <div className="mt-3 p-3.5 bg-gray-950 rounded-lg border border-purple-500/40 space-y-2.5">
+                          <h5 className="text-xs font-bold text-purple-300">发起独立复测验证 (Verification Session)</h5>
+                          <p className="text-[11px] text-gray-400">
+                            将在独立会话中重放/复测本漏洞，不影响原扫描数据与历史审核记录。
+                          </p>
+                          <input
+                            type="text"
+                            placeholder="复测备注 (例如: 修复补丁已发布至测试环境)"
+                            value={retestForm.notes}
+                            onChange={e => setRetestForm({ ...retestForm, notes: e.target.value })}
+                            className="w-full text-xs bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white"
+                          />
+                          {retestForm.error && (
+                            <p className="text-xs text-rose-400">{retestForm.error}</p>
+                          )}
+                          <div className="flex justify-end gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setRetestForm(null)}
+                              className="px-3 py-1 text-xs text-gray-400 hover:text-white"
+                            >
+                              取消
+                            </button>
+                            <button
+                              type="button"
+                              onClick={submitCreateRetest}
+                              disabled={retestForm.submitting}
+                              className="px-3.5 py-1 text-xs bg-purple-600 hover:bg-purple-500 text-white rounded font-medium disabled:opacity-50"
+                            >
+                              {retestForm.submitting ? '启动中...' : '确认启动复测'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Finish Retest Form */}
+                      {finishRetestForm && finishRetestForm.findingId === finding.id && (
+                        <div className="mt-3 p-3.5 bg-gray-950 rounded-lg border border-emerald-500/40 space-y-2.5">
+                          <h5 className="text-xs font-bold text-emerald-300">提交复测验证结论</h5>
+                          <p className="text-[11px] text-gray-400">“已修复”和“仍可复现”需要本轮目标响应符合发现中保存的验证条件。普通说明文字不能作为验证结论。</p>
+                          <div className="flex gap-2">
+                            {(['still_reproducible', 'fixed', 'inconclusive'] as const).map(vd => (
+                              <button
+                                key={vd}
+                                type="button"
+                                onClick={() => setFinishRetestForm({ ...finishRetestForm, verdict: vd })}
+                                className={`px-2.5 py-1 text-xs rounded border ${
+                                  finishRetestForm.verdict === vd
+                                    ? 'bg-indigo-600 text-white border-indigo-500 font-bold'
+                                    : 'bg-gray-900 text-gray-400 border-gray-700'
+                                }`}
+                              >
+                                {vd === 'fixed' ? '已修复 (Fixed)' : vd === 'still_reproducible' ? '仍可复现 (Reproducible)' : '无法确认 (Inconclusive)'}
+                              </button>
+                            ))}
+                          </div>
+                          <textarea
+                            rows={2}
+                            placeholder={finishRetestForm.verdict === 'inconclusive' ? '说明无法确认的原因...' : '{"source_tool_call_id":"本次复测的验证调用 UUID"}'}
+                            value={finishRetestForm.evidence}
+                            onChange={e => setFinishRetestForm({ ...finishRetestForm, evidence: e.target.value })}
+                            className="w-full text-xs bg-gray-900 border border-gray-700 rounded p-2 text-white"
+                          />
+                          <input
+                            type="text"
+                            placeholder="复测总结说明..."
+                            value={finishRetestForm.summary}
+                            onChange={e => setFinishRetestForm({ ...finishRetestForm, summary: e.target.value })}
+                            className="w-full text-xs bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white"
+                          />
+                          {finishRetestForm.error && (
+                            <p className="text-xs text-rose-400">{finishRetestForm.error}</p>
+                          )}
+                          <div className="flex justify-end gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setFinishRetestForm(null)}
+                              className="px-3 py-1 text-xs text-gray-400 hover:text-white"
+                            >
+                              取消
+                            </button>
+                            <button
+                              type="button"
+                              onClick={submitFinishRetest}
+                              disabled={finishRetestForm.submitting}
+                              className="px-3.5 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded font-medium disabled:opacity-50"
+                            >
+                              {finishRetestForm.submitting ? '提交中...' : '提交复测结果'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Retests History Toggle & List */}
+                      <div className="pt-2 border-t border-gray-800/60">
+                        <button
+                          type="button"
+                          onClick={() => void toggleRetests(finding.id)}
+                          className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1 font-medium"
+                        >
+                          <span>独立复测记录 {(retestsMap[finding.id] || []).length > 0 ? `(${(retestsMap[finding.id] || []).length})` : ''}</span>
+                        </button>
+
+                        {!!expandedRetests[finding.id] && (
+                          <div className="mt-2 space-y-2 pl-4 border-l-2 border-purple-800">
+                            {(retestsMap[finding.id] || []).length === 0 ? (
+                              <p className="text-xs text-gray-500 italic">尚无独立复测记录。</p>
+                            ) : (
+                              (retestsMap[finding.id] || []).map(rt => (
+                                <div key={rt.id} className="text-xs p-2.5 rounded bg-gray-950 border border-gray-800 space-y-1 font-sans">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-semibold text-gray-200 flex items-center gap-2">
+                                      <span>状态: <span className="font-mono text-indigo-300">{rt.status}</span></span>
+                                      {rt.verdict && (
+                                        <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold border ${
+                                          rt.verdict === 'fixed' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-red-500/20 text-red-300 border-red-500/40'
+                                        }`}>
+                                          结论: {rt.verdict}
+                                        </span>
+                                      )}
+                                    </span>
+                                    {rt.status === 'running' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setFinishRetestForm({
+                                          findingId: finding.id,
+                                          retestId: rt.id,
+                                          verdict: 'fixed',
+                                          evidence: '',
+                                          summary: '',
+                                          submitting: false,
+                                          error: null,
+                                        })}
+                                        className="px-2 py-0.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-[11px]"
+                                      >
+                                        录入复测结论
+                                      </button>
+                                    )}
+                                  </div>
+                                  {rt.notes && <p className="text-gray-400">备注: {rt.notes}</p>}
+                                  {rt.summary && <p className="text-gray-300">总结: {rt.summary}</p>}
+                                  {rt.evidence && <p className="text-[11px] font-mono text-gray-400 bg-gray-900 p-1.5 rounded overflow-auto max-h-24">证据: {rt.evidence}</p>}
+                                  <div className="text-[10px] text-gray-500">
+                                    创建: {new Date(rt.created_at).toLocaleString()} {rt.finished_at ? `· 完成: ${new Date(rt.finished_at).toLocaleString()}` : ''}
                                   </div>
                                 </div>
                               ))

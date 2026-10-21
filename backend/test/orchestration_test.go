@@ -108,14 +108,15 @@ RunFinished:
 	if err != nil {
 		t.Fatalf("failed to list planner rounds: %v", err)
 	}
-	if len(roundsInDB) != 2 {
-		t.Fatalf("expected exactly 2 planner rounds, got %d", len(roundsInDB))
+	// Persisted graph changes may wake the event-driven Planner while workers
+	// are active. Check bounded, contiguous completed rounds, not one schedule.
+	if len(roundsInDB) < 2 || len(roundsInDB) > model.DefaultBudgetConfig().MaxPlannerRounds {
+		t.Fatalf("expected bounded planner rounds, got %d", len(roundsInDB))
 	}
-	if roundsInDB[0].Round != 1 || roundsInDB[0].Status != "completed" {
-		t.Errorf("expected round 1 to be completed, got round=%d status=%s", roundsInDB[0].Round, roundsInDB[0].Status)
-	}
-	if roundsInDB[1].Round != 2 || roundsInDB[1].Status != "completed" {
-		t.Errorf("expected round 2 to be completed, got round=%d status=%s", roundsInDB[1].Round, roundsInDB[1].Status)
+	for i, round := range roundsInDB {
+		if round.Round != i+1 || round.Status != "completed" {
+			t.Errorf("expected completed round %d, got round=%d status=%s", i+1, round.Round, round.Status)
+		}
 	}
 
 	// 2. Verify Work Items
@@ -190,8 +191,8 @@ RunFinished:
 	if err != nil {
 		t.Fatalf("failed to list sessions: %v", err)
 	}
-	if len(sessions) != 6 { // 2 planner rounds + 4 work items
-		t.Fatalf("expected 6 sessions (2 planner + 4 workers), got %d", len(sessions))
+	if len(sessions) != len(roundsInDB)+len(items) {
+		t.Fatalf("expected one session per planner round and worker, got %d", len(sessions))
 	}
 
 	for _, sess := range sessions {

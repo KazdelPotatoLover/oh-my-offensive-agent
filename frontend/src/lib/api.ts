@@ -35,6 +35,12 @@ import {
   ObservationsResponse,
   SessionsResponse,
   PlannerRoundsResponse,
+  Goal,
+  ExplorationNode,
+  BudgetGrant,
+  ExecutionEpoch,
+  FindingRetest,
+  BudgetConfig,
 } from './types';
 
 const API_BASE_URL =
@@ -44,6 +50,14 @@ const API_BASE_URL =
       process.env.NEXT_PUBLIC_API_URL ||
       'http://127.0.0.1:28080';
 
+// getRandomValues also works on a LAN HTTP origin, where randomUUID is absent.
+export function newRequestID(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 15) | 64;
+  bytes[8] = (bytes[8] & 63) | 128;
+  const hex = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 
 export class ApiError extends Error {
   status: number;
@@ -112,6 +126,14 @@ async function request<T>(
 }
 
 export const api = {
+  async getAssetRelations(assetId: string): Promise<any[]> { const data = await request<{relations:any[]}>(`/api/assets/${assetId}/relations`); return data.relations || []; },
+  async getCapabilities(runId: string): Promise<{profiles: Record<string, unknown>[]}> { return request(`/api/runs/${runId}/capabilities`); },
+  async getArtifacts(runId: string, offset = 0): Promise<{artifacts: any[];has_more:boolean}> { return request(`/api/runs/${runId}/artifacts?offset=${offset}&limit=25`); },
+  async readArtifact(runId: string, artifactId: string, offset = 0): Promise<any> { return request(`/api/runs/${runId}/artifacts/${artifactId}?offset=${offset}&limit=8192`); },
+  async getCheckpoints(runId: string): Promise<{checkpoints: Record<string, unknown>[]}> { return request(`/api/runs/${runId}/checkpoints`); },
+  async getGraphPage(runId: string, offset = 0): Promise<any> { return request(`/api/runs/${runId}/graph/overview?offset=${offset}&limit=25`); },
+  async getNodeDetail(runId: string, nodeId: string): Promise<any> { return request(`/api/runs/${runId}/graph/nodes/${nodeId}`); },
+  async reviseNode(runId: string, nodeId: string, input: {expected_version:number;actor:string;reason:string;state:string;payload?:Record<string,unknown>}): Promise<void> { await request(`/api/runs/${runId}/graph/nodes/${nodeId}/revisions`, {method:'POST',body:JSON.stringify(input)}); },
   // Tasks
   async getTasks(): Promise<Task[]> {
     const data = await request<TasksResponse>('/api/tasks');
@@ -302,5 +324,104 @@ export const api = {
   async getRunDiscoveries(runId: string): Promise<AssetDiscoveryDetail[]> {
     const data = await request<DiscoveriesResponse>(`/api/runs/${runId}/discoveries`);
     return data.discoveries || [];
+  },
+
+  // ARTEX Alignment: Dual Graph & Goals
+  async getGoals(runId: string): Promise<Goal[]> {
+    const data = await request<{ goals: Goal[] }>(`/api/runs/${runId}/goals`);
+    return data.goals || [];
+  },
+
+  async addHint(runId: string, text: string, assetIDs: string[]): Promise<void> {
+    await request(`/api/runs/${runId}/hints`, { method: 'POST', body: JSON.stringify({ text, asset_ids: assetIDs }) });
+  },
+
+  async proveGoal(runId: string, goalId: string, evidenceID: string, reason: string): Promise<{ all_goals_met: boolean }> {
+    return request<{ all_goals_met: boolean }>(`/api/runs/${runId}/goals/${goalId}/prove`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ evidence_id: evidenceID, reason }),
+    });
+  },
+
+  async getGraphOverview(runId: string): Promise<{ nodes: ExplorationNode[]; total_nodes: number }> {
+    return request<{ nodes: ExplorationNode[]; total_nodes: number }>(`/api/runs/${runId}/graph/overview`);
+  },
+
+  // Execution Control & Budget Grants
+  async pauseRun(runId: string): Promise<void> {
+    await request(`/api/runs/${runId}/pause`, { method: 'POST' });
+  },
+
+  async resumeRun(runId: string): Promise<void> {
+    await request(`/api/runs/${runId}/resume`, { method: 'POST' });
+  },
+
+  async steerWorkItem(runId: string, workItemId: string, instructions: string, inputDataOverride?: any, idempotencyKey?: string): Promise<void> {
+    await request(`/api/runs/${runId}/work_items/${workItemId}/steer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) },
+      body: JSON.stringify({ instructions, input_data_override: inputDataOverride }),
+    });
+  },
+
+  async killWorkItem(runId: string, workItemId: string, reason?: string): Promise<void> {
+    await request(`/api/runs/${runId}/work_items/${workItemId}/kill`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: reason || 'killed_by_user' }),
+    });
+  },
+
+  async grantBudget(runId: string, grant: { additional_model_calls?: number; additional_tool_calls?: number; additional_seconds?: number; reason: string; idempotency_key?: string }): Promise<BudgetGrant> {
+    return request<BudgetGrant>(`/api/runs/${runId}/grant_budget`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(grant),
+    });
+  },
+
+  async getEffectiveBudget(runId: string): Promise<BudgetConfig> {
+    return request<BudgetConfig>(`/api/runs/${runId}/budget/effective`);
+  },
+
+  async listBudgetGrants(runId: string): Promise<BudgetGrant[]> {
+    const data = await request<{ grants: BudgetGrant[] }>(`/api/runs/${runId}/budget_grants`);
+    return data.grants || [];
+  },
+
+  async listEpochs(runId: string): Promise<ExecutionEpoch[]> {
+    const data = await request<{ epochs: ExecutionEpoch[] }>(`/api/runs/${runId}/epochs`);
+    return data.epochs || [];
+  },
+
+  async startNewEpoch(runId: string, reason: string, summary: string, expectedEpoch?: number): Promise<{ epoch_number: number }> {
+    return request<{ epoch_number: number }>(`/api/runs/${runId}/epochs/new`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': expectedEpoch ? `${runId}-epoch-${expectedEpoch}` : newRequestID() },
+      body: JSON.stringify({ reason, summary, expected_epoch: expectedEpoch }),
+    });
+  },
+
+  // Retests & Findings
+  async listFindingRetests(runId: string, findingId: string): Promise<FindingRetest[]> {
+    const data = await request<{ retests: FindingRetest[] }>(`/api/runs/${runId}/findings/${findingId}/retests`);
+    return data.retests || [];
+  },
+
+  async createFindingRetest(runId: string, findingId: string, notes: string): Promise<{ retest: FindingRetest; session: AgentSession }> {
+    return request<{ retest: FindingRetest; session: AgentSession }>(`/api/runs/${runId}/findings/${findingId}/retests`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes }),
+    });
+  },
+
+  async finishFindingRetest(runId: string, findingId: string, retestId: string, verdict: string, evidence: string, summary: string): Promise<FindingRetest> {
+    return request<FindingRetest>(`/api/runs/${runId}/findings/${findingId}/retests/${retestId}/finish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ verdict, evidence, summary }),
+    });
   },
 };

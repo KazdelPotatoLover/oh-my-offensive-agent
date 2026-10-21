@@ -50,7 +50,7 @@ type TestEnv struct {
 	router      *chi.Mux
 }
 
-func setupTestEnv(t *testing.T) *TestEnv {
+func setupTestEnv(t *testing.T, execute ...bool) *TestEnv {
 	ctx := context.Background()
 
 	dbURL := getTestDBURL(t)
@@ -73,12 +73,17 @@ func setupTestEnv(t *testing.T) *TestEnv {
 
 	taskService := service.NewTaskService(pool)
 	runService := service.NewRunService(pool)
+	runService.SetWorkspaceRoot(t.TempDir())
 	manager := worker.NewManager(pool, runService)
 	// Default fast step delay in tests for snappy execution
 	manager.SetDefaultWorkerOptions(worker.WithStepDelay(20 * time.Millisecond))
 
 	taskHandler := handler.NewTaskHandler(taskService)
-	runHandler := handler.NewRunHandler(runService, taskService, manager)
+	handlerManager := manager
+	if len(execute) > 0 && !execute[0] {
+		handlerManager = nil
+	}
+	runHandler := handler.NewRunHandler(runService, taskService, handlerManager)
 
 	r := chi.NewRouter()
 	r.Route("/api", func(r chi.Router) {
@@ -94,10 +99,46 @@ func setupTestEnv(t *testing.T) *TestEnv {
 		r.Get("/runs/{runID}", runHandler.Get)
 		r.Post("/runs/{runID}/stop", runHandler.Stop)
 		r.Get("/runs/{runID}/events", runHandler.GetEvents)
+		r.Post("/runs/{runID}/work_items/{workItemID}/continue", runHandler.ContinueWorkItem)
+		r.Post("/runs/{runID}/work_items/{workItemID}/retry", runHandler.RetryWorkItem)
+		r.Get("/runs/{runID}/planner_todos", runHandler.ListPlannerTodos)
+		r.Post("/runs/{runID}/planner_todos", runHandler.AddOrUpdatePlannerTodo)
+		r.Get("/runs/{runID}/goals", runHandler.ListGoals)
+		r.Post("/runs/{runID}/goals", runHandler.SetGoals)
+		r.Post("/runs/{runID}/goals/{goalID}/prove", runHandler.ProveGoal)
+		r.Get("/runs/{runID}/graph/overview", runHandler.GraphOverview)
+		r.Get("/runs/{runID}/graph/nodes/{nodeID}", runHandler.GetExplorationNodeDetail)
+		r.Post("/runs/{runID}/graph/nodes/{nodeID}/revisions", runHandler.ReviseExplorationNode)
+		r.Get("/runs/{runID}/facts", runHandler.ListFacts)
+		r.Post("/runs/{runID}/facts", runHandler.RecordFact)
+		r.Post("/runs/{runID}/hints", runHandler.RecordHint)
+		r.Get("/runs/{runID}/capabilities", runHandler.ListCapabilities)
+		r.Post("/runs/{runID}/assets/derive", runHandler.DeriveAsset)
+		r.Get("/runs/{runID}/artifacts", runHandler.ListArtifacts)
+		r.Post("/runs/{runID}/artifacts", runHandler.CreateArtifact)
+		r.Get("/runs/{runID}/artifacts/{artifactID}", runHandler.ReadArtifact)
+		r.Get("/runs/{runID}/checkpoints", runHandler.ListCheckpoints)
+		r.Get("/runs/{runID}/traces", runHandler.ListWorkerTraces)
+		r.Get("/runs/{runID}/traces/search", runHandler.SearchAllWorkerTraces)
+		r.Get("/runs/{runID}/work_items/{workItemID}/trace", runHandler.GetWorkerTrace)
+		r.Post("/runs/{runID}/pause", runHandler.PauseRun)
+		r.Post("/runs/{runID}/resume", runHandler.ResumeRun)
+		r.Post("/runs/{runID}/work_items/{workItemID}/steer", runHandler.SteerWorkItem)
+		r.Post("/runs/{runID}/work_items/{workItemID}/kill", runHandler.KillWorkItem)
+		r.Post("/runs/{runID}/grant_budget", runHandler.GrantBudget)
+		r.Get("/runs/{runID}/budget_grants", runHandler.ListBudgetGrants)
+		r.Get("/runs/{runID}/budget/effective", runHandler.GetEffectiveBudget)
+		r.Post("/runs/{runID}/epochs/new", runHandler.StartNewEpoch)
+		r.Get("/runs/{runID}/epochs", runHandler.ListExecutionEpochs)
 		r.Get("/runs/{runID}/checks", runHandler.GetCheckResults)
 		r.Get("/runs/{runID}/findings", runHandler.GetFindings)
+		r.Post("/runs/{runID}/findings", runHandler.ReportFinding)
 		r.Post("/runs/{runID}/findings/{findingID}/reviews", runHandler.CreateFindingReview)
 		r.Get("/runs/{runID}/findings/{findingID}/reviews", runHandler.ListFindingReviews)
+		r.Post("/runs/{runID}/findings/{findingID}/retests", runHandler.CreateFindingRetest)
+		r.Post("/runs/{runID}/findings/{findingID}/retests/{retestID}/finish", runHandler.FinishFindingRetest)
+		r.Post("/runs/{runID}/findings/{findingID}/retests/{retestID}/stop", runHandler.StopFindingRetest)
+		r.Get("/runs/{runID}/findings/{findingID}/retests", runHandler.ListFindingRetests)
 		r.Get("/runs/{runID}/finding-report", runHandler.GetFindingReport)
 		r.Get("/checks/catalog", runHandler.GetCheckCatalog)
 	})

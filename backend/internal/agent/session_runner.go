@@ -33,6 +33,22 @@ type SessionResult struct {
 
 type SessionRunnerOption func(*SessionRunner)
 
+func WithStructuredCallGate(gate StructuredCallGate) SessionRunnerOption {
+	return func(r *SessionRunner) {
+		r.structuredGate = gate
+	}
+}
+
+func WithBeforeTurnMessagesPersisted(persisted bool) SessionRunnerOption {
+	return func(r *SessionRunner) { r.beforeTurnMessagesPersisted = persisted }
+}
+
+func WithInitialMessagesPersisted(persisted bool) SessionRunnerOption {
+	return func(r *SessionRunner) {
+		r.initialMessagesPersisted = persisted
+	}
+}
+
 type CallGate interface {
 	TryAcquire() bool
 }
@@ -73,20 +89,44 @@ func WithSessionToolCallHook(hook func(callID string, toolName string)) SessionR
 	}
 }
 
+// BeforeTurnHook is invoked before each turn. It can block on pause barriers, or return
+// dynamic steering messages to be appended and persisted before the LLM call.
+type BeforeTurnHook func(ctx context.Context, turn int) ([]provider.ChatMessage, error)
+
+func WithBeforeTurnHook(hook BeforeTurnHook) SessionRunnerOption {
+	return func(r *SessionRunner) {
+		r.beforeTurnHook = hook
+	}
+}
+
+// BeforeToolHook is invoked immediately before each tool call executes. It can block on pause barriers.
+type BeforeToolHook func(ctx context.Context, toolName string) error
+
+func WithBeforeToolHook(hook BeforeToolHook) SessionRunnerOption {
+	return func(r *SessionRunner) {
+		r.beforeToolHook = hook
+	}
+}
+
 // SessionRunner executes a single multi-turn conversational tool-calling session.
 type SessionRunner struct {
-	sessionID             uuid.UUID
-	runID                 uuid.UUID
-	role                  string
-	runService            *service.RunService
-	provider              provider.Provider
-	registry              *tools.Registry
-	budget                model.BudgetConfig
-	modelCallGate         CallGate
-	toolCallGate          CallGate
-	onModelCallHook       func(round int)
-	onModelCallFinishHook func(round int, err error)
-	onToolCallHook        func(callID string, toolName string)
+	sessionID                   uuid.UUID
+	runID                       uuid.UUID
+	role                        string
+	runService                  *service.RunService
+	provider                    provider.Provider
+	registry                    *tools.Registry
+	budget                      model.BudgetConfig
+	modelCallGate               CallGate
+	toolCallGate                CallGate
+	structuredGate              StructuredCallGate
+	initialMessagesPersisted    bool
+	beforeTurnMessagesPersisted bool
+	beforeTurnHook              BeforeTurnHook
+	beforeToolHook              BeforeToolHook
+	onModelCallHook             func(round int)
+	onModelCallFinishHook       func(round int, err error)
+	onToolCallHook              func(callID string, toolName string)
 }
 
 func NewSessionRunner(
@@ -119,29 +159,31 @@ func NewSessionRunner(
 
 // Run executes the session until the model returns a final text response, exhausts budget, or is cancelled.
 func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.ChatMessage) (*SessionResult, error) {
-	// Persist initial messages with session_id
-	for _, msg := range initialMessages {
-		var toolCallID *string
-		if msg.ToolCallID != "" {
-			id := msg.ToolCallID
-			toolCallID = &id
-		}
-		var toolCallsJSON json.RawMessage
-		if len(msg.ToolCalls) > 0 {
-			toolCallsJSON, _ = json.Marshal(msg.ToolCalls)
-		}
-		var payload json.RawMessage
-		if msg.NativePayload != nil {
-			payload, _ = json.Marshal(msg.NativePayload)
-		}
-		_, err := persistCall(func(dbCtx context.Context) (*model.AgentMessage, error) {
-			return sr.runService.InsertAgentMessageWithPayload(
-				dbCtx, sr.runID, &sr.sessionID, string(msg.Role), msg.Content, toolCallID, toolCallsJSON, payload)
-		})
-		if err != nil {
-			slog.Error("session runner: failed to persist initial message", "session_id", sr.sessionID, "error", err)
-			sr.updateSessionTerminal("failed", "persistence_error")
-			return nil, fmt.Errorf("%w: insert initial message: %v", ErrPersistenceFailure, err)
+	// Persist initial messages with session_id if not already persisted
+	if !sr.initialMessagesPersisted {
+		for _, msg := range initialMessages {
+			var toolCallID *string
+			if msg.ToolCallID != "" {
+				id := msg.ToolCallID
+				toolCallID = &id
+			}
+			var toolCallsJSON json.RawMessage
+			if len(msg.ToolCalls) > 0 {
+				toolCallsJSON, _ = json.Marshal(msg.ToolCalls)
+			}
+			var payload json.RawMessage
+			if msg.NativePayload != nil {
+				payload, _ = json.Marshal(msg.NativePayload)
+			}
+			_, err := persistSessionCall(ctx, func(dbCtx context.Context) (*model.AgentMessage, error) {
+				return sr.runService.InsertAgentMessageWithPayload(
+					dbCtx, sr.runID, &sr.sessionID, string(msg.Role), msg.Content, toolCallID, toolCallsJSON, payload)
+			})
+			if err != nil {
+				slog.Error("session runner: failed to persist initial message", "session_id", sr.sessionID, "error", err)
+				sr.updateSessionTerminal("failed", "persistence_error")
+				return nil, fmt.Errorf("%w: insert initial message: %v", ErrPersistenceFailure, err)
+			}
 		}
 	}
 
@@ -151,6 +193,7 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 	modelCallCount := 0
 	toolCallCount := 0
 	totalTokens := 0
+	inSettlement := false
 
 	for {
 		// Check context cancellation
@@ -168,8 +211,74 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 		default:
 		}
 
+		// Invoke before turn hook (e.g. pause barrier check or operator steering injection)
+		if sr.beforeTurnHook != nil {
+			injectedMsgs, err := sr.beforeTurnHook(ctx, modelCallCount+1)
+			if err != nil {
+				reason := "hook_cancelled"
+				if errors.Is(err, context.Canceled) {
+					reason = string(model.ResolveCancelCause(ctx))
+				}
+				sr.updateSessionTerminal(cancellationSessionStatus(ctx), reason)
+				return nil, err
+			}
+			for _, injMsg := range injectedMsgs {
+				messages = append(messages, injMsg)
+				if !sr.beforeTurnMessagesPersisted {
+					_, _ = persistSessionCall(ctx, func(dbCtx context.Context) (*model.AgentMessage, error) {
+						return sr.runService.InsertAgentMessageWithSession(
+							dbCtx, sr.runID, &sr.sessionID, string(injMsg.Role), injMsg.Content, nil, nil)
+					})
+				}
+			}
+		}
+
+		view, summary, compacted, compactErr := provider.CompactConversation(messages, sr.budget.ContextWindowBytes)
+		if compactErr != nil {
+			sr.insertSessionEvent("context_compaction_failed", map[string]any{"error": compactErr.Error()})
+			sr.updateSessionTerminal("failed", "context_compaction_failed")
+			return nil, compactErr
+		}
+		if compacted {
+			if err := sr.runService.SaveContextCheckpoint(ctx, sr.runID, sr.sessionID, view, summary); err != nil {
+				sr.updateSessionTerminal("failed", "checkpoint_persistence_error")
+				return nil, err
+			}
+			messages = view
+			sr.insertSessionEvent("context_compacted", map[string]any{"strategy": "extractive_protocol_blocks_v1"})
+		}
+
 		// Check model call budget
-		if sr.modelCallGate != nil {
+		if sr.structuredGate != nil {
+			gateRes := sr.structuredGate.TryAcquireModel(ctx, inSettlement)
+			if !gateRes.Allowed {
+				if gateRes.Scope == ScopeWorkerLocal && gateRes.IsSettlement && !inSettlement {
+					inSettlement = true
+					settleMsg := provider.ChatMessage{
+						Role:    provider.RoleUser,
+						Content: "【局部探索额度耗尽】本轮工作局部额度已耗尽，已转入有界收尾阶段。请对已获得的发现/观察进行整理和总结，保存有效事实，切勿发起新的探测或请求。",
+					}
+					messages = append(messages, settleMsg)
+					_, _ = persistSessionCall(ctx, func(dbCtx context.Context) (*model.AgentMessage, error) {
+						return sr.runService.InsertAgentMessageWithSession(dbCtx, sr.runID, &sr.sessionID, string(settleMsg.Role), settleMsg.Content, nil, nil)
+					})
+					continue
+				}
+				reason := string(gateRes.Cause)
+				status := "exhausted"
+				if gateRes.Scope == ScopeGlobal && (gateRes.Cause == model.CauseTimeout || gateRes.Cause == model.CauseUserStop) {
+					status = "stopped"
+				}
+				sr.updateSessionTerminal(status, reason)
+				return &SessionResult{
+					SessionID:       sr.sessionID,
+					FinishReason:    reason,
+					ModelCallsCount: modelCallCount,
+					ToolCallsCount:  toolCallCount,
+					TotalTokens:     totalTokens,
+				}, nil
+			}
+		} else if sr.modelCallGate != nil {
 			if !sr.modelCallGate.TryAcquire() {
 				reason := "model_calls_exhausted"
 				sr.updateSessionTerminal("exhausted", reason)
@@ -195,7 +304,7 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 
 		// 1. Record model call start in DB
 		round := modelCallCount + 1
-		modelCallRec, err := persistCall(func(dbCtx context.Context) (*model.ModelCall, error) {
+		modelCallRec, err := persistSessionAdmission(ctx, func(dbCtx context.Context) (*model.ModelCall, error) {
 			return sr.runService.CreateModelCallWithSession(dbCtx, sr.runID, &sr.sessionID, round)
 		})
 		if err != nil {
@@ -333,7 +442,7 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 		if resp.NativePayload != nil {
 			payload, _ = json.Marshal(resp.NativePayload)
 		}
-		if _, err := persistCall(func(dbCtx context.Context) (*model.AgentMessage, error) {
+		if _, err := persistSessionCall(ctx, func(dbCtx context.Context) (*model.AgentMessage, error) {
 			return sr.runService.InsertAgentMessageWithPayload(
 				dbCtx, sr.runID, &sr.sessionID, "assistant", resp.Content, nil, toolCallsJSON, payload)
 		}); err != nil {
@@ -387,9 +496,17 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 				}, nil
 			}
 
-			// Session successfully completed!
+			// Session successfully completed or concluded settlement
 			reason := "completed"
-			sr.updateSessionTerminal("completed", reason)
+			status := "completed"
+			if inSettlement || resp.FinishReason == "worker_exhausted" {
+				reason = string(model.CauseWorkerSettlementComplete)
+				if resp.FinishReason == "worker_exhausted" {
+					reason = "worker_exhausted"
+				}
+				status = "exhausted"
+			}
+			sr.updateSessionTerminal(status, reason)
 			return &SessionResult{
 				SessionID:       sr.sessionID,
 				FinalContent:    resp.Content,
@@ -451,8 +568,60 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 			default:
 			}
 
-			// Check global tool call gate if configured
-			if sr.toolCallGate != nil {
+			// Invoke before tool hook (e.g. pause barrier check before any tool executes)
+			if sr.beforeToolHook != nil {
+				if hookErr := sr.beforeToolHook(ctx, tc.Function.Name); hookErr != nil {
+					reason := string(model.ResolveCancelCause(ctx))
+					sr.updateSessionTerminal(cancellationSessionStatus(ctx), reason)
+					return &SessionResult{
+						SessionID:       sr.sessionID,
+						FinishReason:    reason,
+						ModelCallsCount: modelCallCount,
+						ToolCallsCount:  toolCallCount,
+						TotalTokens:     totalTokens,
+					}, hookErr
+				}
+			}
+
+			// Check tool call gate if configured
+			if sr.structuredGate != nil {
+				gateRes := sr.structuredGate.TryAcquireTool(ctx, tc.Function.Name, inSettlement)
+				if !gateRes.Allowed {
+					if inSettlement && gateRes.Cause == model.CauseWorkerSettlementComplete {
+						now := time.Now()
+						errMsg := "settlement phase active: exploratory tools not permitted during wrapup"
+						argsBytes := []byte(tc.Function.Arguments)
+						tcRec, _ := persistSessionCall(ctx, func(dbCtx context.Context) (*model.AgentToolCall, error) {
+							return sr.runService.CreateAgentToolCallWithSession(
+								dbCtx, sr.runID, &sr.sessionID, &modelCallRec.ID, tc.ID, tc.Function.Name, argsBytes)
+						})
+						if tcRec != nil {
+							_ = persistWrite(func(dbCtx context.Context) error {
+								return sr.runService.UpdateAgentToolCall(dbCtx, tcRec.ID, "rejected", "", &errMsg, &now, &now)
+							})
+						}
+						toolErrOutput := fmt.Sprintf("Error: %s", errMsg)
+						_, _ = persistSessionCall(ctx, func(dbCtx context.Context) (*model.AgentMessage, error) {
+							return sr.runService.InsertAgentMessageWithSession(dbCtx, sr.runID, &sr.sessionID, "tool", toolErrOutput, &tc.ID, nil)
+						})
+						messages = append(messages, provider.ChatMessage{
+							Role:       provider.RoleTool,
+							Content:    toolErrOutput,
+							ToolCallID: tc.ID,
+						})
+						continue
+					}
+					reason := string(gateRes.Cause)
+					sr.updateSessionTerminal("exhausted", reason)
+					return &SessionResult{
+						SessionID:       sr.sessionID,
+						FinishReason:    reason,
+						ModelCallsCount: modelCallCount,
+						ToolCallsCount:  toolCallCount,
+						TotalTokens:     totalTokens,
+					}, nil
+				}
+			} else if sr.toolCallGate != nil {
 				if !sr.toolCallGate.TryAcquire() {
 					reason := "tool_calls_exhausted"
 					sr.updateSessionTerminal("exhausted", reason)
@@ -470,7 +639,7 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 			argsBytes := []byte(tc.Function.Arguments)
 
 			// Persistence check #1: If saving tool request fails, DO NOT execute tool!
-			tcRec, err := persistCall(func(dbCtx context.Context) (*model.AgentToolCall, error) {
+			tcRec, err := persistSessionAdmission(ctx, func(dbCtx context.Context) (*model.AgentToolCall, error) {
 				return sr.runService.CreateAgentToolCallWithSession(
 					dbCtx, sr.runID, &sr.sessionID, &modelCallRec.ID, tc.ID, tc.Function.Name, argsBytes)
 			})
@@ -507,7 +676,7 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 				})
 
 				toolErrOutput := fmt.Sprintf("Error: %s", errMsg)
-				if _, err := persistCall(func(dbCtx context.Context) (*model.AgentMessage, error) {
+				if _, err := persistSessionCall(ctx, func(dbCtx context.Context) (*model.AgentMessage, error) {
 					return sr.runService.InsertAgentMessageWithSession(
 						dbCtx, sr.runID, &sr.sessionID, "tool", toolErrOutput, &tc.ID, nil)
 				}); err != nil {
@@ -586,8 +755,24 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 				return nil, fmt.Errorf("%w: update tool result: %v", ErrPersistenceFailure, err)
 			}
 
+			if storedOutStr != "" && tc.Function.Name != "read_artifact" && tc.Function.Name != "get_worker_output" && tc.Function.Name != "list_artifacts" {
+				artifact, err := sr.runService.SaveToolArtifact(ctx, sr.runID, sr.sessionID, tcRec.ID, "tool-output.txt", storedOutStr)
+				if err != nil {
+					sr.updateSessionTerminal("failed", "artifact_persistence_error")
+					return nil, err
+				}
+				var object map[string]any
+				if json.Unmarshal([]byte(toolMsgContent), &object) == nil && object != nil {
+					object["_artifact"] = map[string]any{"id": artifact.ID, "total_bytes": artifact.ByteLength, "sha256": artifact.SHA256, "read_tool": "read_artifact"}
+					encoded, _ := json.Marshal(object)
+					toolMsgContent = string(encoded)
+				} else {
+					toolMsgContent += fmt.Sprintf("\nFull output: artifact_id=%s; read_artifact supports offset/limit.", artifact.ID)
+				}
+			}
+
 			// Persistence check #3: Save tool message to conversation
-			if _, err := persistCall(func(dbCtx context.Context) (*model.AgentMessage, error) {
+			if _, err := persistSessionCall(ctx, func(dbCtx context.Context) (*model.AgentMessage, error) {
 				return sr.runService.InsertAgentMessageWithSession(
 					dbCtx, sr.runID, &sr.sessionID, "tool", toolMsgContent, &tc.ID, nil)
 			}); err != nil {
@@ -637,6 +822,27 @@ func cancellationSessionStatus(ctx context.Context) string {
 
 // Persistence must survive execution cancellation long enough to record its
 // outcome, while retaining a short independent timeout for every database call.
+func persistSessionAdmission[T any](ctx context.Context, operation func(context.Context) (T, error)) (T, error) {
+	for {
+		value, err := persistSessionCall(ctx, operation)
+		if !errors.Is(err, service.ErrRunPaused) {
+			return value, err
+		}
+		select {
+		case <-ctx.Done():
+			var zero T
+			return zero, ctx.Err()
+		case <-time.After(25 * time.Millisecond):
+		}
+	}
+}
+
+func persistSessionCall[T any](parent context.Context, operation func(context.Context) (T, error)) (T, error) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), 3*time.Second)
+	defer cancel()
+	return operation(ctx)
+}
+
 func persistCall[T any](operation func(context.Context) (T, error)) (T, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

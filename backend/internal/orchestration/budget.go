@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"agent-workbench/backend/internal/agent"
 	"agent-workbench/backend/internal/model"
 )
 
@@ -76,6 +77,29 @@ func NewBudgetManager(cfg model.BudgetConfig, startTime time.Time) *BudgetManage
 	bm.hasDeadline = true
 
 	return bm
+}
+
+// UpdateEffectiveBudget updates the budget limits and deadline dynamically while strictly preserving
+// cumulative usage counters.
+func (b *BudgetManager) UpdateEffectiveBudget(cfg model.BudgetConfig) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.cfg = cfg
+	if cfg.MaxModelCalls > 0 {
+		b.maxModelCalls = cfg.MaxModelCalls
+		reserve := 0
+		if b.maxModelCalls > 1 {
+			reserve = 1
+		}
+		b.reserveForWrapup = reserve
+		b.maxExplorationCalls = b.maxModelCalls - reserve
+	}
+	if cfg.MaxToolCalls > 0 {
+		b.maxToolCalls = cfg.MaxToolCalls
+	}
+	if cfg.RunTimeoutSeconds > 0 {
+		b.deadline = b.startTime.Add(time.Duration(cfg.RunTimeoutSeconds) * time.Second)
+	}
 }
 
 // restoreUsage is called once before session admission. Persisted requests from
@@ -185,6 +209,8 @@ func (b *BudgetManager) CanClaimWorkItem(ctx context.Context) bool {
 
 // RemainingTime returns the wall-clock duration until the run deadline.
 func (b *BudgetManager) RemainingTime() time.Duration {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	if !b.hasDeadline {
 		return time.Hour
 	}
@@ -290,4 +316,257 @@ func (b *BudgetManager) minimumWorkRunway() time.Duration {
 		}
 	}
 	return margin
+}
+
+// WorkerBudgetGate enforces dual-layer budget constraints:
+// Run-level hard limits via BudgetManager + Worker-local per-attempt limits and settlement.
+type WorkerBudgetGate struct {
+	mu                      sync.Mutex
+	bm                      *BudgetManager
+	cfg                     model.BudgetConfig
+	startTime               time.Time
+	localTimeout            time.Duration
+	localDeadline           time.Time
+	workerMaxModels         int
+	workerMaxTools          int
+	localModelCalls         int
+	localToolCalls          int
+	settlementModelsAllowed int
+	settlementModelsUsed    int
+	inSettlement            atomic.Bool
+}
+
+func NewWorkerBudgetGate(bm *BudgetManager, cfg model.BudgetConfig) *WorkerBudgetGate {
+	maxModels := cfg.WorkerMaxModelCalls
+	if maxModels <= 0 {
+		maxModels = 5
+	}
+	maxTools := cfg.WorkerMaxToolCalls
+	if maxTools <= 0 {
+		maxTools = 10
+	}
+	timeoutSec := cfg.WorkerTimeoutSeconds
+	if timeoutSec <= 0 {
+		timeoutSec = 60
+	}
+	now := time.Now()
+	timeoutDur := time.Duration(timeoutSec) * time.Second
+	return &WorkerBudgetGate{
+		bm:                      bm,
+		cfg:                     cfg,
+		startTime:               now,
+		localTimeout:            timeoutDur,
+		localDeadline:           now.Add(timeoutDur),
+		workerMaxModels:         maxModels,
+		workerMaxTools:          maxTools,
+		settlementModelsAllowed: 1, // 1 model call for settlement wrapup
+	}
+}
+
+func (w *WorkerBudgetGate) TryAcquire() bool {
+	res := w.TryAcquireModel(context.Background(), w.inSettlement.Load())
+	return res.Allowed
+}
+
+func (w *WorkerBudgetGate) TryAcquireModel(ctx context.Context, isSettlement bool) agent.BudgetGateResult {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	// 1. Check Global Run-level deadline
+	if w.bm.RemainingTime() <= 0 {
+		return agent.BudgetGateResult{
+			Allowed: false,
+			Scope:   agent.ScopeGlobal,
+			Cause:   model.CauseTimeout,
+		}
+	}
+	if ctx != nil && ctx.Err() != nil {
+		return agent.BudgetGateResult{
+			Allowed: false,
+			Scope:   agent.ScopeGlobal,
+			Cause:   model.ResolveCancelCause(ctx),
+		}
+	}
+
+	// 2. Check Global Run-level model budget
+	if w.bm.RemainingModelCalls() <= 0 {
+		return agent.BudgetGateResult{
+			Allowed: false,
+			Scope:   agent.ScopeGlobal,
+			Cause:   model.CauseModelBudgetExhausted,
+		}
+	}
+
+	// 3. Check Worker-local deadline
+	if time.Now().After(w.localDeadline) {
+		if !w.inSettlement.Load() {
+			w.inSettlement.Store(true)
+			settleSec := w.cfg.WorkerSettlementTimeoutSeconds
+			if settleSec <= 0 {
+				settleSec = 15
+			}
+			w.localDeadline = time.Now().Add(time.Duration(settleSec) * time.Second)
+			return agent.BudgetGateResult{
+				Allowed:      false,
+				Scope:        agent.ScopeWorkerLocal,
+				Cause:        model.CauseWorkerTimeout,
+				IsSettlement: true,
+			}
+		}
+		return agent.BudgetGateResult{
+			Allowed:      false,
+			Scope:        agent.ScopeWorkerLocal,
+			Cause:        model.CauseWorkerTimeout,
+			IsSettlement: false,
+		}
+	}
+
+	// 4. Check Worker-local model call limits
+	if !w.inSettlement.Load() {
+		if w.localModelCalls >= w.workerMaxModels {
+			w.inSettlement.Store(true)
+			return agent.BudgetGateResult{
+				Allowed:      false,
+				Scope:        agent.ScopeWorkerLocal,
+				Cause:        model.CauseWorkerModelBudgetExhausted,
+				IsSettlement: true,
+			}
+		}
+	} else {
+		// In settlement
+		if w.settlementModelsUsed >= w.settlementModelsAllowed {
+			return agent.BudgetGateResult{
+				Allowed:      false,
+				Scope:        agent.ScopeWorkerLocal,
+				Cause:        model.CauseWorkerSettlementComplete,
+				IsSettlement: false,
+			}
+		}
+	}
+
+	// 5. Acquire from global budget
+	if err := w.bm.AcquireModelCall(ctx, isSettlement); err != nil {
+		if errors.Is(err, ErrModelBudgetExhausted) {
+			return agent.BudgetGateResult{
+				Allowed: false,
+				Scope:   agent.ScopeGlobal,
+				Cause:   model.CauseModelBudgetExhausted,
+			}
+		}
+		if errors.Is(err, ErrExplorationModelBudgetExhausted) {
+			return agent.BudgetGateResult{
+				Allowed: false,
+				Scope:   agent.ScopeGlobal,
+				Cause:   model.CauseModelBudgetExhausted,
+			}
+		}
+		return agent.BudgetGateResult{
+			Allowed: false,
+			Scope:   agent.ScopeGlobal,
+			Cause:   model.CauseTimeout,
+		}
+	}
+
+	if w.inSettlement.Load() {
+		w.settlementModelsUsed++
+	} else {
+		w.localModelCalls++
+	}
+
+	return agent.BudgetGateResult{
+		Allowed:      true,
+		Scope:        agent.ScopeWorkerLocal,
+		IsSettlement: w.inSettlement.Load(),
+	}
+}
+
+func (w *WorkerBudgetGate) TryAcquireTool(ctx context.Context, toolName string, isSettlement bool) agent.BudgetGateResult {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	// 1. Check Global Run-level limits
+	if w.bm.RemainingTime() <= 0 {
+		return agent.BudgetGateResult{
+			Allowed: false,
+			Scope:   agent.ScopeGlobal,
+			Cause:   model.CauseTimeout,
+		}
+	}
+	if ctx != nil && ctx.Err() != nil {
+		return agent.BudgetGateResult{
+			Allowed: false,
+			Scope:   agent.ScopeGlobal,
+			Cause:   model.ResolveCancelCause(ctx),
+		}
+	}
+	if w.bm.RemainingToolCalls() <= 0 {
+		return agent.BudgetGateResult{
+			Allowed: false,
+			Scope:   agent.ScopeGlobal,
+			Cause:   model.CauseToolBudgetExhausted,
+		}
+	}
+
+	// 2. Check settlement restrictions on exploratory tools
+	if w.inSettlement.Load() {
+		safe := false
+		switch toolName {
+		case "record_fact", "report_finding", "record_observation", "record_observation_batch", "read_observations", "list_facts", "node_detail", "graph_overview", "read_artifact", "get_worker_output", "list_artifacts", "write_artifact", "inspect_artifact", "list_worker_traces", "get_worker_trace", "search_all_worker_traces", "list_capability_profiles":
+			safe = true
+		}
+		if !safe {
+			return agent.BudgetGateResult{
+				Allowed:      false,
+				Scope:        agent.ScopeWorkerLocal,
+				Cause:        model.CauseWorkerSettlementComplete,
+				IsSettlement: true,
+			}
+		}
+	}
+
+	// 3. Check worker local tool calls
+	if w.localToolCalls >= w.workerMaxTools {
+		if !w.inSettlement.Load() {
+			w.inSettlement.Store(true)
+			return agent.BudgetGateResult{
+				Allowed:      false,
+				Scope:        agent.ScopeWorkerLocal,
+				Cause:        model.CauseWorkerToolBudgetExhausted,
+				IsSettlement: true,
+			}
+		}
+		return agent.BudgetGateResult{
+			Allowed:      false,
+			Scope:        agent.ScopeWorkerLocal,
+			Cause:        model.CauseWorkerToolBudgetExhausted,
+			IsSettlement: false,
+		}
+	}
+
+	// 4. Acquire from global budget
+	if err := w.bm.AcquireToolCall(ctx); err != nil {
+		return agent.BudgetGateResult{
+			Allowed: false,
+			Scope:   agent.ScopeGlobal,
+			Cause:   model.CauseToolBudgetExhausted,
+		}
+	}
+
+	w.localToolCalls++
+	return agent.BudgetGateResult{
+		Allowed:      true,
+		Scope:        agent.ScopeWorkerLocal,
+		IsSettlement: w.inSettlement.Load(),
+	}
+}
+
+func (b *BudgetManager) SetStartTime(started time.Time) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.startTime = started
+	timeout := b.cfg.RunTimeoutSeconds
+	if timeout <= 0 {
+		timeout = 120
+	}
+	b.deadline = started.Add(time.Duration(timeout) * time.Second)
 }

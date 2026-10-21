@@ -588,7 +588,7 @@ func TestAsset_FullScenarioTraceability_Mock(t *testing.T) {
 		t.Fatalf("expected run status 'completed', got '%s' (reason: %v)", finalRun.Status, finalRun.FinishReason)
 	}
 
-	// 2. Verify Planner Rounds: Exactly 3 rounds!
+	// 2. Event-driven planning may add bounded review rounds while workers run.
 	// Round 1: Initial plan
 	// Round 2: Follow-up recheck
 	// Round 3: Suggest completion
@@ -596,8 +596,8 @@ func TestAsset_FullScenarioTraceability_Mock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to list planner rounds: %v", err)
 	}
-	if len(rounds) != 3 {
-		t.Fatalf("expected 3 planner rounds, got %d", len(rounds))
+	if len(rounds) < 3 || len(rounds) > model.DefaultBudgetConfig().MaxPlannerRounds {
+		t.Fatalf("expected the three necessary planning decisions within the bounded event loop, got %d", len(rounds))
 	}
 	for _, pr := range rounds {
 		if pr.Status != "completed" {
