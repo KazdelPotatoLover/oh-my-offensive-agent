@@ -1,0 +1,38 @@
+# Agent 0 integrates this fragment. Do not replace the root compose file.
+# The broker is the only service that mounts the Docker socket.
+# The API service and every execution container must omit the socket,
+# privileged mode, host network, and host PID.
+services:
+  execution-broker:
+    build:
+      context: ./backend
+      dockerfile: ../deploy/execution/broker.Dockerfile
+    command: ["/oma-broker", "--listen", "0.0.0.0:28184", "--workspace-root", "/var/lib/oma/workspaces"]
+    environment:
+      OMA_BROKER_TOKEN: ${OMA_BROKER_TOKEN}
+    ports:
+      - "127.0.0.1:28184:28184"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - execution-workspaces:/var/lib/oma/workspaces
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    mem_limit: 256m
+    # The broker process must be able to open the Docker socket. uid 10001
+    # cannot do that when the socket is root:docker mode 660. Give this service
+    # a socket-capable identity here. Do not copy that identity onto the API
+    # service or onto execution containers; the broker forces those to 10001:10001.
+    user: "0:0"
+    networks: [execution_broker]
+    # privileged: false
+    # network_mode must not be host
+    # pid mode must not be host
+
+volumes:
+  execution-workspaces:
+
+networks:
+  execution_broker:
+    internal: false
