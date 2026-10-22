@@ -39,7 +39,7 @@ func NewRegistry() *Registry {
 func (r *Registry) Register(tool Tool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.tools[tool.Name()] = tool
+	r.tools[tool.Name()] = guardedTool{Tool: tool}
 }
 
 func (r *Registry) Get(name string) (Tool, bool) {
@@ -73,6 +73,9 @@ func (r *Registry) Validate(name string, argumentsJSON []byte) (Tool, error) {
 	}
 
 	if err := tool.Validate(argumentsJSON); err != nil {
+		if errors.Is(err, ErrToolPanic) {
+			return nil, err
+		}
 		return nil, fmt.Errorf("%w: %v", ErrInvalidArguments, err)
 	}
 

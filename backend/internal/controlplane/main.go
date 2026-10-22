@@ -203,7 +203,7 @@ func (m *MainAgent) process(ctx context.Context, runID uuid.UUID, turn *turnRow)
 			}
 		}
 		for _, tc := range resp.ToolCalls {
-			output, execErr := executeTool(ctx, reg, tc)
+			output, execErr := m.executeRecordedTool(ctx, turn, callID, reg, tc)
 			if execErr != nil {
 				return execErr
 			}
@@ -606,6 +606,9 @@ func mainSystemPrompt(budgetAsked bool) string {
 func executeTool(ctx context.Context, reg *tools.Registry, call provider.ToolCall) (string, error) {
 	tool, err := reg.Validate(call.Function.Name, []byte(call.Function.Arguments))
 	if err != nil {
+		if errors.Is(err, tools.ErrToolPanic) {
+			return "", err
+		}
 		body, _ := json.Marshal(map[string]any{"error": map[string]any{"code": contract.CodeInvalidModelOutput, "message": err.Error()}})
 		return string(body), nil
 	}
@@ -651,4 +654,38 @@ func turnRunID(turn *turnRow) uuid.UUID {
 		return uuid.Nil
 	}
 	return turn.RunID
+}
+
+func (m *MainAgent) executeRecordedTool(ctx context.Context, turn *turnRow, modelID uuid.UUID, reg *tools.Registry, call provider.ToolCall) (string, error) {
+	var id uuid.UUID
+	err := m.Runs.Pool().QueryRow(ctx, `INSERT INTO main_tool_calls(run_id,turn_id,model_call_id,epoch_number,call_id,tool_name,status) VALUES($1,$2,$3,$4,$5,$6,'running') RETURNING id`, turn.RunID, turn.ID, modelID, turn.ExpectedEpoch, call.ID, call.Function.Name).Scan(&id)
+	if err != nil {
+		return "", persistence("failed to record main tool request")
+	}
+	out, callErr := executeTool(ctx, reg, call)
+	status := "success"
+	var errText *string
+	if callErr != nil {
+		status = "failed"
+		v := callErr.Error()
+		errText = &v
+	}
+	var envelope struct {
+		Error json.RawMessage `json:"error"`
+	}
+	if json.Unmarshal([]byte(out), &envelope) == nil && len(envelope.Error) > 0 {
+		status = "failed"
+	}
+	if errors.Is(callErr, tools.ErrToolPanic) {
+		out = `{"status":"failed","error":"tool internal error; inspect saved results before retrying"}`
+	}
+	finishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	if _, err := m.Runs.Pool().Exec(finishCtx, `UPDATE main_tool_calls SET status=$2,output=$3,error_message=$4,finished_at=now() WHERE id=$1`, id, status, out, errText); err != nil {
+		return "", persistence("failed to record main tool result")
+	}
+	if errors.Is(callErr, tools.ErrToolPanic) {
+		return out, nil
+	}
+	return out, callErr
 }

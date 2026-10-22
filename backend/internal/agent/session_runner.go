@@ -706,17 +706,23 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 			if valErr != nil {
 				slog.Error("session runner: tool validation failed", "tool", tc.Function.Name, "error", valErr)
 				errMsg := valErr.Error()
+				validationStatus := "rejected"
+				validationEvent := "tool_call_rejected"
+				if errors.Is(valErr, tools.ErrToolPanic) {
+					validationStatus = "failed"
+					validationEvent = "tool_call_failed"
+				}
 				now := time.Now()
 				if err := persistWrite(func(dbCtx context.Context) error {
 					return sr.runService.UpdateAgentToolCall(
-						dbCtx, tcRec.ID, "rejected", "", &errMsg, &now, &now)
+						dbCtx, tcRec.ID, validationStatus, "", &errMsg, &now, &now)
 				}); err != nil {
 					slog.Error("session runner: failed to update rejected tool call", "session_id", sr.sessionID, "error", err)
 					sr.updateSessionTerminal("failed", "persistence_error")
 					return nil, fmt.Errorf("%w: update rejected tool call: %v", ErrPersistenceFailure, err)
 				}
 
-				sr.insertSessionEvent("tool_call_rejected", map[string]interface{}{
+				sr.insertSessionEvent(validationEvent, map[string]interface{}{
 					"call_id":   tc.ID,
 					"tool_name": tc.Function.Name,
 					"error":     errMsg,
