@@ -171,9 +171,13 @@ test('new exploration tasks default to N=3 and reject values outside 1-8', () =>
   });
 });
 
-test('https seeds are refused instead of rewritten, and dropped budget fields stay visible', () => {
+test('https seeds keep their scheme and explicit network grant, and dropped fields stay visible', () => {
   const scope = buildDiscoveryScope({ origin: 'https://127.0.0.1:29090', seedPath: '/' });
-  assert.equal(scope.ok, false);
+  assert.equal(scope.ok, true);
+  if (scope.ok) {
+    assert.equal(scope.scope.seeds[0], 'https://127.0.0.1:29090/');
+    assert.equal(scope.scope.network_policy.template, 'readonly');
+  }
   const httpScope = buildDiscoveryScope({ origin: 'http://127.0.0.1:29090', seedPath: '/login' });
   assert.equal(httpScope.ok, true);
   if (httpScope.ok) assert.equal((httpScope.scope.seeds as string[])[0], 'http://127.0.0.1:29090/login');

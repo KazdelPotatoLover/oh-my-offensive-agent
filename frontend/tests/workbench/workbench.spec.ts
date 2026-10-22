@@ -169,16 +169,12 @@ test('task query redirects to the canonical path and a run query does not drop t
   await expect(page.getByTestId('direction-card')).toHaveCount(4);
 });
 
-test('create form defaults to three workers and refuses https rewrites', async ({ page }) => {
+test('create form defaults to three workers and server model configuration', async ({ page }) => {
   await page.goto('/workbench');
   await page.getByTestId('open-create').click();
   await expect(page.locator('#worker-count')).toHaveValue('3');
   await page.locator('#create-task-name').fill('本地探索');
   await page.locator('#create-task-objective').fill('确认入口');
-  await page.locator('#scope-origin').fill('https://example.com');
-  await page.getByTestId('create-task-submit').click();
-  await expect(page.getByTestId('create-error')).toContainText('不会把 https 改写成 http');
-  await expect(page).toHaveURL(/\/workbench$/);
   await page.locator('#scope-origin').fill('http://127.0.0.1:29090');
   const requestPromise = page.waitForRequest((request) => request.method() === 'POST' && /\/api\/tasks\/[^/]+\/runs$/.test(new URL(request.url()).pathname));
   await page.getByTestId('create-task-submit').click();
@@ -186,7 +182,6 @@ test('create form defaults to three workers and refuses https rewrites', async (
   const body = JSON.parse(request.postData() || '{}') as { executor?: string; budget?: { max_parallel_workers?: number } };
   expect(body.executor).toBe('orchestrator');
   expect(body.budget?.max_parallel_workers).toBe(3);
-  await expect(page.getByTestId('execution-gaps')).toContainText('execution_input.agents');
   await expect(page.getByTestId('worker-capacity')).toContainText('requested 3');
 });
 

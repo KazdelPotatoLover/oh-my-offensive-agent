@@ -62,7 +62,7 @@ export function buildAgentsConfig(model: string, profile: string): AgentsConfig 
 }
 
 export type ScopeResult =
-  | { ok: true; scope: { mode: 'discovery'; seeds: string[]; discovery_policy: Record<string, unknown> } }
+  | { ok: true; scope: { mode: 'discovery'; seeds: string[]; discovery_policy: Record<string, unknown>; network_policy: Record<string, unknown> } }
   | { ok: false; error: string };
 
 export function buildDiscoveryScope(input: { origin: string; seedPath: string }): ScopeResult {
@@ -70,13 +70,10 @@ export function buildDiscoveryScope(input: { origin: string; seedPath: string })
   try {
     parsed = new URL(input.origin);
   } catch {
-    return { ok: false, error: '范围 origin 必须是完整的 http URL' };
+    return { ok: false, error: '范围 origin 必须是完整的 HTTP(S) URL' };
   }
-  if (parsed.protocol === 'https:') {
-    return { ok: false, error: '当前创建接口只接受 http 种子。前端不会把 https 改写成 http。' };
-  }
-  if (parsed.protocol !== 'http:' || !parsed.host) {
-    return { ok: false, error: '范围 origin 必须是 http URL' };
+  if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.host || parsed.username || parsed.password) {
+    return { ok: false, error: '范围 origin 必须是无凭据的 HTTP(S) URL' };
   }
   const path = input.seedPath.startsWith('/') ? input.seedPath : `/${input.seedPath}`;
   const origin = `${parsed.protocol}//${parsed.host}`;
@@ -84,6 +81,11 @@ export function buildDiscoveryScope(input: { origin: string; seedPath: string })
     ok: true,
     scope: {
       mode: 'discovery',
+      network_policy: {
+        template: 'readonly', allowed_methods: ['GET', 'HEAD'],
+        origins: [{ scheme: parsed.protocol.slice(0, -1), host: parsed.hostname.replace(/^\[|\]$/g, ''), port: parsed.port || (parsed.protocol === 'https:' ? '443' : '80'), path_mode: 'same_origin', allow_private: true }],
+        max_pages: 20, max_requests: 100, request_interval_ms: 500,
+      },
       seeds: [`${origin}${path}`],
       discovery_policy: {
         origin,
@@ -119,7 +121,7 @@ export function droppedBudgetFields(requested: Record<string, number>, execution
 export function buildTaskConfig(input: {
   provider: 'mock' | 'openai';
   profiles: unknown[];
-  agents: AgentsConfig;
+  agents?: AgentsConfig;
   budget: Omit<BudgetTemplate, 'name'>;
   mockScenario?: string;
 }): Record<string, unknown> {
@@ -128,8 +130,8 @@ export function buildTaskConfig(input: {
     executor: 'orchestrator',
     provider: input.provider,
     ...(input.provider === 'mock' && input.mockScenario ? { mock_scenario: input.mockScenario } : {}),
-    profiles: input.profiles,
-    agents: input.agents,
+    ...(input.profiles.length ? { profiles: input.profiles } : {}),
+    ...(input.agents ? { agents: input.agents } : {}),
     budget: input.budget,
   };
 }

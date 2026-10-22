@@ -15,8 +15,9 @@ export function CreateTaskForm({ onCancel }: { onCancel: () => void }) {
   const [origin, setOrigin] = useState('');
   const [seedPath, setSeedPath] = useState('/');
   const [provider, setProvider] = useState<'mock' | 'openai'>('mock');
-  const [profile, setProfile] = useState('default');
-  const [model, setModel] = useState('configured-model');
+  const [profile, setProfile] = useState('');
+  const [model, setModel] = useState('');
+  const [enableCommands, setEnableCommands] = useState(false);
   const [profilesText, setProfilesText] = useState('');
   const [template, setTemplate] = useState<BudgetTemplate>(EXPLORATION_TEMPLATE);
   const [workers, setWorkers] = useState(EXPLORATION_TEMPLATE.max_parallel_workers);
@@ -50,7 +51,10 @@ export function CreateTaskForm({ onCancel }: { onCancel: () => void }) {
       setError(scope.error);
       return;
     }
-    let profiles: unknown[] = [];
+    // New tasks explicitly authorize the richer toolset; old snapshots stay intact.
+    const toolNames = ['get_endpoint', 'http_request', 'read_sample', 'extract_endpoint_links', 'record_observation', 'record_observation_batch', 'inspect_artifact', 'register_asset'];
+    if (enableCommands) toolNames.push('run_command', 'write_file', 'read_file', 'inspect_command');
+    let profiles: unknown[] = [{ name: 'explore', version: '1', tools: toolNames.map((name) => ({ name, version: '1' })) }];
     if (profilesText.trim()) {
       try {
         profiles = JSON.parse(profilesText);
@@ -65,7 +69,7 @@ export function CreateTaskForm({ onCancel }: { onCancel: () => void }) {
     }
     let agents;
     try {
-      agents = buildAgentsConfig(model.trim(), profile.trim());
+      if (model.trim() || profile.trim()) agents = buildAgentsConfig(model.trim(), profile.trim());
     } catch (err) {
       setError(err instanceof Error ? err.message : '角色配置无效');
       return;
@@ -100,7 +104,7 @@ export function CreateTaskForm({ onCancel }: { onCancel: () => void }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 id="create-task-heading" className="text-base font-semibold text-white">创建探索任务</h2>
-          <p className="text-xs text-gray-400">目标、范围、角色别名和可编辑预算。Worker 池与模型请求并发是两项配置。</p>
+          <p className="text-xs text-gray-400">填写目标和授权范围即可开始；模型默认使用服务器配置。</p>
         </div>
         <button type="button" onClick={onCancel} className="text-xs text-gray-400 hover:text-white">关闭</button>
       </div>
@@ -119,7 +123,7 @@ export function CreateTaskForm({ onCancel }: { onCancel: () => void }) {
           <input id="seed-path" value={seedPath} onChange={(event) => setSeedPath(event.target.value)} className={`${fieldClass} mt-1`} />
         </label>
       </div>
-      <p className="text-[11px] text-amber-200/90">发现模式的当前服务端启动路径仍可能把执行池改写为 1。这里仍按填写的 N 发送，不会在前端改成 1。effective 以 workbench.v1 为准。</p>
+      <p className="text-[11px] text-gray-400">只访问填写的 origin，允许 GET/HEAD；Worker 数量按下方配置执行。</p>
       <fieldset className="space-y-2">
         <legend className="text-xs text-gray-300">模型配置</legend>
         <div className="flex gap-2">
@@ -127,15 +131,16 @@ export function CreateTaskForm({ onCancel }: { onCancel: () => void }) {
           <button type="button" onClick={() => setProvider('openai')} className={`rounded-md border px-2 py-1 text-xs ${provider === 'openai' ? 'border-blue-400 text-blue-200' : 'border-gray-700 text-gray-400'}`}>真实模型 API</button>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
-          <label className="text-xs text-gray-300">runtime_profile
+          <label className="text-xs text-gray-300">runtime_profile（可留空）
             <input aria-label="runtime_profile" value={profile} onChange={(event) => setProfile(event.target.value)} className={`${fieldClass} mt-1`} />
           </label>
-          <label className="text-xs text-gray-300">model 别名
+          <label className="text-xs text-gray-300">model 别名（可留空）
             <input aria-label="model 别名" value={model} onChange={(event) => setModel(event.target.value)} className={`${fieldClass} mt-1`} />
           </label>
         </div>
       </fieldset>
-      <label className="block text-xs text-gray-300">能力 profile JSON
+      <label className="flex items-center gap-2 text-xs text-gray-300"><input type="checkbox" checked={enableCommands} onChange={(event) => setEnableCommands(event.target.checked)} />启用隔离命令与脚本（需要服务器执行代理）</label>
+      <label className="block text-xs text-gray-300">能力 profile JSON（可留空）
         <textarea aria-label="能力 profile 配置" value={profilesText} onChange={(event) => setProfilesText(event.target.value)} rows={2} className={`${fieldClass} mt-1 font-mono`} placeholder='[{"name":"browser_evidence","version":"1","tools":[{"name":"get_endpoint"}]}]' />
       </label>
       <fieldset className="space-y-2">
