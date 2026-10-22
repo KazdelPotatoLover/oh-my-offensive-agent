@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net"
-	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"agent-workbench/backend/internal/contract"
 	"agent-workbench/backend/internal/model"
+	"agent-workbench/backend/internal/netcap"
 	"agent-workbench/backend/internal/service"
 
 	"github.com/google/uuid"
@@ -199,12 +199,7 @@ func (t *GetEndpointTool) Execute(ctx context.Context, argumentsJSON []byte) (st
 			}
 		}
 
-		// Enforce request interval
-		intervalMs := dp.RequestIntervalMs
-		if intervalMs <= 0 {
-			intervalMs = 500
-		}
-		time.Sleep(time.Duration(intervalMs) * time.Millisecond)
+		// Origin pacing is enforced by the shared transport after this check.
 	} else {
 		// Non-discovery run: enforce legacy fixture constraints
 		host, port, err := net.SplitHostPort(parsedURL.Host)
@@ -235,137 +230,38 @@ func (t *GetEndpointTool) Execute(ctx context.Context, argumentsJSON []byte) (st
 		}
 	}
 
-	// 6. Build HTTP client with strict security settings
-	client := &http.Client{
-		Timeout: 5 * time.Second,
-		Transport: &http.Transport{
-			Proxy:                  nil,
-			DisableCompression:     true,
-			MaxResponseHeaderBytes: 64 * 1024,
-		},
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
+	// 6. Shared transport. Historical checks above still run first so an
+	// out-of-scope asset never dials. Redirects are not followed.
+	var epoch int
+	if err := pool.QueryRow(ctx, `SELECT current_epoch FROM runs WHERE id=$1`, t.runID).Scan(&epoch); err != nil {
+		return "", fmt.Errorf("load run epoch: %w", err)
 	}
-
-	req, err := http.NewRequestWithContext(ctx, "GET", parsedURL.String(), nil)
-	if err != nil {
-		return "", fmt.Errorf("create http request: %w", err)
+	scope := contract.ExecutionScope{RunID: t.runID, EpochNumber: epoch, Role: contract.RoleWorker}
+	if t.workItemID != uuid.Nil {
+		id := t.workItemID
+		scope.WorkItemID = &id
 	}
-	req.Header.Set("User-Agent", "AgentWorkbench-Trace/1.0")
-
-	// 7. Execute HTTP request
-	startTime := time.Now()
-	resp, doErr := client.Do(req)
-	headerDurationMs := time.Since(startTime).Milliseconds()
-
-	if doErr != nil {
-		errType := "connection_error"
-		errMsg := doErr.Error()
-		if errors.Is(ctx.Err(), context.Canceled) || errors.Is(doErr, context.Canceled) {
-			errType = "context_canceled"
-			errMsg = "request canceled by stop or timeout"
-		} else if nErr, ok := doErr.(net.Error); ok && nErr.Timeout() {
-			errType = "timeout"
-			errMsg = "request timed out (5s limit exceeded)"
-		}
-
-		outData := map[string]interface{}{
-			"request": map[string]interface{}{
-				"method":     "GET",
-				"url":        parsedURL.String(),
-				"asset_id":   assetID.String(),
-				"started_at": startTime.UTC().Format(time.RFC3339Nano),
-			},
-			"response": nil,
-			"integrity": map[string]interface{}{
-				"saved_bytes":  0,
-				"is_truncated": false,
-				"note":         "",
-			},
-			"error": map[string]interface{}{
-				"type":    errType,
-				"message": errMsg,
-			},
-		}
-		outJSON, _ := json.Marshal(outData)
-		return string(outJSON), doErr
+	transport := netcap.Shared()
+	if transport == nil {
+		transport = netcap.NewTransport(netcap.NewStore(pool))
 	}
-	defer resp.Body.Close()
+	observed, fetchErr := transport.FetchLegacyGET(ctx, scope, assetID, parsedURL.String(), argumentsJSON)
+	return formatLegacyGET(parsedURL.String(), assetID, observed, fetchErr)
+}
 
-	// 8. Bounded read: 64 KiB + 1 byte limit
-	const maxBodyBytes = 64 * 1024
-	bodyBytes, readErr := io.ReadAll(io.LimitReader(resp.Body, int64(maxBodyBytes+1)))
-	receivedAt := time.Now().UTC().Format(time.RFC3339Nano)
-	totalDurationMs := time.Since(startTime).Milliseconds()
-
-	headerMap := make(map[string]string)
-	for k, v := range resp.Header {
-		headerMap[k] = strings.Join(v, ", ")
+func formatLegacyGET(rawURL string, assetID uuid.UUID, observed netcap.LegacyResult, fetchErr error) (string, error) {
+	started := observed.Started
+	if started.IsZero() {
+		started = time.Now()
 	}
-
-	if readErr != nil {
-		errType := "read_body_error"
-		if errors.Is(ctx.Err(), context.Canceled) || errors.Is(readErr, context.Canceled) {
-			errType = "context_canceled"
-		} else if errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(readErr, context.DeadlineExceeded) {
-			errType = "timeout"
-		} else if errors.Is(readErr, io.ErrUnexpectedEOF) {
-			errType = "incomplete_body"
-		}
-
-		type errOutPayload struct {
-			Error     map[string]string `json:"error"`
-			Integrity struct {
-				SavedBytes  int    `json:"saved_bytes"`
-				IsTruncated bool   `json:"is_truncated"`
-				Note        string `json:"note"`
-			} `json:"integrity"`
-			Request struct {
-				Method    string `json:"method"`
-				URL       string `json:"url"`
-				AssetID   string `json:"asset_id"`
-				StartedAt string `json:"started_at"`
-			} `json:"request"`
-			Response struct {
-				StatusCode       int               `json:"status_code"`
-				Headers          map[string]string `json:"headers"`
-				ReceivedAt       string            `json:"received_at"`
-				DurationMs       int64             `json:"duration_ms"`
-				HeaderDurationMs int64             `json:"header_duration_ms"`
-				Body             string            `json:"body"`
-			} `json:"response"`
-		}
-		var eo errOutPayload
-		eo.Error = map[string]string{"type": errType, "message": readErr.Error()}
-		eo.Integrity.SavedBytes = len(bodyBytes)
-		eo.Integrity.IsTruncated = false
-		eo.Integrity.Note = fmt.Sprintf("incomplete read: %v", readErr)
-		eo.Request.Method = "GET"
-		eo.Request.URL = parsedURL.String()
-		eo.Request.AssetID = assetID.String()
-		eo.Request.StartedAt = startTime.UTC().Format(time.RFC3339Nano)
-		eo.Response.StatusCode = resp.StatusCode
-		eo.Response.Headers = headerMap
-		eo.Response.Body = string(bodyBytes)
-		eo.Response.ReceivedAt = receivedAt
-		eo.Response.DurationMs = totalDurationMs
-		eo.Response.HeaderDurationMs = headerDurationMs
-		outJSON, _ := json.Marshal(eo)
-		return string(outJSON), fmt.Errorf("read response body: %w", readErr)
+	received := observed.Received
+	if received.IsZero() {
+		received = started
 	}
-
-	isTruncated := false
-	note := ""
-	if len(bodyBytes) > maxBodyBytes {
-		isTruncated = true
-		bodyBytes = bodyBytes[:maxBodyBytes]
-		note = "saved partial response: response body exceeded 64 KiB limit"
+	headerAt := observed.HeaderReceived
+	if headerAt.IsZero() {
+		headerAt = received
 	}
-
-	// Use struct to guarantee stable JSON field order:
-	// error/integrity/request/response — so headers always appear before body
-	// when MaxToolOutputBytes truncates the model context window.
 	type responsePayload struct {
 		StatusCode       int               `json:"status_code"`
 		Headers          map[string]string `json:"headers"`
@@ -389,30 +285,50 @@ func (t *GetEndpointTool) Execute(ctx context.Context, argumentsJSON []byte) (st
 		Error     interface{}      `json:"error"`
 		Integrity integrityPayload `json:"integrity"`
 		Request   requestPayload   `json:"request"`
-		Response  responsePayload  `json:"response"`
+		Response  *responsePayload `json:"response"`
 	}
-	outData := toolOutput{
-		Error: nil,
-		Integrity: integrityPayload{
-			SavedBytes:  len(bodyBytes),
-			IsTruncated: isTruncated,
-			Note:        note,
-		},
+	out := toolOutput{
+		Integrity: integrityPayload{SavedBytes: len(observed.Body), IsTruncated: observed.Truncated, Note: observed.Note},
 		Request: requestPayload{
-			Method:    "GET",
-			URL:       parsedURL.String(),
-			AssetID:   assetID.String(),
-			StartedAt: startTime.UTC().Format(time.RFC3339Nano),
-		},
-		Response: responsePayload{
-			StatusCode:       resp.StatusCode,
-			Headers:          headerMap,
-			ReceivedAt:       receivedAt,
-			DurationMs:       totalDurationMs,
-			HeaderDurationMs: headerDurationMs,
-			Body:             string(bodyBytes),
+			Method: "GET", URL: rawURL, AssetID: assetID.String(), StartedAt: started.UTC().Format(time.RFC3339Nano),
 		},
 	}
-	outJSON, _ := json.Marshal(outData)
-	return string(outJSON), nil
+	if fetchErr != nil && observed.StatusCode == 0 {
+		errType := observed.ErrType
+		errMsg := observed.ErrMessage
+		if errType == "" {
+			errType = "connection_error"
+			errMsg = fetchErr.Error()
+		}
+		out.Error = map[string]string{"type": errType, "message": errMsg}
+		raw, _ := json.Marshal(out)
+		return string(raw), fetchErr
+	}
+	resp := &responsePayload{
+		StatusCode:       observed.StatusCode,
+		Headers:          observed.Headers,
+		ReceivedAt:       received.UTC().Format(time.RFC3339Nano),
+		DurationMs:       received.Sub(started).Milliseconds(),
+		HeaderDurationMs: headerAt.Sub(started).Milliseconds(),
+		Body:             string(observed.Body),
+	}
+	if resp.Headers == nil {
+		resp.Headers = map[string]string{}
+	}
+	out.Response = resp
+	if fetchErr != nil {
+		errType := observed.ErrType
+		if errType == "" {
+			errType = "read_body_error"
+		}
+		msg := observed.ErrMessage
+		if msg == "" {
+			msg = fetchErr.Error()
+		}
+		out.Error = map[string]string{"type": errType, "message": msg}
+		raw, _ := json.Marshal(out)
+		return string(raw), fetchErr
+	}
+	raw, _ := json.Marshal(out)
+	return string(raw), nil
 }

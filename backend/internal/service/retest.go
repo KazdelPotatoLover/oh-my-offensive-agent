@@ -368,7 +368,21 @@ func (s *RunService) finishFindingRetest(ctx context.Context, runID, findingID, 
 		return nil, fmt.Errorf("%w: retest is already in status %s", ErrInvalidState, retest.Status)
 	}
 
-	if derive || v != "inconclusive" {
+	if unsafe, reason := originalReplayUnsafe(ctx, tx, findingID); unsafe {
+		if reason != "" && !strings.Contains(summary, reason) {
+			if strings.TrimSpace(summary) == "" {
+				summary = reason
+			} else {
+				summary = summary + "\n" + reason
+			}
+		}
+		if !derive && v == "fixed" {
+			return nil, fmt.Errorf("%w: %s", ErrInvalidEvidence, reason)
+		}
+		if derive {
+			v = "inconclusive"
+		}
+	} else if derive || v != "inconclusive" {
 		determined, err := evaluateRetest(ctx, tx, runID, findingID, retest.SessionID, evidence, currentEpoch)
 		if err != nil {
 			if !derive {

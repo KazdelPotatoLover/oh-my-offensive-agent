@@ -3,8 +3,11 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
+
+	"agent-workbench/backend/internal/netcap"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -77,8 +80,15 @@ func targetEvidence(ctx context.Context, tx pgx.Tx, runID, assetID, callID uuid.
 	if sessionID != nil && (callSession == nil || *sessionID != *callSession) {
 		return result, fmt.Errorf("%w: evidence is not from this retest session", ErrInvalidEvidence)
 	}
-	if name != "get_endpoint" || status != "success" {
+	if status != "success" || (name != "get_endpoint" && name != "http_request") {
 		return result, fmt.Errorf("%w: source must be a successful target verification tool", ErrInvalidEvidence)
+	}
+	if name == "http_request" {
+		statusCode, headers, body, err := netcap.VerifyToolReceipt(ctx, tx, runID, assetID, callID, epoch, output)
+		if err != nil {
+			return result, fmt.Errorf("%w: trusted http receipt required", ErrInvalidEvidence)
+		}
+		return targetResponse{StatusCode: statusCode, Headers: headers, Body: body}, nil
 	}
 	var input struct {
 		AssetID uuid.UUID `json:"asset_id"`
@@ -111,7 +121,31 @@ func targetEvidence(ctx context.Context, tx pgx.Tx, runID, assetID, callID uuid.
 	if result.StatusCode < 100 || result.StatusCode > 599 {
 		return result, fmt.Errorf("%w: source has no valid HTTP response", ErrInvalidEvidence)
 	}
+	if err := contradictingReceipt(ctx, tx, runID, assetID, callID, epoch, result.StatusCode); err != nil {
+		return result, err
+	}
 	return result, nil
+}
+
+func contradictingReceipt(ctx context.Context, tx pgx.Tx, runID, assetID, callID uuid.UUID, epoch, status int) error {
+	var mode, outcome string
+	var storedStatus int
+	var truncated bool
+	var storedEpoch int
+	err := tx.QueryRow(ctx, `SELECT capture_mode,outcome,status_code,truncated,epoch_number FROM http_receipts
+		WHERE source_tool_call_id=$1 AND minted_by='gateway' ORDER BY created_at DESC LIMIT 1`, callID).Scan(&mode, &outcome, &storedStatus, &truncated, &storedEpoch)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return nil
+	}
+	if storedEpoch != epoch || truncated || outcome != "completed" || storedStatus != status || (mode != "direct" && mode != "tls_intercept") {
+		return fmt.Errorf("%w: stored receipt does not match the cited response", ErrInvalidEvidence)
+	}
+	_ = runID
+	_ = assetID
+	return nil
 }
 
 // evaluateRetest runs inside the finish transaction so both the API and the
@@ -134,6 +168,9 @@ func evaluateRetest(ctx context.Context, tx pgx.Tx, runID, findingID uuid.UUID, 
 	if json.Unmarshal(details, &spec) != nil || spec.Verification == nil || !spec.Verification.Vulnerable.valid() || !spec.Verification.Fixed.valid() {
 		return "inconclusive", nil
 	}
+	if unsafe, _ := originalReplayUnsafe(ctx, tx, findingID); unsafe {
+		return "inconclusive", nil
+	}
 	response, err := targetEvidence(ctx, tx, runID, assetID, ref.SourceToolCallID, epoch, retestSession)
 	if err != nil {
 		return "", err
@@ -146,4 +183,23 @@ func evaluateRetest(ctx context.Context, tx pgx.Tx, runID, findingID uuid.UUID, 
 		return "still_reproducible", nil
 	}
 	return "fixed", nil
+}
+
+func originalReplayUnsafe(ctx context.Context, tx pgx.Tx, findingID uuid.UUID) (bool, string) {
+	var source *uuid.UUID
+	if err := tx.QueryRow(ctx, `SELECT source_tool_call_id FROM findings WHERE id=$1`, findingID).Scan(&source); err != nil || source == nil {
+		return false, ""
+	}
+	var replaySafe bool
+	var method, mode, outcome, cred, session string
+	err := tx.QueryRow(ctx, `SELECT replay_safe, method, capture_mode, outcome, credential_ref, session_ref
+		FROM http_receipts WHERE source_tool_call_id=$1 AND minted_by='gateway' ORDER BY created_at DESC LIMIT 1`, *source).Scan(
+		&replaySafe, &method, &mode, &outcome, &cred, &session)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, ""
+	}
+	if err != nil {
+		return false, ""
+	}
+	return netcap.ReplayUnsafe(replaySafe, method, mode, outcome, cred, session)
 }
