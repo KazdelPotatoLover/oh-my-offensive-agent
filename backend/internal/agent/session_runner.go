@@ -703,11 +703,7 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 				"tool_name": tc.Function.Name,
 			})
 
-			toolTimeout := time.Duration(sr.budget.ToolTimeoutSeconds) * time.Second
-			if toolTimeout <= 0 {
-				toolTimeout = 10 * time.Second
-			}
-			toolCtx, cancelTool := context.WithTimeout(ctx, toolTimeout)
+			toolCtx, cancelTool := toolExecutionContext(ctx, tc.Function.Name, argsBytes, sr.budget, inSettlement, tcRec.ID, currentEpoch(ctx, sr))
 			startTime := time.Now()
 			out, execErr := tool.Execute(toolCtx, argsBytes)
 			finishTime := time.Now()

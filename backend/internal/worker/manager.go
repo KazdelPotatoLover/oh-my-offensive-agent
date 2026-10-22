@@ -38,18 +38,30 @@ func WithOnStepHook(hook func(step int)) WorkerOption {
 }
 
 type Manager struct {
-	pool           *pgxpool.Pool
-	runService     *service.RunService
-	mu             sync.Mutex
-	closed         bool
-	cancels        map[uuid.UUID]context.CancelCauseFunc
-	executors      map[uuid.UUID]Executor
-	executorEpochs map[uuid.UUID]int
-	executorDone   map[uuid.UUID]chan struct{}
-	retestCancels  map[uuid.UUID]context.CancelCauseFunc
-	pendingCancel  map[uuid.UUID]bool
-	defaultOpts    []WorkerOption
-	wg             sync.WaitGroup
+	pool            *pgxpool.Pool
+	runService      *service.RunService
+	mu              sync.Mutex
+	closed          bool
+	cancels         map[uuid.UUID]context.CancelCauseFunc
+	executors       map[uuid.UUID]Executor
+	executorEpochs  map[uuid.UUID]int
+	executorDone    map[uuid.UUID]chan struct{}
+	retestCancels   map[uuid.UUID]context.CancelCauseFunc
+	pendingCancel   map[uuid.UUID]bool
+	defaultOpts     []WorkerOption
+	externalRevoker contract.ResourceRevoker
+	wg              sync.WaitGroup
+}
+
+// UseResourceRevoker sets the job and capture revoker used by stop, kill,
+// epoch rollover, and shutdown. It does not replace an engine's in-process revoker.
+func (m *Manager) UseResourceRevoker(revoker contract.ResourceRevoker) {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	m.externalRevoker = revoker
+	m.mu.Unlock()
 }
 
 func NewManager(pool *pgxpool.Pool, runService *service.RunService) *Manager {
@@ -218,16 +230,12 @@ func (m *Manager) RevokeEpoch(runID uuid.UUID, oldEpoch int) {
 		exec = nil
 	}
 	m.mu.Unlock()
-	if exec != nil && oldEpoch >= 1 {
-		m.revokeExecutor(exec, contract.RevokeRequest{
-			Scope: contract.ExecutionScope{
-				RunID:       runID,
-				EpochNumber: oldEpoch,
-				Role:        contract.RolePlanner,
-			},
-			Kind:   contract.RevokeAttempt,
-			Reason: "epoch_revoked",
-		})
+	if oldEpoch >= 1 {
+		req := m.runRevokeRequest(runID, oldEpoch, "epoch_revoked")
+		if exec != nil {
+			m.revokeExecutor(exec, req)
+		}
+		m.revokeExternal(req)
 	}
 }
 
@@ -246,6 +254,7 @@ func (m *Manager) Stop(runID uuid.UUID) {
 	m.pendingCancel[runID] = true
 	m.mu.Unlock()
 	slog.Info("worker stop requested before registration (pending cancel recorded)", "run_id", runID)
+	m.revokeExternal(m.runRevokeRequest(runID, epoch, string(model.CauseUserStop)))
 }
 
 // StopAndFinalizeIfIdle also acknowledges a stop when its executor already exited.
@@ -336,15 +345,18 @@ func (m *Manager) KillWorkItem(runID, workItemID uuid.UUID, reason string) error
 	epoch := m.executorEpochs[runID]
 	m.mu.Unlock()
 	if !ok {
+		m.revokeWorkItem(nil, runID, workItemID, epoch, reason)
 		return nil
 	}
 	if epoch < 1 {
 		epoch = 1
 	}
+	var revokeErr error
+	revoked := false
 	if revoker, isRevoker := exec.(contract.ResourceRevoker); isRevoker {
 		item := workItemID
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		_, err := revoker.Revoke(ctx, contract.RevokeRequest{
+		_, revokeErr = revoker.Revoke(ctx, contract.RevokeRequest{
 			Scope: contract.ExecutionScope{
 				RunID:       runID,
 				EpochNumber: epoch,
@@ -355,14 +367,16 @@ func (m *Manager) KillWorkItem(runID, workItemID uuid.UUID, reason string) error
 			Reason: reason,
 		})
 		cancel()
-		if err == nil {
-			return nil
-		}
+		revoked = revokeErr == nil
+	}
+	m.revokeWorkItem(exec, runID, workItemID, epoch, reason)
+	if revoked {
+		return nil
 	}
 	if ctrl, isCtrl := exec.(ControllableExecutor); isCtrl {
 		return ctrl.KillWorkItem(context.Background(), workItemID, reason)
 	}
-	return nil
+	return revokeErr
 }
 
 // NoteSteer records guidance for the pre-tool replan port without writing it again.
@@ -376,18 +390,81 @@ func (m *Manager) NoteSteer(runID, workItemID uuid.UUID, message string) {
 }
 
 func (m *Manager) revokeRun(exec Executor, runID uuid.UUID, epoch int, reason string) {
-	if epoch < 1 {
-		epoch = 1
-	}
-	m.revokeExecutor(exec, contract.RevokeRequest{
+	req := m.runRevokeRequest(runID, epoch, reason)
+	m.revokeExecutor(exec, req)
+	m.revokeExternal(req)
+}
+
+func (m *Manager) runRevokeRequest(runID uuid.UUID, epoch int, reason string) contract.RevokeRequest {
+	return contract.RevokeRequest{
 		Scope: contract.ExecutionScope{
 			RunID:       runID,
-			EpochNumber: epoch,
+			EpochNumber: m.scopeEpoch(runID, epoch),
 			Role:        contract.RolePlanner,
 		},
 		Kind:   contract.RevokeAttempt,
 		Reason: reason,
+	}
+}
+
+func (m *Manager) revokeWorkItem(exec Executor, runID, workItemID uuid.UUID, epoch int, reason string) {
+	attemptID, ok := m.attemptForKill(exec, runID, workItemID)
+	if !ok {
+		slog.Warn("manager: work item kill has no attempt for job revoke", "run_id", runID, "work_item_id", workItemID)
+		return
+	}
+	item := workItemID
+	m.revokeExternal(contract.RevokeRequest{
+		Scope: contract.ExecutionScope{
+			RunID:       runID,
+			EpochNumber: m.scopeEpoch(runID, epoch),
+			Role:        contract.RoleWorker,
+			WorkItemID:  &item,
+			AttemptID:   &attemptID,
+		},
+		Kind:   contract.RevokeAttempt,
+		Reason: reason,
 	})
+}
+
+func (m *Manager) attemptForKill(exec Executor, runID, workItemID uuid.UUID) (uuid.UUID, bool) {
+	if lookup, ok := exec.(interface {
+		ActiveAttempt(uuid.UUID) (uuid.UUID, bool)
+	}); ok {
+		if id, found := lookup.ActiveAttempt(workItemID); found {
+			return id, true
+		}
+	}
+	if m == nil || m.runService == nil || m.runService.Pool() == nil {
+		return uuid.Nil, false
+	}
+	var id uuid.UUID
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	err := m.runService.Pool().QueryRow(ctx, `
+		SELECT a.id FROM attempts a
+		JOIN work_items w ON w.id = a.work_item_id
+		WHERE w.run_id=$1 AND w.id=$2 AND a.status='running'
+		ORDER BY a.created_at DESC LIMIT 1`, runID, workItemID).Scan(&id)
+	if err != nil || id == uuid.Nil {
+		return uuid.Nil, false
+	}
+	return id, true
+}
+
+func (m *Manager) scopeEpoch(runID uuid.UUID, known int) int {
+	if known >= 1 {
+		return known
+	}
+	if m != nil && m.runService != nil && m.runService.Pool() != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		var epoch int
+		if err := m.runService.Pool().QueryRow(ctx, `SELECT current_epoch FROM runs WHERE id=$1`, runID).Scan(&epoch); err == nil && epoch >= 1 {
+			return epoch
+		}
+	}
+	return 1
 }
 
 func (m *Manager) revokeExecutor(exec Executor, req contract.RevokeRequest) {
@@ -399,6 +476,23 @@ func (m *Manager) revokeExecutor(exec Executor, req contract.RevokeRequest) {
 	defer cancel()
 	if _, err := revoker.Revoke(ctx, req); err != nil {
 		slog.Warn("manager: resource revoke failed", "run_id", req.Scope.RunID, "reason", req.Reason, "error", err)
+	}
+}
+
+func (m *Manager) revokeExternal(req contract.RevokeRequest) {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	revoker := m.externalRevoker
+	m.mu.Unlock()
+	if revoker == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(context.Background()), contract.CommandCleanupWindow)
+	defer cancel()
+	if _, err := revoker.Revoke(ctx, req); err != nil {
+		slog.Warn("manager: external resource revoke failed", "run_id", req.Scope.RunID, "reason", req.Reason, "error", err)
 	}
 }
 

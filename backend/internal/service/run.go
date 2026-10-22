@@ -11,7 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"agent-workbench/backend/internal/contract"
 	"agent-workbench/backend/internal/model"
+	"agent-workbench/backend/internal/netcap"
 	"agent-workbench/backend/internal/provider"
 
 	"github.com/google/uuid"
@@ -182,6 +184,28 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 		}
 	}
 
+	policyRaw, policyErr := explicitNetworkPolicy(taskConfig, taskScope)
+	if policyErr != nil {
+		return nil, false, policyErr
+	}
+	var frozenPolicy *netcap.Policy
+	if policyRaw != nil {
+		probe, marshalErr := json.Marshal(map[string]json.RawMessage{"network_policy": policyRaw})
+		if marshalErr != nil {
+			return nil, false, marshalErr
+		}
+		pol, parseErr := netcap.PolicyFromExecutionInput(probe)
+		if parseErr != nil {
+			return nil, false, &contract.Error{
+				Code:            contract.CodeInvalidInput,
+				Scope:           contract.ScopeRequest,
+				Message:         parseErr.Error(),
+				SuggestedAction: contract.ActionNone,
+			}
+		}
+		frozenPolicy = &pol
+	}
+
 	// Check if scope specifies discovery mode
 	type discoveryScopeData struct {
 		Mode            string                 `json:"mode"`
@@ -212,7 +236,19 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 				if err != nil {
 					return nil, false, fmt.Errorf("invalid seed URL '%s': %w", sTrim, err)
 				}
-				if u.Scheme != "http" {
+				if u.Scheme == "https" {
+					if frozenPolicy == nil {
+						return nil, false, errors.New("only http scheme is permitted for seed URL")
+					}
+					if _, matchErr := frozenPolicy.Match(u); matchErr != nil {
+						return nil, false, &contract.Error{
+							Code:            contract.CodeScopeDenied,
+							Scope:           contract.ScopeRequest,
+							Message:         "https seed origin is not authorized by network_policy",
+							SuggestedAction: contract.ActionNone,
+						}
+					}
+				} else if u.Scheme != "http" {
 					return nil, false, errors.New("only http scheme is permitted for seed URL")
 				}
 				if u.Host == "" {
@@ -346,6 +382,9 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 	}
 	if isDiscovery && discoveryPolicy != nil {
 		executionInputMap["discovery_policy"] = discoveryPolicy
+	}
+	if policyRaw != nil {
+		executionInputMap["network_policy"] = policyRaw
 	}
 	if executor == "agent" || executor == "orchestrator" || executor == "orchestration" {
 		agentConfig := map[string]interface{}{

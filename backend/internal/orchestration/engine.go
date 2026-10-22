@@ -150,6 +150,20 @@ func (e *Engine) Resume(ctx context.Context) error {
 	return nil
 }
 
+// ActiveAttempt returns the in-process attempt for one direction. Job revoke
+// uses it so a single kill does not cancel every container in the run.
+func (e *Engine) ActiveAttempt(workItemID uuid.UUID) (uuid.UUID, bool) {
+	if e == nil {
+		return uuid.Nil, false
+	}
+	att, ok := e.activeAttempts.Load(workItemID)
+	if !ok {
+		return uuid.Nil, false
+	}
+	id, ok := att.(uuid.UUID)
+	return id, ok && id != uuid.Nil
+}
+
 func (e *Engine) KillWorkItem(ctx context.Context, workItemID uuid.UUID, reason string) error {
 	cause := model.TerminationCause("killed_by_operator")
 	if reason == string(model.CauseWorkerKilled) || reason == "worker_killed" {

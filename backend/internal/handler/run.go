@@ -29,10 +29,20 @@ import (
 )
 
 type RunHandler struct {
-	epochMu     sync.Mutex // serialize database epoch transitions and local executor registration
-	runService  *service.RunService
-	taskService *service.TaskService
-	manager     *worker.Manager
+	epochMu         sync.Mutex // serialize database epoch transitions and local executor registration
+	runService      *service.RunService
+	taskService     *service.TaskService
+	manager         *worker.Manager
+	resourceRevoker contract.ResourceRevoker
+}
+
+// UseResourceRevoker attaches the capture revoker used by new engines. It does
+// not change NewRunHandler and does not replace the job revoker owned by the manager.
+func (h *RunHandler) UseResourceRevoker(revoker contract.ResourceRevoker) {
+	if h == nil {
+		return
+	}
+	h.resourceRevoker = revoker
 }
 
 func NewRunHandler(runService *service.RunService, taskService *service.TaskService, manager *worker.Manager) *RunHandler {
@@ -247,7 +257,11 @@ func (h *RunHandler) startRunExecutor(run *model.Run) error {
 		} else {
 			// Discovery uses the same pool size as the accepted request.
 			// Origin pacing is not a reason to force a serial pool.
-			engine := orchestration.NewEngine(run.ID, h.runService, p, budget, orchestration.EngineOptionsFromAdmission(limiter, tokens, recovery)...)
+			opts := orchestration.EngineOptionsFromAdmission(limiter, tokens, recovery)
+			if h.resourceRevoker != nil {
+				opts = append(opts, orchestration.WithResourceRevoker(h.resourceRevoker))
+			}
+			engine := orchestration.NewEngine(run.ID, h.runService, p, budget, opts...)
 			startErr = h.manager.StartExecutor(run.ID, engine)
 		}
 	} else {

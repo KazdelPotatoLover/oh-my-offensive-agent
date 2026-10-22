@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"agent-workbench/backend/internal/config"
+	"agent-workbench/backend/internal/contract"
 	"agent-workbench/backend/internal/db"
 	"agent-workbench/backend/internal/handler"
 	"agent-workbench/backend/internal/provider"
@@ -69,10 +70,22 @@ func main() {
 
 	// Initialize worker manager
 	manager := worker.NewManager(pool, runService)
+	capture, captureErr := composeCaptureAndJobs(ctx, pool, os.Getenv("OMA_CAPTURE_LISTEN"), os.Getenv("OMA_BROKER_URL"), os.Getenv("OMA_BROKER_TOKEN"), os.Getenv("OMA_WORKSPACE_ROOT"))
+	if captureErr != nil {
+		slog.Error("failed to compose capture and execution", "error", captureErr)
+		os.Exit(1)
+	}
+	defer capture.gateway.Close()
+	ports := []contract.ResourceRevoker{capture.gateway}
+	if capture.jobs != nil {
+		ports = append(ports, capture.jobs)
+	}
+	manager.UseResourceRevoker(contract.FanoutRevoker{Ports: ports})
 
 	// Initialize handlers
 	taskHandler := handler.NewTaskHandler(taskService)
 	runHandler := handler.NewRunHandler(runService, taskService, manager)
+	runHandler.UseResourceRevoker(capture.gateway)
 	assetHandler := handler.NewAssetHandler(runService)
 
 	// Set up router

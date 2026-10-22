@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"agent-workbench/backend/internal/netcap"
@@ -183,6 +184,39 @@ func evaluateRetest(ctx context.Context, tx pgx.Tx, runID, findingID uuid.UUID, 
 		return "still_reproducible", nil
 	}
 	return "fixed", nil
+}
+
+// FindingReplayUnsafe reports whether an automatic tool replay is forbidden.
+// A database error is returned instead of being treated as safe. A missing
+// receipt is not unsafe. scheme is the original receipt URL scheme, or empty
+// when no gateway receipt exists.
+func (s *RunService) FindingReplayUnsafe(ctx context.Context, findingID uuid.UUID) (unsafe bool, reason, scheme string, err error) {
+	if s == nil || s.pool == nil {
+		return false, "", "", errors.New("database pool unavailable")
+	}
+	var source *uuid.UUID
+	if err = s.pool.QueryRow(ctx, `SELECT source_tool_call_id FROM findings WHERE id=$1`, findingID).Scan(&source); err != nil {
+		return false, "", "", err
+	}
+	if source == nil {
+		return false, "", "", nil
+	}
+	var replaySafe bool
+	var method, mode, outcome, cred, session, rawURL string
+	err = s.pool.QueryRow(ctx, `SELECT replay_safe, method, capture_mode, outcome, credential_ref, session_ref, url
+		FROM http_receipts WHERE source_tool_call_id=$1 AND minted_by='gateway' ORDER BY created_at DESC LIMIT 1`, *source).Scan(
+		&replaySafe, &method, &mode, &outcome, &cred, &session, &rawURL)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, "", "", nil
+	}
+	if err != nil {
+		return false, "", "", err
+	}
+	unsafe, reason = netcap.ReplayUnsafe(replaySafe, method, mode, outcome, cred, session)
+	if parsed, parseErr := url.Parse(rawURL); parseErr == nil {
+		scheme = parsed.Scheme
+	}
+	return unsafe, reason, scheme, nil
 }
 
 func originalReplayUnsafe(ctx context.Context, tx pgx.Tx, findingID uuid.UUID) (bool, string) {

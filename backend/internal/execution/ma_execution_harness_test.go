@@ -21,26 +21,39 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const ma4DatabaseURL = "postgres://postgres:postgres@127.0.0.1:25432/agent_workbench_ma4?sslmode=disable"
-
 var (
 	ma4Once sync.Once
 	ma4Pool *pgxpool.Pool
 	ma4Err  error
 )
 
+func integrationDatabaseURL(t *testing.T) string {
+	t.Helper()
+	raw := os.Getenv("TEST_DATABASE_URL")
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Path != "/agent_workbench_ma_integration" {
+		t.Fatalf("TEST_DATABASE_URL must be agent_workbench_ma_integration, got %q", raw)
+	}
+	for _, denied := range []string{"/agent_workbench", "agent_workbench_test", "oma_artex_test", "oma_phase2_review", "agent_workbench_ma4"} {
+		if parsed.Path == denied || strings.Contains(parsed.Path, denied) && parsed.Path != "/agent_workbench_ma_integration" {
+			t.Fatalf("refusing database %q", raw)
+		}
+	}
+	return raw
+}
+
 type ma4Harness struct {
-	t         *testing.T
-	pool      *pgxpool.Pool
-	broker    *Broker
-	server    *httptest.Server
-	exec      *Executor
-	root      string
-	brokerID  string
-	decoys    []string
-	runIDs    []uuid.UUID
-	taskIDs   []uuid.UUID
-	assetIDs  []uuid.UUID
+	t        *testing.T
+	pool     *pgxpool.Pool
+	broker   *Broker
+	server   *httptest.Server
+	exec     *Executor
+	root     string
+	brokerID string
+	decoys   []string
+	runIDs   []uuid.UUID
+	taskIDs  []uuid.UUID
+	assetIDs []uuid.UUID
 }
 
 func migrationsDir(t *testing.T) string {
@@ -58,21 +71,15 @@ func migrationsDir(t *testing.T) string {
 
 func openMa4(t *testing.T) *pgxpool.Pool {
 	t.Helper()
-	parsed, err := url.Parse(ma4DatabaseURL)
-	if err != nil || parsed.Path != "/agent_workbench_ma4" {
-		t.Fatalf("refusing database URL %q", ma4DatabaseURL)
-	}
-	if parsed.Path == "/agent_workbench" || strings.Contains(parsed.Path, "agent_workbench_test") || strings.Contains(parsed.Path, "oma_artex_test") {
-		t.Fatal("refusing a shared database")
-	}
+	databaseURL := integrationDatabaseURL(t)
 	ma4Once.Do(func() {
-		if err := db.RunMigrations(ma4DatabaseURL, migrationsDir(t)); err != nil {
+		if err := db.RunMigrations(databaseURL, migrationsDir(t)); err != nil {
 			ma4Err = err
 			return
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		pool, err := db.Connect(ctx, ma4DatabaseURL)
+		pool, err := db.Connect(ctx, databaseURL)
 		if err != nil {
 			ma4Err = err
 			return
@@ -83,7 +90,7 @@ func openMa4(t *testing.T) *pgxpool.Pool {
 			ma4Err = err
 			return
 		}
-		if name != "agent_workbench_ma4" {
+		if name != "agent_workbench_ma_integration" {
 			pool.Close()
 			ma4Err = fmt.Errorf("connected to %s", name)
 			return
@@ -228,6 +235,12 @@ func (h *ma4Harness) seed(t *testing.T) ma4Scope {
 
 func (h *ma4Harness) addAttempt(t *testing.T, scope ma4Scope, number, epoch int) uuid.UUID {
 	t.Helper()
+	// Migration 026 allows one running attempt per work item. A new attempt
+	// starts only after the previous one is terminal.
+	if _, err := h.pool.Exec(context.Background(), `
+		UPDATE attempts SET status='stopped' WHERE work_item_id=$1 AND status='running'`, scope.WorkItemID); err != nil {
+		t.Fatal(err)
+	}
 	id := uuid.New()
 	_, err := h.pool.Exec(context.Background(), `
 		INSERT INTO attempts (id, work_item_id, attempt_number, epoch_number, status)

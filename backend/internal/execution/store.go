@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 	"unicode/utf8"
@@ -230,10 +231,33 @@ func (s *Store) ListContainerRefs(ctx context.Context) ([]jobRecord, error) {
 }
 
 func (s *Store) ListAttemptJobs(ctx context.Context, attemptID uuid.UUID) ([]jobRecord, error) {
-	rows, err := s.pool.Query(ctx, `
+	return s.ListScopeJobs(ctx, uuid.Nil, 0, &attemptID)
+}
+
+// ListScopeJobs returns non-terminal jobs for a run epoch. A nil attempt lists
+// every active job in that epoch. A nil run lists by attempt only.
+func (s *Store) ListScopeJobs(ctx context.Context, runID uuid.UUID, epoch int, attemptID *uuid.UUID) ([]jobRecord, error) {
+	query := `
 		SELECT id, run_id, epoch_number, work_item_id, attempt_id, state, container_id
 		FROM execution_jobs
-		WHERE attempt_id=$1 AND state IN ('queued','running')`, attemptID)
+		WHERE state IN ('queued','running')`
+	args := []any{}
+	if runID != uuid.Nil {
+		args = append(args, runID)
+		query += fmt.Sprintf(" AND run_id=$%d", len(args))
+		if epoch >= 1 {
+			args = append(args, epoch)
+			query += fmt.Sprintf(" AND epoch_number=$%d", len(args))
+		}
+	}
+	if attemptID != nil && *attemptID != uuid.Nil {
+		args = append(args, *attemptID)
+		query += fmt.Sprintf(" AND attempt_id=$%d", len(args))
+	}
+	if len(args) == 0 {
+		return nil, invalidInput("job revoke requires a run or attempt")
+	}
+	rows, err := s.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, persistence("execution jobs could not be listed")
 	}

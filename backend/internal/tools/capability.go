@@ -48,6 +48,7 @@ func init() {
 	for _, a := range []Adapter{
 		{Name: "register_asset", Version: "1", Factory: func(c AdapterContext) Tool { return &TypedAssetTool{scope: c} }},
 		{Name: "get_endpoint", Version: "1", Factory: func(c AdapterContext) Tool { return NewGetEndpointTool(c.RunID, c.WorkItemID, c.Service) }},
+		HTTPRequestAdapter(),
 		{Name: "read_sample", Version: "1", Factory: func(c AdapterContext) Tool {
 			return NewReadSampleToolWithScope(c.RunID, func(ctx context.Context, key string) (bool, error) {
 				return c.Service.IsSampleInRunScope(ctx, c.RunID, key)

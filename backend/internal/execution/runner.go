@@ -517,10 +517,7 @@ func (e *Executor) Revoke(ctx context.Context, req contract.RevokeRequest) (*con
 		}
 		return &contract.RevokeReport{Kind: req.Kind, Cancelled: 1}, nil
 	case contract.RevokeAttempt:
-		if req.Scope.AttemptID == nil {
-			return nil, invalidInput("attempt revoke requires attempt_id")
-		}
-		jobs, err := e.store.ListAttemptJobs(ctx, *req.Scope.AttemptID)
+		jobs, err := e.store.ListScopeJobs(ctx, req.Scope.RunID, req.Scope.EpochNumber, req.Scope.AttemptID)
 		if err != nil {
 			return nil, err
 		}

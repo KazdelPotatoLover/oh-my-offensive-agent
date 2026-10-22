@@ -42,6 +42,11 @@ services:
       LLM_API_KEY: '${LLM_API_KEY:-}'
       LLM_BASE_URL: '${LLM_BASE_URL:-}'
       LLM_MODEL: '${LLM_MODEL:-}'
+      # Command execution stays unwired until OMA_BROKER_URL, OMA_BROKER_TOKEN,
+      # and OMA_WORKSPACE_ROOT are all set. A partial set fails closed at startup.
+      # This service must not mount the Docker socket.
+    volumes:
+      - execution-workspaces:/var/lib/oma/workspaces
     depends_on:
       db:
         condition: service_healthy
@@ -61,5 +66,32 @@ services:
     depends_on:
       - backend
 
+  # Merged from deploy/execution/compose.fragment.yml.
+  # The broker is the only service that mounts the Docker socket.
+  execution-broker:
+    build:
+      context: ./backend
+      dockerfile: ../deploy/execution/broker.Dockerfile
+    command: ["/oma-broker", "--listen", "0.0.0.0:28184", "--workspace-root", "/var/lib/oma/workspaces"]
+    environment:
+      OMA_BROKER_TOKEN: ${OMA_BROKER_TOKEN:-}
+    ports:
+      - "127.0.0.1:28184:28184"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - execution-workspaces:/var/lib/oma/workspaces
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    mem_limit: 256m
+    user: "0:0"
+    networks: [execution_broker]
+
 volumes:
   pgdata:
+  execution-workspaces:
+
+networks:
+  execution_broker:
+    internal: false

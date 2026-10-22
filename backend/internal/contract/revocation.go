@@ -2,6 +2,8 @@ package contract
 
 import (
 	"context"
+	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -54,4 +56,35 @@ type RevokeReport struct {
 // There is no second manager.
 type ResourceRevoker interface {
 	Revoke(ctx context.Context, req RevokeRequest) (*RevokeReport, error)
+}
+
+// FanoutRevoker delivers one request to each injected port. A port that does
+// not handle the kind is skipped. It does not turn a missing port into success.
+type FanoutRevoker struct {
+	Ports []ResourceRevoker
+}
+
+func (f FanoutRevoker) Revoke(ctx context.Context, req RevokeRequest) (*RevokeReport, error) {
+	report := &RevokeReport{Kind: req.Kind}
+	var hard error
+	for _, port := range f.Ports {
+		if port == nil {
+			continue
+		}
+		got, err := port.Revoke(ctx, req)
+		if err != nil {
+			var coded *Error
+			if errors.As(err, &coded) && coded.Code == CodeInvalidInput && strings.Contains(coded.Message, "does not handle") {
+				continue
+			}
+			if hard == nil {
+				hard = err
+			}
+		}
+		if got != nil {
+			report.Cancelled += got.Cancelled
+			report.OutcomeUnknown += got.OutcomeUnknown
+		}
+	}
+	return report, hard
 }

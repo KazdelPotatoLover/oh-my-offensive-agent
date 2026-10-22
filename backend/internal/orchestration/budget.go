@@ -564,7 +564,7 @@ func (w *WorkerBudgetGate) TryAcquireTool(ctx context.Context, toolName string, 
 	if w.inSettlement.Load() {
 		safe := false
 		switch toolName {
-		case "record_fact", "report_finding", "record_observation", "record_observation_batch", "read_observations", "list_facts", "node_detail", "graph_overview", "read_artifact", "get_worker_output", "list_artifacts", "write_artifact", "inspect_artifact", "list_worker_traces", "get_worker_trace", "search_all_worker_traces", "list_capability_profiles":
+		case "record_fact", "report_finding", "record_observation", "record_observation_batch", "read_observations", "list_facts", "node_detail", "graph_overview", "read_artifact", "get_worker_output", "list_artifacts", "write_artifact", "inspect_artifact", "list_worker_traces", "get_worker_trace", "search_all_worker_traces", "list_capability_profiles", "read_file", "inspect_command":
 			safe = true
 		}
 		if !safe {

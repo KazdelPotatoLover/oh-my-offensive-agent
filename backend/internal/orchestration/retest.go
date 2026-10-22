@@ -8,6 +8,7 @@ import (
 
 	"agent-workbench/backend/internal/agent"
 	"agent-workbench/backend/internal/model"
+	"agent-workbench/backend/internal/netcap"
 	"agent-workbench/backend/internal/provider"
 	"agent-workbench/backend/internal/service"
 	"agent-workbench/backend/internal/tools"
@@ -93,6 +94,17 @@ func (e *RetestExecutor) ExecuteFindingRetest(
 		return nil, fmt.Errorf("%w: retest status is %s", service.ErrInvalidState, retestStatus)
 	}
 
+	unsafe, reason, scheme, replayErr := e.runService.FindingReplayUnsafe(ctx, findingID)
+	if replayErr != nil {
+		return e.runService.FinishFindingRetest(ctx, runID, findingID, retestID, "inconclusive", "", "Inconclusive: replay safety could not be read")
+	}
+	if unsafe {
+		if reason == "" {
+			reason = "original exchange cannot be safely auto-replayed"
+		}
+		return e.runService.FinishFindingRetest(ctx, runID, findingID, retestID, "inconclusive", "", "Inconclusive: "+reason)
+	}
+
 	verdict := "inconclusive"
 	summary := "Independent retest completed"
 	evidenceStr := ""
@@ -104,8 +116,21 @@ func (e *RetestExecutor) ExecuteFindingRetest(
 			reg = tools.NewRegistry()
 		}
 		tools.RegisterArtifactReaders(reg, tools.AdapterContext{RunID: runID, SessionID: sessID, Service: e.runService})
-		if _, exists := reg.Get("get_endpoint"); !exists {
-			reg.Register(tools.NewGetEndpointTool(runID, uuid.Nil, e.runService))
+		evidenceTool := "get_endpoint"
+		if scheme == "https" {
+			evidenceTool = "http_request"
+			if _, exists := reg.Get("http_request"); !exists {
+				transport := netcap.Shared()
+				if transport == nil {
+					return e.runService.FinishFindingRetest(ctx, runID, findingID, retestID, "inconclusive", "", "Inconclusive: HTTPS auto retest requires http_request")
+				}
+				reg.Register(tools.NewHTTPRequestTool(runID, uuid.Nil, uuid.Nil, sessID, e.runService, transport))
+			}
+		}
+		if evidenceTool == "get_endpoint" {
+			if _, exists := reg.Get("get_endpoint"); !exists {
+				reg.Register(tools.NewGetEndpointTool(runID, uuid.Nil, e.runService))
+			}
 		}
 
 		verifierPrompt := fmt.Sprintf(
@@ -129,8 +154,8 @@ func (e *RetestExecutor) ExecuteFindingRetest(
 		if runErr == nil && res != nil {
 			var sourceID uuid.UUID
 			err := pool.QueryRow(ctx, `SELECT id FROM agent_tool_calls
-				WHERE session_id=$1 AND tool_name='get_endpoint' AND status='success'
-				AND arguments->>'asset_id'=$2 ORDER BY created_at DESC,id DESC LIMIT 1`, sessID, assetID.String()).Scan(&sourceID)
+				WHERE session_id=$1 AND tool_name=$2 AND status='success'
+				AND arguments->>'asset_id'=$3 ORDER BY created_at DESC,id DESC LIMIT 1`, sessID, evidenceTool, assetID.String()).Scan(&sourceID)
 			if err == nil {
 				evidence, _ := json.Marshal(map[string]any{"source_tool_call_id": sourceID, "model_notes": res.FinalContent})
 				return e.runService.FinishFindingRetestFromEvidence(ctx, runID, findingID, retestID, string(evidence), "Evaluated the original verification conditions against this retest's target response")
