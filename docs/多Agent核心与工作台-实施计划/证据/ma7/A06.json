@@ -1,0 +1,113 @@
+{
+  "id": "A06",
+  "status": "fail",
+  "owner": "agent-2",
+  "rounds": 20,
+  "failures": [
+    {
+      "round": 1,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 2,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 3,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 4,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 5,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 6,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 7,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 8,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 9,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 10,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 11,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 12,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 13,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 14,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 15,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 16,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 17,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 18,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 19,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 20,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    }
+  ],
+  "observed": {
+    "contract_gap": "ModelCapacity is a read model; no frozen create field names the shared limit"
+  },
+  "command": "go test ./test/ -count=1 -run TestMA_A06_SharedModelLimitQueuesAndCancel",
+  "finished_at": "2026-10-22T04:43:22Z"
+}

@@ -1,0 +1,37 @@
+{
+  "id": "A10",
+  "status": "fail",
+  "owner": "agent-3",
+  "rounds": 1,
+  "failures": [
+    {
+      "round": 1,
+      "check": "origin overlap",
+      "detail": "peak in-flight catalog requests=1; completion count is not overlap"
+    },
+    {
+      "round": 1,
+      "check": "pacing does not lower effective",
+      "detail": "workbench 404 404 page not found\n"
+    }
+  ],
+  "observed": {
+    "contract_gap": "OriginPacing is a read model; no frozen numeric origin concurrency field",
+    "diagnostics": {
+      "event_statuses": {
+        "200": 3
+      },
+      "first_model_call": "completed tool_calls ",
+      "model_events": 3,
+      "tools": [
+        "submit_plan:success:{\"created_count\":4,\"message\":\"Plan submitted successfully with 4 work items\",\"status\":\"success\"}",
+        "get_endpoint:pending:"
+      ],
+      "work_items": "dir-1:pending,dir-2:pending,dir-3:pending,dir-0:running"
+    },
+    "lab_peak": 1,
+    "snapshot": 4
+  },
+  "command": "go test ./test/ -count=1 -run TestMA_A10_OriginLimitDedupAndNoNetworkInLock",
+  "finished_at": "2026-10-22T04:25:38Z"
+}

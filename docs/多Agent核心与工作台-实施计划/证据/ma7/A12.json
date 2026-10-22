@@ -1,0 +1,29 @@
+{
+  "id": "A12",
+  "status": "fail",
+  "owner": "agent-1",
+  "rounds": 1,
+  "failures": [
+    {
+      "round": 1,
+      "check": "command route",
+      "detail": "POST /commands returned 404"
+    }
+  ],
+  "observed": {
+    "diagnostics": {
+      "event_statuses": {
+        "200": 2
+      },
+      "first_model_call": "completed tool_calls ",
+      "model_events": 2,
+      "tools": [
+        "submit_plan:success:{\"created_count\":2,\"message\":\"Plan submitted successfully with 2 work items\",\"status\":\"success\"}"
+      ],
+      "work_items": "dir-kill:running,dir-keep:running"
+    },
+    "legacy_epoch": 201
+  },
+  "command": "go test ./test/ -count=1 -run TestMA_A12_StopKillEpochNoLeak",
+  "finished_at": "2026-10-22T04:26:54Z"
+}

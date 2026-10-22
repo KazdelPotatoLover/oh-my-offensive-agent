@@ -1,0 +1,210 @@
+{
+  "id": "A02",
+  "status": "fail",
+  "owner": "agent-1",
+  "rounds": 20,
+  "failures": [
+    {
+      "round": 1,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 1,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 2,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 2,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 3,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 3,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 4,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 4,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 5,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 5,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 6,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 6,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 7,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 7,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 8,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 8,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 9,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 9,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 10,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 10,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 11,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 11,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 12,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 12,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 13,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 13,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 14,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 14,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 15,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 15,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 16,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 16,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 17,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 17,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 18,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 18,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 19,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 19,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    },
+    {
+      "round": 20,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 20,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    }
+  ],
+  "command": "go test ./test/ -count=1 -run TestMA_A02_ClaimOverlapAndDispatchDuringPlannerCall",
+  "finished_at": "2026-10-22T04:39:24Z"
+}

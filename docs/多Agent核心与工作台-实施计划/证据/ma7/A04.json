@@ -1,0 +1,352 @@
+{
+  "id": "A04",
+  "status": "fail",
+  "owner": "agent-1",
+  "rounds": 20,
+  "failures": [
+    {
+      "round": 1,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 2,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 3,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 4,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 5,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 6,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 7,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 8,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 9,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 10,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 11,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 12,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 13,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 14,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 15,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 16,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 17,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 18,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 19,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    },
+    {
+      "round": 20,
+      "check": "bounded recovery",
+      "detail": "dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call"
+    }
+  ],
+  "observed": {
+    "round-1": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-10": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-11": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-12": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-13": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-14": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-15": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-16": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-17": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-18": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-19": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-2": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-20": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-3": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-4": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-5": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-6": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-7": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-8": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    },
+    "round-9": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 6,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 5,
+      "slow_barrier": 1
+    }
+  },
+  "command": "go test ./test/ -count=1 -run TestMA_A04_LocalProtocolAndExhaustionDoNotStopPeers",
+  "finished_at": "2026-10-22T04:42:05Z"
+}

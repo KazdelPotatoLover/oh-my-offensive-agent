@@ -1,0 +1,492 @@
+{
+  "id": "A05",
+  "status": "fail",
+  "owner": "agent-2",
+  "rounds": 20,
+  "failures": [
+    {
+      "round": 1,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 1,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 1,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 2,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 2,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 2,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 3,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 3,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 3,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 4,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 4,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 4,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 5,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 5,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 5,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 6,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 6,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 6,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 7,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 7,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 7,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 8,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 8,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 8,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 9,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 9,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 9,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 10,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 10,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 10,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 11,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 11,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 11,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 12,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 12,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 12,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 13,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 13,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 13,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 14,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 14,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 14,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 15,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 15,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 15,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 16,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 16,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 16,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 17,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 17,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 17,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 18,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 18,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 18,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 19,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 19,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 19,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    },
+    {
+      "round": 20,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 20,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 20,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    }
+  ],
+  "observed": {
+    "round-1": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-10": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-11": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-12": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-13": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-14": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-15": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-16": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-17": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-18": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-19": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-2": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-20": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-3": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-4": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-5": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-6": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-7": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-8": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    },
+    "round-9": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    }
+  },
+  "command": "go test ./test/ -count=1 -run TestMA_A05_BadResponsesDoNotExecuteOrReplayForever",
+  "finished_at": "2026-10-22T04:42:54Z"
+}

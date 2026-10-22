@@ -1,0 +1,210 @@
+{
+  "id": "A07",
+  "status": "fail",
+  "owner": "agent-5",
+  "rounds": 20,
+  "failures": [
+    {
+      "round": 1,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 1,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 2,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 2,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 3,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 3,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 4,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 4,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 5,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 5,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 6,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 6,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 7,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 7,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 8,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 8,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 9,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 9,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 10,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 10,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 11,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 11,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 12,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 12,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 13,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 13,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 14,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 14,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 15,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 15,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 16,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 16,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 17,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 17,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 18,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 18,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 19,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 19,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    },
+    {
+      "round": 20,
+      "check": "planner tools",
+      "detail": "steer_work present=false kill_work present=false"
+    },
+    {
+      "round": 20,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    }
+  ],
+  "command": "go test ./test/ -count=1 -run TestMA_A07_PlannerSteerAndKillAreRealCommands",
+  "finished_at": "2026-10-22T04:44:05Z"
+}

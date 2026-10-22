@@ -1,0 +1,714 @@
+{
+  "id": "A01",
+  "status": "fail",
+  "owner": "agent-1",
+  "rounds": 20,
+  "failures": [
+    {
+      "round": 1,
+      "check": "round 1 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 1,
+      "check": "round 1 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 2,
+      "check": "round 2 discovery=true N=2 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=2"
+    },
+    {
+      "round": 2,
+      "check": "round 2 discovery=true N=2 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 2,
+      "check": "round 2 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 2,
+      "check": "round 2 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 3,
+      "check": "round 3 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 3,
+      "check": "round 3 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 4,
+      "check": "round 4 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 4,
+      "check": "round 4 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 5,
+      "check": "round 5 discovery=true N=2 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=2"
+    },
+    {
+      "round": 5,
+      "check": "round 5 discovery=true N=2 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 5,
+      "check": "round 5 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 5,
+      "check": "round 5 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 6,
+      "check": "round 6 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 6,
+      "check": "round 6 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 7,
+      "check": "round 7 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 7,
+      "check": "round 7 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 8,
+      "check": "round 8 discovery=true N=2 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=2"
+    },
+    {
+      "round": 8,
+      "check": "round 8 discovery=true N=2 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 8,
+      "check": "round 8 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 8,
+      "check": "round 8 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 9,
+      "check": "round 9 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 9,
+      "check": "round 9 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 10,
+      "check": "round 10 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 10,
+      "check": "round 10 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 11,
+      "check": "round 11 discovery=true N=2 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=2"
+    },
+    {
+      "round": 11,
+      "check": "round 11 discovery=true N=2 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 11,
+      "check": "round 11 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 11,
+      "check": "round 11 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 12,
+      "check": "round 12 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 12,
+      "check": "round 12 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 13,
+      "check": "round 13 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 13,
+      "check": "round 13 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 14,
+      "check": "round 14 discovery=true N=2 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=2"
+    },
+    {
+      "round": 14,
+      "check": "round 14 discovery=true N=2 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 14,
+      "check": "round 14 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 14,
+      "check": "round 14 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 15,
+      "check": "round 15 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 15,
+      "check": "round 15 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 16,
+      "check": "round 16 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 16,
+      "check": "round 16 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 17,
+      "check": "round 17 discovery=true N=2 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=2"
+    },
+    {
+      "round": 17,
+      "check": "round 17 discovery=true N=2 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 17,
+      "check": "round 17 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 17,
+      "check": "round 17 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 18,
+      "check": "round 18 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 18,
+      "check": "round 18 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 19,
+      "check": "round 19 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 19,
+      "check": "round 19 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 20,
+      "check": "round 20 discovery=true N=2 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=2"
+    },
+    {
+      "round": 20,
+      "check": "round 20 discovery=true N=2 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    },
+    {
+      "round": 20,
+      "check": "round 20 discovery=true N=4 overlap",
+      "detail": "worker barrier=1 running_attempts=1 server_peak=1 requested=4"
+    },
+    {
+      "round": 20,
+      "check": "round 20 discovery=true N=4 not serial fallback",
+      "detail": "completion count is not accepted; barrier did not show the requested overlap"
+    }
+  ],
+  "observed": {
+    "round 1 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 1 discovery=true N=1": {
+      "attempt_count": 1,
+      "barrier_met": true,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 1,
+      "worker_barrier": 1
+    },
+    "round 1 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 10 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 10 discovery=true N=1": {
+      "attempt_count": 1,
+      "barrier_met": true,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 1,
+      "worker_barrier": 1
+    },
+    "round 10 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 11 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 11 discovery=true N=2": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 2,
+      "worker_barrier": 1
+    },
+    "round 11 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 12 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 12 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 13 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 13 discovery=true N=1": {
+      "attempt_count": 1,
+      "barrier_met": true,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 1,
+      "worker_barrier": 1
+    },
+    "round 13 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 14 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 14 discovery=true N=2": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 2,
+      "worker_barrier": 1
+    },
+    "round 14 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 15 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 15 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 16 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 16 discovery=true N=1": {
+      "attempt_count": 1,
+      "barrier_met": true,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 1,
+      "worker_barrier": 1
+    },
+    "round 16 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 17 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 17 discovery=true N=2": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 2,
+      "worker_barrier": 1
+    },
+    "round 17 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 18 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 18 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 19 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 19 discovery=true N=1": {
+      "attempt_count": 1,
+      "barrier_met": true,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 1,
+      "worker_barrier": 1
+    },
+    "round 19 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 2 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 2 discovery=true N=2": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 2,
+      "worker_barrier": 1
+    },
+    "round 2 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 20 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 20 discovery=true N=2": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 2,
+      "worker_barrier": 1
+    },
+    "round 20 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 3 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 3 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 4 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 4 discovery=true N=1": {
+      "attempt_count": 1,
+      "barrier_met": true,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 1,
+      "worker_barrier": 1
+    },
+    "round 4 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 5 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 5 discovery=true N=2": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 2,
+      "worker_barrier": 1
+    },
+    "round 5 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 6 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 6 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 7 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 7 discovery=true N=1": {
+      "attempt_count": 1,
+      "barrier_met": true,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 1,
+      "worker_barrier": 1
+    },
+    "round 7 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 8 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 8 discovery=true N=2": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 2,
+      "worker_barrier": 1
+    },
+    "round 8 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    },
+    "round 9 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 9 discovery=true N=4": {
+      "attempt_count": 1,
+      "barrier_met": false,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 4,
+      "worker_barrier": 1
+    }
+  },
+  "command": "go test ./test/ -count=1 -run TestMA_A01_DiscoveryWorkerCapacityRequiresRealOverlap",
+  "finished_at": "2026-10-22T04:37:49Z"
+}

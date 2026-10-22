@@ -1,0 +1,53 @@
+{
+  "id": "A14",
+  "status": "fail",
+  "owner": "agent-1",
+  "rounds": 1,
+  "failures": [
+    {
+      "round": 1,
+      "check": "two workers overlap on the lab",
+      "detail": "peak=1"
+    },
+    {
+      "round": 1,
+      "check": "authorized analysis",
+      "detail": "identities=map[]; workers did not keep materials separate"
+    },
+    {
+      "round": 1,
+      "check": "independent verify request",
+      "detail": "verify path was not requested"
+    },
+    {
+      "round": 1,
+      "check": "script direction",
+      "detail": "no worker executed or attempted run_command"
+    },
+    {
+      "round": 1,
+      "check": "script container",
+      "detail": "jobs=0 err=ERROR: relation \"execution_jobs\" does not exist (SQLSTATE 42P01)"
+    }
+  ],
+  "observed": {
+    "diagnostics": {
+      "event_statuses": {
+        "200": 3
+      },
+      "first_model_call": "completed tool_calls ",
+      "model_events": 3,
+      "tools": [
+        "submit_plan:success:{\"created_count\":3,\"message\":\"Plan submitted successfully with 3 work items\",\"status\":\"success\"}",
+        "get_endpoint:success:{\"error\":null,\"integrity\":{\"saved_bytes\":238,\"is_truncated\":false,\"note\":\"\"},\"request\":{\"method\":\"GET\",\"url\":\"http://127.0.0.1:45175/m-c959da65e1f5/\",\"asset_id\":\"928e72a6-fa9b-413c"
+      ],
+      "work_items": "dir-analyze:pending,dir-script:pending,dir-entry:running"
+    },
+    "identities": {},
+    "paths": {
+      "/m-c959da65e1f5/": 1
+    }
+  },
+  "command": "go test ./test/ -count=1 -run TestMA_A14_LabCollaborationIsMaterial",
+  "finished_at": "2026-10-22T04:25:54Z"
+}

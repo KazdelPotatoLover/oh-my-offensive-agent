@@ -1,0 +1,24 @@
+{
+  "id": "A13",
+  "status": "fail",
+  "owner": "agent-3",
+  "rounds": 1,
+  "failures": [
+    {
+      "round": 1,
+      "check": "fixed invalidation not observed",
+      "detail": "finish status 400 body {\"error\":\"invalid evidence for goal proof: structured retest source_tool_call_id is required\"}\n"
+    },
+    {
+      "round": 1,
+      "check": "withdraw invalidates proof",
+      "detail": "POST findings/{id}/withdraw returned 404"
+    }
+  ],
+  "observed": {
+    "fixed_status": 400,
+    "withdraw_status": 404
+  },
+  "command": "go test ./test/ -count=1 -run TestMA_A13_ProofRequiresTrustedTargetEvidence",
+  "finished_at": "2026-10-22T04:25:42Z"
+}

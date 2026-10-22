@@ -1,0 +1,18 @@
+{
+  "id": "A15",
+  "status": "fail",
+  "owner": "agent-6",
+  "rounds": 1,
+  "failures": [
+    {
+      "round": 1,
+      "check": "browser flow",
+      "detail": "Playwright did not run against an isolated stack; screenshots from another server are not evidence"
+    }
+  ],
+  "observed": {
+    "spec": "frontend/tests/ma-acceptance/ma-acceptance.spec.ts"
+  },
+  "command": "frontend/tests/ma-acceptance/playwright.config.ts",
+  "finished_at": "2026-10-22T04:25:54Z"
+}

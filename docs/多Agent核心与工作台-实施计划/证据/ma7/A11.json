@@ -1,0 +1,27 @@
+{
+  "id": "A11",
+  "status": "fail",
+  "owner": "agent-4",
+  "rounds": 1,
+  "failures": [
+    {
+      "round": 1,
+      "check": "job row",
+      "detail": "ERROR: relation \"execution_jobs\" does not exist (SQLSTATE 42P01)"
+    },
+    {
+      "round": 1,
+      "check": "owned container",
+      "detail": "no container with the run label was observed; cleanup will not prune"
+    }
+  ],
+  "observed": {
+    "docker": {
+      "error": "",
+      "label": "ma7.accept=b7a996b4-51d1-48d2-8ce4-729162793b7e",
+      "output": ""
+    }
+  },
+  "command": "go test ./test/ -count=1 -run TestMA_A11_ContainerIsolationAndTrustedCapture",
+  "finished_at": "2026-10-22T04:25:40Z"
+}

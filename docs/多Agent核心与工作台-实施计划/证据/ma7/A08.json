@@ -1,0 +1,110 @@
+{
+  "id": "A08",
+  "status": "fail",
+  "owner": "agent-5",
+  "rounds": 20,
+  "failures": [
+    {
+      "round": 1,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 2,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 3,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 4,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 5,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 6,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 7,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 8,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 9,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 10,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 11,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 12,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 13,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 14,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 15,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 16,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 17,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 18,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 19,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    },
+    {
+      "round": 20,
+      "check": "submit",
+      "detail": "status 404 body 404 page not found\n"
+    }
+  ],
+  "command": "go test ./test/ -count=1 -run TestMA_A08_MainAgentIdempotentBoundary",
+  "finished_at": "2026-10-22T04:44:22Z"
+}

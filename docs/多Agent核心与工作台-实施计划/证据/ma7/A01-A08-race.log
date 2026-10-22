@@ -1,0 +1,1449 @@
+2026/10/22 12:36:10 INFO created run run_id=d3476dc7-4541-442f-bb97-929b9cf95262 task_id=0d156853-bee9-4215-9998-42842861ac60 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:36:10 INFO executor started run_id=d3476dc7-4541-442f-bb97-929b9cf95262 epoch=1
+2026/10/22 12:36:10 INFO run state transition run_id=d3476dc7-4541-442f-bb97-929b9cf95262 from=queued to=running
+2026/10/22 12:36:11 ERROR session runner: failed to persist assistant message session_id=07a40bf1-a9cf-41a3-8068-9f3bafaff526 error="run is in a terminal state"
+2026/10/22 12:36:11 INFO executor finished run_id=d3476dc7-4541-442f-bb97-929b9cf95262 epoch=1
+2026/10/22 12:36:11 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:11 INFO all active workers and retests stop requested
+2026/10/22 12:36:12 INFO created run run_id=525b7929-f48c-422b-9013-c05cd1816988 task_id=3e678973-5ead-4238-8c1a-08d1a90ea62d task_name=ma7-discovery-m-168726995195
+2026/10/22 12:36:12 INFO executor started run_id=525b7929-f48c-422b-9013-c05cd1816988 epoch=1
+2026/10/22 12:36:12 INFO run state transition run_id=525b7929-f48c-422b-9013-c05cd1816988 from=queued to=running
+2026/10/22 12:36:13 ERROR session runner: failed to persist assistant message session_id=313eae1c-36ed-4097-b469-3f8da58fea79 error="run is in a terminal state"
+2026/10/22 12:36:13 INFO executor finished run_id=525b7929-f48c-422b-9013-c05cd1816988 epoch=1
+2026/10/22 12:36:13 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:13 INFO all active workers and retests stop requested
+2026/10/22 12:36:14 INFO created run run_id=21145c14-4fea-4d58-9db2-95cfd274df58 task_id=0803dc9a-dcb9-4473-8f5a-9193e231da58 task_name=ma7-samples
+2026/10/22 12:36:14 INFO executor started run_id=21145c14-4fea-4d58-9db2-95cfd274df58 epoch=1
+2026/10/22 12:36:14 INFO run state transition run_id=21145c14-4fea-4d58-9db2-95cfd274df58 from=queued to=running
+2026/10/22 12:36:15 ERROR session runner: failed to persist assistant message session_id=d9f5c306-44ff-4ee8-a331-d400c12e9ce2 error="run is in a terminal state"
+2026/10/22 12:36:15 ERROR session runner: failed to persist assistant message session_id=320a912c-e348-48e0-a017-f77bd48db68f error="run is in a terminal state"
+2026/10/22 12:36:15 ERROR session runner: failed to persist assistant message session_id=9ed909c9-78e3-456f-a081-75d9e8e3cbfc error="run is in a terminal state"
+2026/10/22 12:36:15 ERROR session runner: failed to persist assistant message session_id=2f65d498-8fbb-465e-a999-4136795d92ec error="run is in a terminal state"
+2026/10/22 12:36:15 INFO executor finished run_id=21145c14-4fea-4d58-9db2-95cfd274df58 epoch=1
+2026/10/22 12:36:15 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:15 INFO all active workers and retests stop requested
+2026/10/22 12:36:16 INFO created run run_id=15afe8dc-a063-4c31-8940-f43ebec98685 task_id=d92e4a53-60fb-4995-8271-7a16b7cd8b26 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:36:16 INFO executor started run_id=15afe8dc-a063-4c31-8940-f43ebec98685 epoch=1
+2026/10/22 12:36:16 INFO run state transition run_id=15afe8dc-a063-4c31-8940-f43ebec98685 from=queued to=running
+2026/10/22 12:36:17 ERROR session runner: failed to persist assistant message session_id=02325386-a0be-44da-ba60-e3f8f4f9e648 error="run is in a terminal state"
+2026/10/22 12:36:17 INFO executor finished run_id=15afe8dc-a063-4c31-8940-f43ebec98685 epoch=1
+2026/10/22 12:36:17 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:17 INFO all active workers and retests stop requested
+2026/10/22 12:36:18 INFO created run run_id=744b0b36-6b66-47ed-8ebf-fe9ccaf10dd0 task_id=47469dc3-4a5f-4e33-a786-2876a6ee85d7 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:36:18 INFO executor started run_id=744b0b36-6b66-47ed-8ebf-fe9ccaf10dd0 epoch=1
+2026/10/22 12:36:18 INFO run state transition run_id=744b0b36-6b66-47ed-8ebf-fe9ccaf10dd0 from=queued to=running
+2026/10/22 12:36:20 ERROR session runner: failed to persist assistant message session_id=913aabad-e6c9-4ae9-8a1e-7cce821e4be3 error="run is in a terminal state"
+2026/10/22 12:36:20 INFO executor finished run_id=744b0b36-6b66-47ed-8ebf-fe9ccaf10dd0 epoch=1
+2026/10/22 12:36:20 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:20 INFO all active workers and retests stop requested
+2026/10/22 12:36:20 INFO created run run_id=1dcff0e4-e15a-48c7-bd0a-efabdbab8ddb task_id=e12eda49-fc61-41c6-9bdb-8214ebd3b2f7 task_name=ma7-samples
+2026/10/22 12:36:20 INFO executor started run_id=1dcff0e4-e15a-48c7-bd0a-efabdbab8ddb epoch=1
+2026/10/22 12:36:20 INFO run state transition run_id=1dcff0e4-e15a-48c7-bd0a-efabdbab8ddb from=queued to=running
+2026/10/22 12:36:21 ERROR session runner: failed to persist assistant message session_id=a2b33971-b7c2-4c6b-bf9a-113a69bccf89 error="run is in a terminal state"
+2026/10/22 12:36:21 ERROR session runner: failed to persist assistant message session_id=04a1f80a-0a06-4a95-80a5-c445f72368e2 error="run is in a terminal state"
+2026/10/22 12:36:21 ERROR session runner: failed to persist assistant message session_id=1402d64c-026d-4fcc-a29f-28b63d953be4 error="run is in a terminal state"
+2026/10/22 12:36:21 ERROR session runner: failed to persist assistant message session_id=940889e2-8b2f-4914-b42a-9d84bc0a5b30 error="run is in a terminal state"
+2026/10/22 12:36:21 INFO executor finished run_id=1dcff0e4-e15a-48c7-bd0a-efabdbab8ddb epoch=1
+2026/10/22 12:36:21 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:21 INFO all active workers and retests stop requested
+2026/10/22 12:36:22 INFO created run run_id=d23f6f60-0d46-46f0-a8c4-1c44a8c23d76 task_id=58dee80c-3e10-4146-af79-7d77ab2f98a3 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:36:22 INFO executor started run_id=d23f6f60-0d46-46f0-a8c4-1c44a8c23d76 epoch=1
+2026/10/22 12:36:22 INFO run state transition run_id=d23f6f60-0d46-46f0-a8c4-1c44a8c23d76 from=queued to=running
+2026/10/22 12:36:23 ERROR engine: failed to list work items run_id=d23f6f60-0d46-46f0-a8c4-1c44a8c23d76 error="list work_items: context canceled"
+2026/10/22 12:36:23 ERROR session runner: failed to persist assistant message session_id=5d933b3c-3f54-489c-ac3e-901d624b0d6c error="run is in a terminal state"
+2026/10/22 12:36:23 INFO executor finished run_id=d23f6f60-0d46-46f0-a8c4-1c44a8c23d76 epoch=1
+2026/10/22 12:36:23 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:23 INFO all active workers and retests stop requested
+2026/10/22 12:36:24 INFO created run run_id=a828c84f-6a0f-4fdd-a636-27d5809308d6 task_id=7c1fc628-4085-4ba4-aa76-56595cc9681c task_name=ma7-samples
+2026/10/22 12:36:24 INFO executor started run_id=a828c84f-6a0f-4fdd-a636-27d5809308d6 epoch=1
+2026/10/22 12:36:24 INFO run state transition run_id=a828c84f-6a0f-4fdd-a636-27d5809308d6 from=queued to=running
+2026/10/22 12:36:25 ERROR session runner: failed to persist assistant message session_id=d747a2f4-f123-4f57-8e73-47184fcb5494 error="run is in a terminal state"
+2026/10/22 12:36:25 ERROR session runner: failed to persist assistant message session_id=816fa407-8aae-4da3-80de-2b5a91aa95c9 error="run is in a terminal state"
+2026/10/22 12:36:25 ERROR session runner: failed to persist assistant message session_id=a0254267-4481-4036-857e-c5daa52eb8d1 error="run is in a terminal state"
+2026/10/22 12:36:25 ERROR session runner: failed to persist assistant message session_id=183bf0db-d617-4f49-98ae-f7faf30be648 error="run is in a terminal state"
+2026/10/22 12:36:25 INFO executor finished run_id=a828c84f-6a0f-4fdd-a636-27d5809308d6 epoch=1
+2026/10/22 12:36:25 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:25 INFO all active workers and retests stop requested
+2026/10/22 12:36:26 INFO created run run_id=932a3da9-5c9c-420f-b872-44fe4a218742 task_id=627c85d5-60fa-432f-a672-9e64b85693f3 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:36:26 INFO executor started run_id=932a3da9-5c9c-420f-b872-44fe4a218742 epoch=1
+2026/10/22 12:36:26 INFO run state transition run_id=932a3da9-5c9c-420f-b872-44fe4a218742 from=queued to=running
+2026/10/22 12:36:26 ERROR session runner: failed to persist assistant message session_id=0407e322-6f1a-45a3-bb97-da03ad21d2d6 error="run is in a terminal state"
+2026/10/22 12:36:26 INFO executor finished run_id=932a3da9-5c9c-420f-b872-44fe4a218742 epoch=1
+2026/10/22 12:36:26 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:26 INFO all active workers and retests stop requested
+2026/10/22 12:36:27 INFO created run run_id=4f09fefc-e8d4-4e32-801a-8eb601c85526 task_id=8b07e78a-9f59-4034-a6d6-6427d9564cc1 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:36:27 INFO executor started run_id=4f09fefc-e8d4-4e32-801a-8eb601c85526 epoch=1
+2026/10/22 12:36:27 INFO run state transition run_id=4f09fefc-e8d4-4e32-801a-8eb601c85526 from=queued to=running
+2026/10/22 12:36:29 ERROR session runner: failed to persist assistant message session_id=0bcde29c-04d1-4066-9e8f-12535bbfe09d error="run is in a terminal state"
+2026/10/22 12:36:29 INFO executor finished run_id=4f09fefc-e8d4-4e32-801a-8eb601c85526 epoch=1
+2026/10/22 12:36:29 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:29 INFO all active workers and retests stop requested
+2026/10/22 12:36:30 INFO created run run_id=14b571f9-e853-4dc1-91ef-b5fa9a3b21ca task_id=be44d732-7d88-46fb-88dd-9b513dc20212 task_name=ma7-samples
+2026/10/22 12:36:30 INFO executor started run_id=14b571f9-e853-4dc1-91ef-b5fa9a3b21ca epoch=1
+2026/10/22 12:36:30 INFO run state transition run_id=14b571f9-e853-4dc1-91ef-b5fa9a3b21ca from=queued to=running
+2026/10/22 12:36:30 ERROR session runner: failed to persist assistant message session_id=4b39ca3b-1a40-47ab-a2d8-a6c1ace6ca98 error="run is in a terminal state"
+2026/10/22 12:36:30 ERROR session runner: failed to persist assistant message session_id=e63d8f17-0447-4e90-9944-61e3d06e5cfb error="run is in a terminal state"
+2026/10/22 12:36:30 ERROR session runner: failed to persist assistant message session_id=8f676316-9299-44a8-af89-c80896e443cf error="run is in a terminal state"
+2026/10/22 12:36:30 ERROR session runner: failed to persist assistant message session_id=eb7350d0-0cc1-4a52-9eb6-639c460dadc4 error="run is in a terminal state"
+2026/10/22 12:36:30 INFO executor finished run_id=14b571f9-e853-4dc1-91ef-b5fa9a3b21ca epoch=1
+2026/10/22 12:36:30 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:30 INFO all active workers and retests stop requested
+2026/10/22 12:36:31 INFO created run run_id=1760a52b-976f-4838-9b79-5044c2e153bd task_id=56dc5c1b-330d-4d45-8db1-c75d67b0fd67 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:36:31 INFO executor started run_id=1760a52b-976f-4838-9b79-5044c2e153bd epoch=1
+2026/10/22 12:36:31 INFO run state transition run_id=1760a52b-976f-4838-9b79-5044c2e153bd from=queued to=running
+2026/10/22 12:36:32 ERROR session runner: failed to persist assistant message session_id=21f928dc-86a2-4c30-b8eb-0e99aa67c6de error="run is in a terminal state"
+2026/10/22 12:36:32 INFO executor finished run_id=1760a52b-976f-4838-9b79-5044c2e153bd epoch=1
+2026/10/22 12:36:32 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:32 INFO all active workers and retests stop requested
+2026/10/22 12:36:33 INFO created run run_id=b32da6be-5782-4302-8611-7aeb8ee1d0f0 task_id=1d4670a0-cfbe-4d0b-9bdd-579e62ff5bd8 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:36:33 INFO executor started run_id=b32da6be-5782-4302-8611-7aeb8ee1d0f0 epoch=1
+2026/10/22 12:36:33 INFO run state transition run_id=b32da6be-5782-4302-8611-7aeb8ee1d0f0 from=queued to=running
+2026/10/22 12:36:35 ERROR session runner: failed to persist assistant message session_id=98192b13-0a2c-4bfd-a6eb-0f009941634e error="run is in a terminal state"
+2026/10/22 12:36:35 INFO executor finished run_id=b32da6be-5782-4302-8611-7aeb8ee1d0f0 epoch=1
+2026/10/22 12:36:35 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:35 INFO all active workers and retests stop requested
+2026/10/22 12:36:36 INFO created run run_id=53582fe2-53d3-4185-a2c5-8fe75ae5d7b6 task_id=6688aa97-e791-4391-9918-1dca460b7014 task_name=ma7-samples
+2026/10/22 12:36:36 INFO executor started run_id=53582fe2-53d3-4185-a2c5-8fe75ae5d7b6 epoch=1
+2026/10/22 12:36:36 INFO run state transition run_id=53582fe2-53d3-4185-a2c5-8fe75ae5d7b6 from=queued to=running
+2026/10/22 12:36:36 ERROR session runner: failed to persist assistant message session_id=b2f63722-50e6-43f7-9396-7f2eef62d9d3 error="run is in a terminal state"
+2026/10/22 12:36:36 ERROR session runner: failed to persist assistant message session_id=006de8f7-8824-4d78-ae86-6462952174f3 error="run is in a terminal state"
+2026/10/22 12:36:36 ERROR session runner: failed to persist assistant message session_id=067d3d2f-0bbd-4acf-8496-174d408de2e5 error="run is in a terminal state"
+2026/10/22 12:36:36 ERROR session runner: failed to persist assistant message session_id=04ae890c-81d6-4418-ad21-e1d93ba067ee error="run is in a terminal state"
+2026/10/22 12:36:36 INFO executor finished run_id=53582fe2-53d3-4185-a2c5-8fe75ae5d7b6 epoch=1
+2026/10/22 12:36:36 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:36 INFO all active workers and retests stop requested
+2026/10/22 12:36:37 INFO created run run_id=b78fabf0-c0d8-4055-972f-b987515b3faa task_id=daa3cf09-2f8d-47b7-be18-a27f100e49c4 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:36:37 INFO executor started run_id=b78fabf0-c0d8-4055-972f-b987515b3faa epoch=1
+2026/10/22 12:36:37 INFO run state transition run_id=b78fabf0-c0d8-4055-972f-b987515b3faa from=queued to=running
+2026/10/22 12:36:38 ERROR session runner: failed to persist assistant message session_id=f0bfa4d8-37ed-420d-afd6-1e0dc14240ed error="run is in a terminal state"
+2026/10/22 12:36:39 INFO executor finished run_id=b78fabf0-c0d8-4055-972f-b987515b3faa epoch=1
+2026/10/22 12:36:39 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:39 INFO all active workers and retests stop requested
+2026/10/22 12:36:39 INFO created run run_id=50af2dcb-9e05-4124-bea0-1dca248f9fb9 task_id=90624d1b-ca27-48a4-aad1-68e3649c4f87 task_name=ma7-samples
+2026/10/22 12:36:39 INFO executor started run_id=50af2dcb-9e05-4124-bea0-1dca248f9fb9 epoch=1
+2026/10/22 12:36:39 INFO run state transition run_id=50af2dcb-9e05-4124-bea0-1dca248f9fb9 from=queued to=running
+2026/10/22 12:36:40 ERROR session runner: failed to persist assistant message session_id=730c73bb-92f3-4cf2-9f3a-8ced92584a21 error="run is in a terminal state"
+2026/10/22 12:36:40 ERROR session runner: failed to persist assistant message session_id=0fa43c17-80e7-45e6-8f47-8fe8fb8fcccd error="run is in a terminal state"
+2026/10/22 12:36:40 ERROR session runner: failed to persist assistant message session_id=629e8b23-d05e-4209-b714-fecf41eb87d9 error="run is in a terminal state"
+2026/10/22 12:36:40 ERROR session runner: failed to persist assistant message session_id=0bc529e3-299d-4253-a24c-46122c4c7330 error="run is in a terminal state"
+2026/10/22 12:36:40 INFO executor finished run_id=50af2dcb-9e05-4124-bea0-1dca248f9fb9 epoch=1
+2026/10/22 12:36:40 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:40 INFO all active workers and retests stop requested
+2026/10/22 12:36:41 INFO created run run_id=9aeac286-23de-4e03-a0ba-7b334c098ed3 task_id=5e93569f-4864-4332-b9ef-9101e280336d task_name=ma7-discovery-m-168726995195
+2026/10/22 12:36:41 INFO executor started run_id=9aeac286-23de-4e03-a0ba-7b334c098ed3 epoch=1
+2026/10/22 12:36:41 INFO run state transition run_id=9aeac286-23de-4e03-a0ba-7b334c098ed3 from=queued to=running
+2026/10/22 12:36:41 ERROR session runner: failed to persist assistant message session_id=bf93a9c6-edfb-44da-82f4-cd91ac94d37e error="run is in a terminal state"
+2026/10/22 12:36:41 INFO executor finished run_id=9aeac286-23de-4e03-a0ba-7b334c098ed3 epoch=1
+2026/10/22 12:36:41 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:41 INFO all active workers and retests stop requested
+2026/10/22 12:36:42 INFO created run run_id=4274a0eb-fa0f-4b6b-bf7d-031ce0f0590a task_id=90990793-f344-49b9-9895-dbd24b19d89a task_name=ma7-discovery-m-168726995195
+2026/10/22 12:36:42 INFO executor started run_id=4274a0eb-fa0f-4b6b-bf7d-031ce0f0590a epoch=1
+2026/10/22 12:36:42 INFO run state transition run_id=4274a0eb-fa0f-4b6b-bf7d-031ce0f0590a from=queued to=running
+2026/10/22 12:36:44 ERROR session runner: failed to persist assistant message session_id=6a5af777-fd1f-401d-a9b8-e91d74dccae8 error="run is in a terminal state"
+2026/10/22 12:36:44 INFO executor finished run_id=4274a0eb-fa0f-4b6b-bf7d-031ce0f0590a epoch=1
+2026/10/22 12:36:44 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:44 INFO all active workers and retests stop requested
+2026/10/22 12:36:45 INFO created run run_id=47f84522-217e-4434-b4ed-4774388c730c task_id=2807cea3-7a19-4000-b362-263701dfb451 task_name=ma7-samples
+2026/10/22 12:36:45 INFO executor started run_id=47f84522-217e-4434-b4ed-4774388c730c epoch=1
+2026/10/22 12:36:45 INFO run state transition run_id=47f84522-217e-4434-b4ed-4774388c730c from=queued to=running
+2026/10/22 12:36:45 ERROR session runner: failed to persist assistant message session_id=43688fcc-1b44-42db-8ec3-4c38297164a7 error="run is in a terminal state"
+2026/10/22 12:36:45 ERROR session runner: failed to persist assistant message session_id=f34fa627-9f9a-482c-8be7-c34e1af1ba34 error="run is in a terminal state"
+2026/10/22 12:36:45 ERROR session runner: failed to persist assistant message session_id=66eba3cb-1458-43c4-8490-b59c970867fb error="run is in a terminal state"
+2026/10/22 12:36:45 ERROR session runner: failed to persist assistant message session_id=9fdca281-10f9-483f-bf88-d13d102f8ab0 error="run is in a terminal state"
+2026/10/22 12:36:45 INFO executor finished run_id=47f84522-217e-4434-b4ed-4774388c730c epoch=1
+2026/10/22 12:36:45 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:45 INFO all active workers and retests stop requested
+2026/10/22 12:36:46 INFO created run run_id=92978b45-967e-4b94-b2a2-7ecd75eb0b8d task_id=f86f2b90-0896-44a0-a847-8bd78ad22eaa task_name=ma7-discovery-m-168726995195
+2026/10/22 12:36:46 INFO executor started run_id=92978b45-967e-4b94-b2a2-7ecd75eb0b8d epoch=1
+2026/10/22 12:36:46 INFO run state transition run_id=92978b45-967e-4b94-b2a2-7ecd75eb0b8d from=queued to=running
+2026/10/22 12:36:47 ERROR session runner: failed to persist assistant message session_id=e4674533-3e71-4492-b327-111140236991 error="run is in a terminal state"
+2026/10/22 12:36:47 INFO executor finished run_id=92978b45-967e-4b94-b2a2-7ecd75eb0b8d epoch=1
+2026/10/22 12:36:47 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:47 INFO all active workers and retests stop requested
+2026/10/22 12:36:48 INFO created run run_id=4ee8b634-fa2f-4252-9d13-1bc338e74a5b task_id=e266183c-1395-4c5a-b469-a32f0b688d16 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:36:48 INFO executor started run_id=4ee8b634-fa2f-4252-9d13-1bc338e74a5b epoch=1
+2026/10/22 12:36:48 INFO run state transition run_id=4ee8b634-fa2f-4252-9d13-1bc338e74a5b from=queued to=running
+2026/10/22 12:36:50 ERROR session runner: failed to persist assistant message session_id=31e6ae37-20a7-43fd-a681-254ec71c0255 error="run is in a terminal state"
+2026/10/22 12:36:50 INFO executor finished run_id=4ee8b634-fa2f-4252-9d13-1bc338e74a5b epoch=1
+2026/10/22 12:36:50 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:50 INFO all active workers and retests stop requested
+2026/10/22 12:36:51 INFO created run run_id=e6eaee48-9935-4b44-9a92-15978b4898ff task_id=7fa644d9-6962-4c7c-b74c-3054fc892a59 task_name=ma7-samples
+2026/10/22 12:36:51 INFO executor started run_id=e6eaee48-9935-4b44-9a92-15978b4898ff epoch=1
+2026/10/22 12:36:51 INFO run state transition run_id=e6eaee48-9935-4b44-9a92-15978b4898ff from=queued to=running
+2026/10/22 12:36:51 ERROR session runner: failed to persist assistant message session_id=1d8ddb7f-4453-4a6d-b976-a47d44f015ff error="run is in a terminal state"
+2026/10/22 12:36:51 ERROR session runner: failed to persist assistant message session_id=547ff40b-857b-4ace-8b63-c726028b0167 error="run is in a terminal state"
+2026/10/22 12:36:51 ERROR session runner: failed to persist assistant message session_id=522d2e04-fb2e-425d-92be-1d2a42ddbcec error="run is in a terminal state"
+2026/10/22 12:36:51 ERROR session runner: failed to persist assistant message session_id=2e89c7ff-cf40-4f3c-be7e-aa833cd45fc1 error="run is in a terminal state"
+2026/10/22 12:36:51 INFO executor finished run_id=e6eaee48-9935-4b44-9a92-15978b4898ff epoch=1
+2026/10/22 12:36:51 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:51 INFO all active workers and retests stop requested
+2026/10/22 12:36:52 INFO created run run_id=2471adfb-622d-4fe4-89e7-c154b8e4f01b task_id=72755818-c01c-4e82-9ff2-abdce148b461 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:36:52 INFO executor started run_id=2471adfb-622d-4fe4-89e7-c154b8e4f01b epoch=1
+2026/10/22 12:36:52 INFO run state transition run_id=2471adfb-622d-4fe4-89e7-c154b8e4f01b from=queued to=running
+2026/10/22 12:36:53 ERROR session runner: failed to persist assistant message session_id=51da2d88-ae5b-47e3-956c-2a33eadb8a3e error="run is in a terminal state"
+2026/10/22 12:36:53 INFO executor finished run_id=2471adfb-622d-4fe4-89e7-c154b8e4f01b epoch=1
+2026/10/22 12:36:53 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:53 INFO all active workers and retests stop requested
+2026/10/22 12:36:54 INFO created run run_id=21a1cb1e-cd2e-436d-a774-5e0f52484711 task_id=41efa021-cac4-4d24-8e5d-ebd80c2793ff task_name=ma7-samples
+2026/10/22 12:36:54 INFO executor started run_id=21a1cb1e-cd2e-436d-a774-5e0f52484711 epoch=1
+2026/10/22 12:36:54 INFO run state transition run_id=21a1cb1e-cd2e-436d-a774-5e0f52484711 from=queued to=running
+2026/10/22 12:36:55 ERROR session runner: failed to persist assistant message session_id=4bad189d-3535-449b-bea6-1ca547d3ecea error="run is in a terminal state"
+2026/10/22 12:36:55 ERROR session runner: failed to persist assistant message session_id=ee250860-76c0-44dc-8889-12153100bb9f error="run is in a terminal state"
+2026/10/22 12:36:55 ERROR session runner: failed to persist assistant message session_id=bdd196c3-57b5-4105-a57c-0113d3d949b8 error="run is in a terminal state"
+2026/10/22 12:36:55 ERROR session runner: failed to persist assistant message session_id=86a4c38b-8616-44cb-a745-c8aaa9746060 error="run is in a terminal state"
+2026/10/22 12:36:55 INFO executor finished run_id=21a1cb1e-cd2e-436d-a774-5e0f52484711 epoch=1
+2026/10/22 12:36:55 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:55 INFO all active workers and retests stop requested
+2026/10/22 12:36:56 INFO created run run_id=8133c233-50d7-4edd-a813-81aa0cb45f6d task_id=a395dfac-8696-4fac-b9a7-507e3cbcb8a4 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:36:56 INFO executor started run_id=8133c233-50d7-4edd-a813-81aa0cb45f6d epoch=1
+2026/10/22 12:36:56 INFO run state transition run_id=8133c233-50d7-4edd-a813-81aa0cb45f6d from=queued to=running
+2026/10/22 12:36:56 ERROR session runner: failed to persist assistant message session_id=2f111a80-6046-4c61-950b-b8994dd5aa8d error="run is in a terminal state"
+2026/10/22 12:36:56 INFO executor finished run_id=8133c233-50d7-4edd-a813-81aa0cb45f6d epoch=1
+2026/10/22 12:36:56 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:56 INFO all active workers and retests stop requested
+2026/10/22 12:36:57 INFO created run run_id=6ee04ce1-c65f-45f5-8422-78a642106c14 task_id=25cf697f-f249-4523-bf75-0eea6b9407a5 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:36:57 INFO executor started run_id=6ee04ce1-c65f-45f5-8422-78a642106c14 epoch=1
+2026/10/22 12:36:57 INFO run state transition run_id=6ee04ce1-c65f-45f5-8422-78a642106c14 from=queued to=running
+2026/10/22 12:36:59 ERROR session runner: failed to persist assistant message session_id=df7be34b-c6ff-4248-96d2-5a6bc6dedc16 error="run is in a terminal state"
+2026/10/22 12:36:59 INFO executor finished run_id=6ee04ce1-c65f-45f5-8422-78a642106c14 epoch=1
+2026/10/22 12:36:59 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:36:59 INFO all active workers and retests stop requested
+2026/10/22 12:37:00 INFO created run run_id=da9844e0-265e-4e93-8a93-ef68e759e9c9 task_id=8f7a04b0-4aa5-4d3f-bd21-cb0b0fc59622 task_name=ma7-samples
+2026/10/22 12:37:00 INFO executor started run_id=da9844e0-265e-4e93-8a93-ef68e759e9c9 epoch=1
+2026/10/22 12:37:00 INFO run state transition run_id=da9844e0-265e-4e93-8a93-ef68e759e9c9 from=queued to=running
+2026/10/22 12:37:00 ERROR session runner: failed to persist assistant message session_id=2ba87396-882a-4e4c-a2d3-c2b221b0aa71 error="run is in a terminal state"
+2026/10/22 12:37:00 ERROR session runner: failed to persist assistant message session_id=874e71db-208a-4922-9a9d-0a919941195b error="run is in a terminal state"
+2026/10/22 12:37:00 ERROR session runner: failed to persist assistant message session_id=c2fa5b32-1269-4b19-a97b-6b52c6f8aa67 error="run is in a terminal state"
+2026/10/22 12:37:00 ERROR session runner: failed to persist assistant message session_id=9e24d35a-cc4a-4398-8259-e26bddf522b5 error="run is in a terminal state"
+2026/10/22 12:37:00 INFO executor finished run_id=da9844e0-265e-4e93-8a93-ef68e759e9c9 epoch=1
+2026/10/22 12:37:00 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:00 INFO all active workers and retests stop requested
+2026/10/22 12:37:01 INFO created run run_id=5de96f56-c2fa-4285-b0b8-ff2cb05d36d3 task_id=be377b0f-e532-46e6-ac6a-2001112e9273 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:37:01 INFO executor started run_id=5de96f56-c2fa-4285-b0b8-ff2cb05d36d3 epoch=1
+2026/10/22 12:37:01 INFO run state transition run_id=5de96f56-c2fa-4285-b0b8-ff2cb05d36d3 from=queued to=running
+2026/10/22 12:37:02 ERROR engine: failed to list work items run_id=5de96f56-c2fa-4285-b0b8-ff2cb05d36d3 error="list work_items: context canceled"
+2026/10/22 12:37:02 ERROR session runner: failed to persist assistant message session_id=aae2b832-6791-45ac-9fea-ad81a923332e error="run is in a terminal state"
+2026/10/22 12:37:02 INFO executor finished run_id=5de96f56-c2fa-4285-b0b8-ff2cb05d36d3 epoch=1
+2026/10/22 12:37:02 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:02 INFO all active workers and retests stop requested
+2026/10/22 12:37:03 INFO created run run_id=853e8ffe-6c16-4f76-ba62-c6e275954455 task_id=1c1b0889-c9e4-404a-ae8c-88210b3e20c4 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:37:03 INFO executor started run_id=853e8ffe-6c16-4f76-ba62-c6e275954455 epoch=1
+2026/10/22 12:37:03 INFO run state transition run_id=853e8ffe-6c16-4f76-ba62-c6e275954455 from=queued to=running
+2026/10/22 12:37:05 ERROR session runner: failed to persist assistant message session_id=5bf980f2-a438-493e-8f2f-38b9e6e77024 error="run is in a terminal state"
+2026/10/22 12:37:05 INFO executor finished run_id=853e8ffe-6c16-4f76-ba62-c6e275954455 epoch=1
+2026/10/22 12:37:05 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:05 INFO all active workers and retests stop requested
+2026/10/22 12:37:06 INFO created run run_id=45f75613-3bc3-4c6a-b9ea-e8d16427c8f5 task_id=9dc10081-1773-411e-9aa0-8d858174fc26 task_name=ma7-samples
+2026/10/22 12:37:06 INFO executor started run_id=45f75613-3bc3-4c6a-b9ea-e8d16427c8f5 epoch=1
+2026/10/22 12:37:06 INFO run state transition run_id=45f75613-3bc3-4c6a-b9ea-e8d16427c8f5 from=queued to=running
+2026/10/22 12:37:06 ERROR session runner: failed to persist assistant message session_id=aa3f6a09-5005-4d5b-99a4-c30506320386 error="run is in a terminal state"
+2026/10/22 12:37:06 ERROR session runner: failed to persist assistant message session_id=f5f6b84d-571a-4703-a4eb-216d90d70619 error="run is in a terminal state"
+2026/10/22 12:37:06 ERROR session runner: failed to persist assistant message session_id=bbff3d17-4b96-4a0e-90a6-733c77981dd2 error="run is in a terminal state"
+2026/10/22 12:37:06 ERROR session runner: failed to persist assistant message session_id=c2e676e6-27e5-433d-91af-ecf3490f6ddd error="run is in a terminal state"
+2026/10/22 12:37:06 INFO executor finished run_id=45f75613-3bc3-4c6a-b9ea-e8d16427c8f5 epoch=1
+2026/10/22 12:37:06 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:06 INFO all active workers and retests stop requested
+2026/10/22 12:37:07 INFO created run run_id=6b3b1480-0ea1-4309-bd88-d474bc2e9e1a task_id=9be925a7-e132-485f-bf38-891ec7bf400a task_name=ma7-discovery-m-168726995195
+2026/10/22 12:37:07 INFO executor started run_id=6b3b1480-0ea1-4309-bd88-d474bc2e9e1a epoch=1
+2026/10/22 12:37:07 INFO run state transition run_id=6b3b1480-0ea1-4309-bd88-d474bc2e9e1a from=queued to=running
+2026/10/22 12:37:09 ERROR engine: failed to list work items run_id=6b3b1480-0ea1-4309-bd88-d474bc2e9e1a error="list work_items: context canceled"
+2026/10/22 12:37:09 ERROR session runner: failed to persist assistant message session_id=6010ff54-f1de-4e9b-9c8c-08969c45b47f error="run is in a terminal state"
+2026/10/22 12:37:09 INFO executor finished run_id=6b3b1480-0ea1-4309-bd88-d474bc2e9e1a epoch=1
+2026/10/22 12:37:09 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:09 INFO all active workers and retests stop requested
+2026/10/22 12:37:10 INFO created run run_id=a1618773-58c8-4866-a308-2969cfb0772e task_id=b2f37acd-942b-4d6f-b9ff-d363a3e63352 task_name=ma7-samples
+2026/10/22 12:37:10 INFO executor started run_id=a1618773-58c8-4866-a308-2969cfb0772e epoch=1
+2026/10/22 12:37:10 INFO run state transition run_id=a1618773-58c8-4866-a308-2969cfb0772e from=queued to=running
+2026/10/22 12:37:10 ERROR session runner: failed to persist assistant message session_id=f2531d27-cea0-4dec-96d7-2d70bd4df62c error="run is in a terminal state"
+2026/10/22 12:37:10 ERROR session runner: failed to persist assistant message session_id=f208af14-389e-43d8-8a4f-603403f8b7e7 error="run is in a terminal state"
+2026/10/22 12:37:10 ERROR session runner: failed to persist assistant message session_id=0979af50-4400-44ea-abdc-3f374c2106a3 error="run is in a terminal state"
+2026/10/22 12:37:10 ERROR session runner: failed to persist assistant message session_id=be1196ae-7a2b-437d-9c4f-12dcee099114 error="run is in a terminal state"
+2026/10/22 12:37:10 INFO executor finished run_id=a1618773-58c8-4866-a308-2969cfb0772e epoch=1
+2026/10/22 12:37:10 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:10 INFO all active workers and retests stop requested
+2026/10/22 12:37:11 INFO created run run_id=7fbad3ce-fce9-4342-87c6-fbe37f3db9ae task_id=d05042cd-cf03-43df-95cf-8324c8a7fe93 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:37:11 INFO executor started run_id=7fbad3ce-fce9-4342-87c6-fbe37f3db9ae epoch=1
+2026/10/22 12:37:11 INFO run state transition run_id=7fbad3ce-fce9-4342-87c6-fbe37f3db9ae from=queued to=running
+2026/10/22 12:37:11 ERROR session runner: failed to persist assistant message session_id=5f89948e-8cd5-4cae-bb0e-345509a4efae error="run is in a terminal state"
+2026/10/22 12:37:11 INFO executor finished run_id=7fbad3ce-fce9-4342-87c6-fbe37f3db9ae epoch=1
+2026/10/22 12:37:11 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:11 INFO all active workers and retests stop requested
+2026/10/22 12:37:12 INFO created run run_id=1c5a3cb3-d5d3-4c40-aa51-ed0bac55c0a0 task_id=8d80b606-1870-47fb-9707-88f9d4ece07d task_name=ma7-discovery-m-168726995195
+2026/10/22 12:37:12 INFO executor started run_id=1c5a3cb3-d5d3-4c40-aa51-ed0bac55c0a0 epoch=1
+2026/10/22 12:37:12 INFO run state transition run_id=1c5a3cb3-d5d3-4c40-aa51-ed0bac55c0a0 from=queued to=running
+2026/10/22 12:37:14 ERROR session runner: failed to persist assistant message session_id=cfdc582c-f2e3-4b56-b461-78928fd9b936 error="run is in a terminal state"
+2026/10/22 12:37:14 INFO executor finished run_id=1c5a3cb3-d5d3-4c40-aa51-ed0bac55c0a0 epoch=1
+2026/10/22 12:37:14 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:14 INFO all active workers and retests stop requested
+2026/10/22 12:37:15 INFO created run run_id=2d3f9258-ab75-4936-9d54-51dcc1b1cdc3 task_id=aa036191-c4d1-45c6-b65e-1e1c788279d5 task_name=ma7-samples
+2026/10/22 12:37:15 INFO executor started run_id=2d3f9258-ab75-4936-9d54-51dcc1b1cdc3 epoch=1
+2026/10/22 12:37:15 INFO run state transition run_id=2d3f9258-ab75-4936-9d54-51dcc1b1cdc3 from=queued to=running
+2026/10/22 12:37:15 ERROR session runner: failed to persist assistant message session_id=72ada18f-8c4d-45da-a672-111e31308840 error="run is in a terminal state"
+2026/10/22 12:37:15 ERROR session runner: failed to persist assistant message session_id=a15921c6-80e1-4277-8267-d66f5f8f1c15 error="run is in a terminal state"
+2026/10/22 12:37:15 ERROR session runner: failed to persist assistant message session_id=9a1ba7f4-3456-47d7-845c-a7c7eca2bdda error="run is in a terminal state"
+2026/10/22 12:37:15 ERROR session runner: failed to persist assistant message session_id=9ffa4306-7f93-4b45-a5de-718dc2a171ac error="run is in a terminal state"
+2026/10/22 12:37:15 INFO executor finished run_id=2d3f9258-ab75-4936-9d54-51dcc1b1cdc3 epoch=1
+2026/10/22 12:37:15 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:15 INFO all active workers and retests stop requested
+2026/10/22 12:37:16 INFO created run run_id=d7be2ae1-9b32-4ceb-b0a9-90328cd5b2c4 task_id=3ee4cca3-be2e-4906-935e-d5cffd4fad23 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:37:16 INFO executor started run_id=d7be2ae1-9b32-4ceb-b0a9-90328cd5b2c4 epoch=1
+2026/10/22 12:37:16 INFO run state transition run_id=d7be2ae1-9b32-4ceb-b0a9-90328cd5b2c4 from=queued to=running
+2026/10/22 12:37:17 ERROR session runner: failed to persist assistant message session_id=8d315920-6113-4274-95b6-9871265ed8a6 error="run is in a terminal state"
+2026/10/22 12:37:17 INFO executor finished run_id=d7be2ae1-9b32-4ceb-b0a9-90328cd5b2c4 epoch=1
+2026/10/22 12:37:17 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:17 INFO all active workers and retests stop requested
+2026/10/22 12:37:18 INFO created run run_id=58e55255-5629-4295-9d1a-827bc99c9138 task_id=1b2c2b9d-dadc-425a-824a-eb7078d1f965 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:37:18 INFO executor started run_id=58e55255-5629-4295-9d1a-827bc99c9138 epoch=1
+2026/10/22 12:37:18 INFO run state transition run_id=58e55255-5629-4295-9d1a-827bc99c9138 from=queued to=running
+2026/10/22 12:37:20 ERROR engine: failed to list work items run_id=58e55255-5629-4295-9d1a-827bc99c9138 error="list work_items: context canceled"
+2026/10/22 12:37:20 ERROR session runner: failed to persist assistant message session_id=d4b211ef-4bb8-44c9-8e51-d8456bd38be2 error="run is in a terminal state"
+2026/10/22 12:37:20 INFO executor finished run_id=58e55255-5629-4295-9d1a-827bc99c9138 epoch=1
+2026/10/22 12:37:20 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:20 INFO all active workers and retests stop requested
+2026/10/22 12:37:21 INFO created run run_id=4341fc47-b1fc-4759-98f6-d098ec5ed358 task_id=ebb16b41-531e-4b52-9d66-efe640280087 task_name=ma7-samples
+2026/10/22 12:37:21 INFO executor started run_id=4341fc47-b1fc-4759-98f6-d098ec5ed358 epoch=1
+2026/10/22 12:37:21 INFO run state transition run_id=4341fc47-b1fc-4759-98f6-d098ec5ed358 from=queued to=running
+2026/10/22 12:37:21 ERROR session runner: failed to persist assistant message session_id=a1119964-1fa0-451f-a114-543fe6e95365 error="run is in a terminal state"
+2026/10/22 12:37:21 ERROR session runner: failed to persist assistant message session_id=e1f92ff7-cc2a-4f1b-afaa-7926097cd0ad error="run is in a terminal state"
+2026/10/22 12:37:21 ERROR session runner: failed to persist assistant message session_id=ac04656c-6fb5-435f-bbef-70a72918d78c error="run is in a terminal state"
+2026/10/22 12:37:21 ERROR session runner: failed to persist assistant message session_id=3bb57736-6f68-49e3-b1da-2adaf615049b error="run is in a terminal state"
+2026/10/22 12:37:21 INFO executor finished run_id=4341fc47-b1fc-4759-98f6-d098ec5ed358 epoch=1
+2026/10/22 12:37:21 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:21 INFO all active workers and retests stop requested
+2026/10/22 12:37:22 INFO created run run_id=ae914605-3ee8-4ca7-a464-091a89b75034 task_id=6c344b50-24fa-4c80-89bd-2d487d0810a7 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:37:22 INFO executor started run_id=ae914605-3ee8-4ca7-a464-091a89b75034 epoch=1
+2026/10/22 12:37:22 INFO run state transition run_id=ae914605-3ee8-4ca7-a464-091a89b75034 from=queued to=running
+2026/10/22 12:37:24 ERROR engine: failed to list work items run_id=ae914605-3ee8-4ca7-a464-091a89b75034 error="list work_items: context canceled"
+2026/10/22 12:37:24 ERROR session runner: failed to persist assistant message session_id=f68608e7-dc1b-4a54-b4f1-f297ce41aef7 error="run is in a terminal state"
+2026/10/22 12:37:24 INFO executor finished run_id=ae914605-3ee8-4ca7-a464-091a89b75034 epoch=1
+2026/10/22 12:37:24 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:24 INFO all active workers and retests stop requested
+2026/10/22 12:37:25 INFO created run run_id=07dfc00c-faa0-482e-b3da-c5d05cf13da5 task_id=b432f1a9-8b91-40de-aebf-d9c208082022 task_name=ma7-samples
+2026/10/22 12:37:25 INFO executor started run_id=07dfc00c-faa0-482e-b3da-c5d05cf13da5 epoch=1
+2026/10/22 12:37:25 INFO run state transition run_id=07dfc00c-faa0-482e-b3da-c5d05cf13da5 from=queued to=running
+2026/10/22 12:37:25 ERROR session runner: failed to persist assistant message session_id=a25e54b4-1678-4005-9587-e131b12f55aa error="run is in a terminal state"
+2026/10/22 12:37:25 ERROR session runner: failed to persist assistant message session_id=3a4e75ad-bcd9-4597-a739-d22d9a3aaf38 error="run is in a terminal state"
+2026/10/22 12:37:25 ERROR session runner: failed to persist assistant message session_id=f8aacee5-476e-4d59-8be1-830a55b702e1 error="run is in a terminal state"
+2026/10/22 12:37:25 ERROR session runner: failed to persist assistant message session_id=3104a508-cd43-4996-bdf3-83d89005a58e error="run is in a terminal state"
+2026/10/22 12:37:25 INFO executor finished run_id=07dfc00c-faa0-482e-b3da-c5d05cf13da5 epoch=1
+2026/10/22 12:37:25 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:25 INFO all active workers and retests stop requested
+2026/10/22 12:37:26 INFO created run run_id=9fbcb45c-20f3-4558-bdc8-65803af68265 task_id=0d002f1f-a6a5-4355-b99d-703716561234 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:37:26 INFO executor started run_id=9fbcb45c-20f3-4558-bdc8-65803af68265 epoch=1
+2026/10/22 12:37:26 INFO run state transition run_id=9fbcb45c-20f3-4558-bdc8-65803af68265 from=queued to=running
+2026/10/22 12:37:27 ERROR session runner: failed to persist assistant message session_id=95fc3bec-f64f-4f17-bacc-048accc67bfb error="run is in a terminal state"
+2026/10/22 12:37:27 INFO executor finished run_id=9fbcb45c-20f3-4558-bdc8-65803af68265 epoch=1
+2026/10/22 12:37:27 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:27 INFO all active workers and retests stop requested
+2026/10/22 12:37:27 INFO created run run_id=9c32eaac-0876-4619-a575-57f451f76da2 task_id=528a3148-6595-4daa-bb53-a6c4b8fa5efd task_name=ma7-discovery-m-168726995195
+2026/10/22 12:37:27 INFO executor started run_id=9c32eaac-0876-4619-a575-57f451f76da2 epoch=1
+2026/10/22 12:37:27 INFO run state transition run_id=9c32eaac-0876-4619-a575-57f451f76da2 from=queued to=running
+2026/10/22 12:37:29 ERROR session runner: failed to persist assistant message session_id=5256550e-babd-4b5d-a2d0-4ebfe5cf1d61 error="run is in a terminal state"
+2026/10/22 12:37:29 INFO executor finished run_id=9c32eaac-0876-4619-a575-57f451f76da2 epoch=1
+2026/10/22 12:37:29 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:29 INFO all active workers and retests stop requested
+2026/10/22 12:37:30 INFO created run run_id=119ef97b-6d2b-4528-8c36-c9047364127b task_id=4f485ca7-2c04-46e2-9aea-ee0ec06178a7 task_name=ma7-samples
+2026/10/22 12:37:30 INFO executor started run_id=119ef97b-6d2b-4528-8c36-c9047364127b epoch=1
+2026/10/22 12:37:30 INFO run state transition run_id=119ef97b-6d2b-4528-8c36-c9047364127b from=queued to=running
+2026/10/22 12:37:30 ERROR session runner: failed to persist assistant message session_id=2e88703c-6cea-4b8f-96ac-fa5eab03ddea error="run is in a terminal state"
+2026/10/22 12:37:30 ERROR session runner: failed to persist assistant message session_id=89f3d560-50aa-4a38-8996-0e130640a21e error="run is in a terminal state"
+2026/10/22 12:37:30 ERROR session runner: failed to persist assistant message session_id=6cd1a24b-fe8b-4714-a128-c99ec2051d3e error="run is in a terminal state"
+2026/10/22 12:37:30 ERROR session runner: failed to persist assistant message session_id=ef2a5cdf-bd65-4c3f-bf7a-9716ffc49377 error="run is in a terminal state"
+2026/10/22 12:37:31 INFO executor finished run_id=119ef97b-6d2b-4528-8c36-c9047364127b epoch=1
+2026/10/22 12:37:31 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:31 INFO all active workers and retests stop requested
+2026/10/22 12:37:31 INFO created run run_id=c77df5fe-c029-4649-8d12-7d76578b60ae task_id=7ae5a917-a3ef-4df9-bbfd-81c7e150a741 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:37:31 INFO executor started run_id=c77df5fe-c029-4649-8d12-7d76578b60ae epoch=1
+2026/10/22 12:37:31 INFO run state transition run_id=c77df5fe-c029-4649-8d12-7d76578b60ae from=queued to=running
+2026/10/22 12:37:32 ERROR engine: failed to list work items run_id=c77df5fe-c029-4649-8d12-7d76578b60ae error="list work_items: context canceled"
+2026/10/22 12:37:32 ERROR session runner: failed to persist assistant message session_id=0fc64b6f-6745-40c9-90d8-29d09b875af6 error="run is in a terminal state"
+2026/10/22 12:37:32 INFO executor finished run_id=c77df5fe-c029-4649-8d12-7d76578b60ae epoch=1
+2026/10/22 12:37:32 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:32 INFO all active workers and retests stop requested
+2026/10/22 12:37:33 INFO created run run_id=08c2b455-da78-4408-9886-cb4471946dad task_id=d5d4a3d6-359e-40cc-be57-3a08d47fd0db task_name=ma7-discovery-m-168726995195
+2026/10/22 12:37:33 INFO executor started run_id=08c2b455-da78-4408-9886-cb4471946dad epoch=1
+2026/10/22 12:37:33 INFO run state transition run_id=08c2b455-da78-4408-9886-cb4471946dad from=queued to=running
+2026/10/22 12:37:35 ERROR engine: failed to list work items run_id=08c2b455-da78-4408-9886-cb4471946dad error="list work_items: context canceled"
+2026/10/22 12:37:35 ERROR session runner: failed to persist assistant message session_id=a87f6bd9-4f2a-4311-8826-fc9d1f607aac error="run is in a terminal state"
+2026/10/22 12:37:35 INFO executor finished run_id=08c2b455-da78-4408-9886-cb4471946dad epoch=1
+2026/10/22 12:37:35 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:35 INFO all active workers and retests stop requested
+2026/10/22 12:37:35 INFO created run run_id=4c783ae1-c94f-4ad2-971c-0d94e2b5b324 task_id=d1fbd51e-ae92-4f5e-85ad-cf4f82cf0404 task_name=ma7-samples
+2026/10/22 12:37:35 INFO executor started run_id=4c783ae1-c94f-4ad2-971c-0d94e2b5b324 epoch=1
+2026/10/22 12:37:35 INFO run state transition run_id=4c783ae1-c94f-4ad2-971c-0d94e2b5b324 from=queued to=running
+2026/10/22 12:37:36 ERROR session runner: failed to persist assistant message session_id=67de9ef3-6501-4849-a0af-ab4cc8c15862 error="run is in a terminal state"
+2026/10/22 12:37:36 ERROR session runner: failed to persist assistant message session_id=3e73060d-80ee-4455-bba6-90a155a609d7 error="run is in a terminal state"
+2026/10/22 12:37:36 ERROR session runner: failed to persist assistant message session_id=9f86bc33-7d2e-469c-ad36-e3f8853bad22 error="run is in a terminal state"
+2026/10/22 12:37:36 ERROR session runner: failed to persist assistant message session_id=1dbe36d8-668d-4d22-8a1a-514c7b2de652 error="run is in a terminal state"
+2026/10/22 12:37:36 INFO executor finished run_id=4c783ae1-c94f-4ad2-971c-0d94e2b5b324 epoch=1
+2026/10/22 12:37:36 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:36 INFO all active workers and retests stop requested
+2026/10/22 12:37:37 INFO created run run_id=74fc2c76-fed4-43c6-9dac-1b93191f8150 task_id=0c0e6c85-d2c6-4424-9630-435ef6a43f2c task_name=ma7-discovery-m-168726995195
+2026/10/22 12:37:37 INFO executor started run_id=74fc2c76-fed4-43c6-9dac-1b93191f8150 epoch=1
+2026/10/22 12:37:37 INFO run state transition run_id=74fc2c76-fed4-43c6-9dac-1b93191f8150 from=queued to=running
+2026/10/22 12:37:38 ERROR session runner: failed to persist assistant message session_id=e89a3929-cd94-4121-9fa0-c7e47f39ec66 error="run is in a terminal state"
+2026/10/22 12:37:38 INFO executor finished run_id=74fc2c76-fed4-43c6-9dac-1b93191f8150 epoch=1
+2026/10/22 12:37:38 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:38 INFO all active workers and retests stop requested
+2026/10/22 12:37:39 INFO created run run_id=1a7bef70-3a4d-4c6f-ac96-81790f3e1e77 task_id=cacacf8f-e092-4112-847a-be70eded182f task_name=ma7-samples
+2026/10/22 12:37:39 INFO executor started run_id=1a7bef70-3a4d-4c6f-ac96-81790f3e1e77 epoch=1
+2026/10/22 12:37:39 INFO run state transition run_id=1a7bef70-3a4d-4c6f-ac96-81790f3e1e77 from=queued to=running
+2026/10/22 12:37:39 ERROR session runner: failed to persist assistant message session_id=fd5b1b5a-0c8f-4245-a650-5315ab9376e7 error="run is in a terminal state"
+2026/10/22 12:37:39 ERROR session runner: failed to persist assistant message session_id=aadc327c-9185-4a0f-8dea-baf1c35b1108 error="run is in a terminal state"
+2026/10/22 12:37:39 ERROR session runner: failed to persist assistant message session_id=b10977e4-cdaa-4557-8925-71e4f08fb8cd error="run is in a terminal state"
+2026/10/22 12:37:39 ERROR session runner: failed to persist assistant message session_id=bc538704-5871-40fd-997a-e8a816be0037 error="run is in a terminal state"
+2026/10/22 12:37:40 INFO executor finished run_id=1a7bef70-3a4d-4c6f-ac96-81790f3e1e77 epoch=1
+2026/10/22 12:37:40 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:40 INFO all active workers and retests stop requested
+2026/10/22 12:37:40 INFO created run run_id=1c863615-d994-4e44-aa4c-c15d72e1f02a task_id=56ac488a-b63f-4475-82b9-21be538c8849 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:37:40 INFO executor started run_id=1c863615-d994-4e44-aa4c-c15d72e1f02a epoch=1
+2026/10/22 12:37:40 INFO run state transition run_id=1c863615-d994-4e44-aa4c-c15d72e1f02a from=queued to=running
+2026/10/22 12:37:41 ERROR session runner: failed to persist assistant message session_id=5e2f4e4a-70e1-47fe-9282-8f4a73a2de02 error="run is in a terminal state"
+2026/10/22 12:37:41 INFO executor finished run_id=1c863615-d994-4e44-aa4c-c15d72e1f02a epoch=1
+2026/10/22 12:37:41 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:41 INFO all active workers and retests stop requested
+2026/10/22 12:37:41 INFO created run run_id=786c24f2-cf96-482f-aac5-a0ab742dc6dd task_id=91485762-b583-4b9e-9f8a-cacc5d6d9413 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:37:41 INFO executor started run_id=786c24f2-cf96-482f-aac5-a0ab742dc6dd epoch=1
+2026/10/22 12:37:41 INFO run state transition run_id=786c24f2-cf96-482f-aac5-a0ab742dc6dd from=queued to=running
+2026/10/22 12:37:43 ERROR engine: failed to list work items run_id=786c24f2-cf96-482f-aac5-a0ab742dc6dd error="list work_items: context canceled"
+2026/10/22 12:37:43 ERROR session runner: failed to persist assistant message session_id=c64f7fce-6b59-4e26-816f-ebae3a6e3dfd error="run is in a terminal state"
+2026/10/22 12:37:43 INFO executor finished run_id=786c24f2-cf96-482f-aac5-a0ab742dc6dd epoch=1
+2026/10/22 12:37:43 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:43 INFO all active workers and retests stop requested
+2026/10/22 12:37:44 INFO created run run_id=6f5ca950-f916-4e62-b251-f78293f207a9 task_id=ec0da273-1d2c-4c16-8464-e26cd1e64686 task_name=ma7-samples
+2026/10/22 12:37:44 INFO executor started run_id=6f5ca950-f916-4e62-b251-f78293f207a9 epoch=1
+2026/10/22 12:37:44 INFO run state transition run_id=6f5ca950-f916-4e62-b251-f78293f207a9 from=queued to=running
+2026/10/22 12:37:44 ERROR session runner: failed to persist assistant message session_id=13bb2777-213b-4655-a2a3-d15281830ff8 error="run is in a terminal state"
+2026/10/22 12:37:44 ERROR session runner: failed to persist assistant message session_id=6032486a-f4e2-4836-ad4b-9b69fdda2fa2 error="run is in a terminal state"
+2026/10/22 12:37:44 ERROR session runner: failed to persist assistant message session_id=c881a5e8-eb8e-4c44-9ea6-3df4ad357a7b error="run is in a terminal state"
+2026/10/22 12:37:44 ERROR session runner: failed to persist assistant message session_id=b382f4e0-96f0-4e51-9f89-079900d946dc error="run is in a terminal state"
+2026/10/22 12:37:44 INFO executor finished run_id=6f5ca950-f916-4e62-b251-f78293f207a9 epoch=1
+2026/10/22 12:37:44 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:44 INFO all active workers and retests stop requested
+2026/10/22 12:37:45 INFO created run run_id=a7dde6c0-2fdc-46a6-8c32-95871df1ac46 task_id=31217aaf-08f3-4926-8f12-72b728e46901 task_name=ma7-discovery-m-168726995195
+2026/10/22 12:37:45 INFO executor started run_id=a7dde6c0-2fdc-46a6-8c32-95871df1ac46 epoch=1
+2026/10/22 12:37:45 INFO run state transition run_id=a7dde6c0-2fdc-46a6-8c32-95871df1ac46 from=queued to=running
+2026/10/22 12:37:46 ERROR session runner: failed to persist assistant message session_id=669977e6-a500-4a7b-9803-62eee7e32516 error="run is in a terminal state"
+2026/10/22 12:37:46 INFO executor finished run_id=a7dde6c0-2fdc-46a6-8c32-95871df1ac46 epoch=1
+2026/10/22 12:37:46 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:46 INFO all active workers and retests stop requested
+2026/10/22 12:37:47 INFO created run run_id=bac1bd90-6fe4-4c1a-a20c-d372996ddd75 task_id=4f945075-f3d7-4f2c-bec7-2f05bdad45ff task_name=ma7-discovery-m-168726995195
+2026/10/22 12:37:47 INFO executor started run_id=bac1bd90-6fe4-4c1a-a20c-d372996ddd75 epoch=1
+2026/10/22 12:37:47 INFO run state transition run_id=bac1bd90-6fe4-4c1a-a20c-d372996ddd75 from=queued to=running
+2026/10/22 12:37:48 ERROR session runner: failed to persist assistant message session_id=796ddb8c-f1c5-47fe-85af-27282b8a1c56 error="run is in a terminal state"
+2026/10/22 12:37:48 INFO executor finished run_id=bac1bd90-6fe4-4c1a-a20c-d372996ddd75 epoch=1
+2026/10/22 12:37:48 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:48 INFO all active workers and retests stop requested
+2026/10/22 12:37:49 INFO created run run_id=8a6dfad3-a80f-411f-93a0-af852a6a5ac7 task_id=cb0422ea-971c-4382-9d56-ab61ac7eb535 task_name=ma7-samples
+2026/10/22 12:37:49 INFO executor started run_id=8a6dfad3-a80f-411f-93a0-af852a6a5ac7 epoch=1
+2026/10/22 12:37:49 INFO run state transition run_id=8a6dfad3-a80f-411f-93a0-af852a6a5ac7 from=queued to=running
+2026/10/22 12:37:49 ERROR session runner: failed to persist assistant message session_id=5f3423c7-e2eb-4e03-a8fc-ab210b9706c4 error="run is in a terminal state"
+2026/10/22 12:37:49 ERROR session runner: failed to persist assistant message session_id=6919831e-4f6c-41b0-a5ba-cb447c01be4c error="run is in a terminal state"
+2026/10/22 12:37:49 ERROR session runner: failed to persist assistant message session_id=4f9e4b77-2607-4d4b-bb19-75ba914bf73d error="run is in a terminal state"
+2026/10/22 12:37:49 ERROR session runner: failed to persist assistant message session_id=b5b99cae-6c6b-4165-a5bb-ea3a43fe963a error="run is in a terminal state"
+2026/10/22 12:37:49 INFO executor finished run_id=8a6dfad3-a80f-411f-93a0-af852a6a5ac7 epoch=1
+2026/10/22 12:37:49 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:49 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A01_DiscoveryWorkerCapacityRequiresRealOverlap (100.03s)
+    ma_acceptance_a01_a08_test.go:41: A01 failed 54 assertion(s); evidence ../../docs/多Agent核心与工作台-实施计划/证据/ma7/A01.json; first: {Round:1 Check:round 1 discovery=true N=4 overlap Detail:worker barrier=1 running_attempts=1 server_peak=1 requested=4}
+2026/10/22 12:37:50 INFO created run run_id=9b273cb5-5241-49dc-a0ea-aadb61815c87 task_id=50365c62-d264-4d8e-ac52-99ef056e3d29 task_name=ma7-samples
+2026/10/22 12:37:50 INFO executor started run_id=9b273cb5-5241-49dc-a0ea-aadb61815c87 epoch=1
+2026/10/22 12:37:50 INFO run state transition run_id=9b273cb5-5241-49dc-a0ea-aadb61815c87 from=queued to=running
+2026/10/22 12:37:54 ERROR session runner: failed to persist assistant message session_id=78fbdf18-27ef-420c-87e4-4307d1c07edf error="run is in a terminal state"
+2026/10/22 12:37:54 ERROR session runner: failed to persist assistant message session_id=8c107e75-8ddc-4787-a4a5-87535e57dc72 error="run is in a terminal state"
+2026/10/22 12:37:54 INFO executor finished run_id=9b273cb5-5241-49dc-a0ea-aadb61815c87 epoch=1
+2026/10/22 12:37:54 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:54 INFO all active workers and retests stop requested
+2026/10/22 12:37:55 INFO created run run_id=cb3c0d3b-7195-48c4-b166-7bc4aa00a60a task_id=260bc29c-10da-421e-b240-a076bac41fbf task_name=ma7-samples
+2026/10/22 12:37:55 INFO executor started run_id=cb3c0d3b-7195-48c4-b166-7bc4aa00a60a epoch=1
+2026/10/22 12:37:55 INFO run state transition run_id=cb3c0d3b-7195-48c4-b166-7bc4aa00a60a from=queued to=running
+2026/10/22 12:37:58 ERROR session runner: failed to persist assistant message session_id=ced9a5ad-662b-4406-87d4-cfde4edf3a2e error="run is in a terminal state"
+2026/10/22 12:37:58 ERROR session runner: failed to persist assistant message session_id=f932daef-a258-4409-8968-252bfd217bc2 error="run is in a terminal state"
+2026/10/22 12:37:58 INFO executor finished run_id=cb3c0d3b-7195-48c4-b166-7bc4aa00a60a epoch=1
+2026/10/22 12:37:58 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:37:58 INFO all active workers and retests stop requested
+2026/10/22 12:37:59 INFO created run run_id=a46ede9f-1160-4240-863e-43c6b3cc065e task_id=d76f132e-2da7-4525-8002-8fe5f4d9d088 task_name=ma7-samples
+2026/10/22 12:37:59 INFO executor started run_id=a46ede9f-1160-4240-863e-43c6b3cc065e epoch=1
+2026/10/22 12:37:59 INFO run state transition run_id=a46ede9f-1160-4240-863e-43c6b3cc065e from=queued to=running
+2026/10/22 12:38:03 ERROR engine: failed to list work items run_id=a46ede9f-1160-4240-863e-43c6b3cc065e error="list work_items: context canceled"
+2026/10/22 12:38:03 ERROR session runner: failed to persist assistant message session_id=964e1bd1-7425-4696-81c8-70f0f1635fd4 error="run is in a terminal state"
+2026/10/22 12:38:03 ERROR session runner: failed to persist assistant message session_id=90f00d4e-882c-41c6-91f6-d4e61cba9ef4 error="run is in a terminal state"
+2026/10/22 12:38:03 INFO executor finished run_id=a46ede9f-1160-4240-863e-43c6b3cc065e epoch=1
+2026/10/22 12:38:03 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:38:03 INFO all active workers and retests stop requested
+2026/10/22 12:38:04 INFO created run run_id=c2ab3096-66b4-4d12-bbcd-2c117f2a6f79 task_id=b9ec2ccd-4b73-461d-a35f-82b3c373407e task_name=ma7-samples
+2026/10/22 12:38:04 INFO executor started run_id=c2ab3096-66b4-4d12-bbcd-2c117f2a6f79 epoch=1
+2026/10/22 12:38:04 INFO run state transition run_id=c2ab3096-66b4-4d12-bbcd-2c117f2a6f79 from=queued to=running
+2026/10/22 12:38:07 ERROR session runner: failed to persist assistant message session_id=f3925d52-f644-46a3-a9e3-b72f8635143c error="run is in a terminal state"
+2026/10/22 12:38:07 ERROR session runner: failed to persist assistant message session_id=ecfaf50a-5e93-4314-b823-4522d6e6de1d error="run is in a terminal state"
+2026/10/22 12:38:08 INFO executor finished run_id=c2ab3096-66b4-4d12-bbcd-2c117f2a6f79 epoch=1
+2026/10/22 12:38:08 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:38:08 INFO all active workers and retests stop requested
+2026/10/22 12:38:09 INFO created run run_id=5d0b20ed-4bbd-4b95-8281-0136b74ab3ea task_id=7d47b5a7-322b-48a2-87ce-1698a3364bee task_name=ma7-samples
+2026/10/22 12:38:09 INFO executor started run_id=5d0b20ed-4bbd-4b95-8281-0136b74ab3ea epoch=1
+2026/10/22 12:38:09 INFO run state transition run_id=5d0b20ed-4bbd-4b95-8281-0136b74ab3ea from=queued to=running
+2026/10/22 12:38:12 ERROR session runner: failed to persist assistant message session_id=d16ab1b9-6049-4271-aef9-0100622550e2 error="run is in a terminal state"
+2026/10/22 12:38:12 ERROR session runner: failed to persist assistant message session_id=103ce268-9ceb-4765-b15e-2fc6937a859a error="run is in a terminal state"
+2026/10/22 12:38:12 INFO executor finished run_id=5d0b20ed-4bbd-4b95-8281-0136b74ab3ea epoch=1
+2026/10/22 12:38:12 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:38:12 INFO all active workers and retests stop requested
+2026/10/22 12:38:13 INFO created run run_id=f8c86324-6ec6-41b2-b516-784ac0392662 task_id=b9ac292c-0bbc-4537-8d21-0c435523cdca task_name=ma7-samples
+2026/10/22 12:38:13 INFO executor started run_id=f8c86324-6ec6-41b2-b516-784ac0392662 epoch=1
+2026/10/22 12:38:14 INFO run state transition run_id=f8c86324-6ec6-41b2-b516-784ac0392662 from=queued to=running
+2026/10/22 12:38:17 ERROR engine: failed to list work items run_id=f8c86324-6ec6-41b2-b516-784ac0392662 error="list work_items: context canceled"
+2026/10/22 12:38:17 ERROR session runner: failed to persist assistant message session_id=c80168a9-72ce-4c80-87f8-69a47e242b78 error="run is in a terminal state"
+2026/10/22 12:38:17 ERROR session runner: failed to persist assistant message session_id=54482488-ef51-4923-8610-60b4bf1083d6 error="run is in a terminal state"
+2026/10/22 12:38:17 INFO executor finished run_id=f8c86324-6ec6-41b2-b516-784ac0392662 epoch=1
+2026/10/22 12:38:17 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:38:17 INFO all active workers and retests stop requested
+2026/10/22 12:38:18 INFO created run run_id=ae4e1684-6089-4531-b22e-cad94697c795 task_id=ea3c2a39-02ed-400c-ab83-14590afdc1f1 task_name=ma7-samples
+2026/10/22 12:38:18 INFO executor started run_id=ae4e1684-6089-4531-b22e-cad94697c795 epoch=1
+2026/10/22 12:38:18 INFO run state transition run_id=ae4e1684-6089-4531-b22e-cad94697c795 from=queued to=running
+2026/10/22 12:38:22 ERROR session runner: failed to persist assistant message session_id=b9ba2a45-8835-4ee7-b13e-667b4e6a4035 error="run is in a terminal state"
+2026/10/22 12:38:22 ERROR session runner: failed to persist assistant message session_id=f89c18c6-e289-49b0-9fd7-25bc13f177c0 error="run is in a terminal state"
+2026/10/22 12:38:22 INFO executor finished run_id=ae4e1684-6089-4531-b22e-cad94697c795 epoch=1
+2026/10/22 12:38:22 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:38:22 INFO all active workers and retests stop requested
+2026/10/22 12:38:23 INFO created run run_id=dbc0911a-61d1-4f5a-b6cb-ee096cd9e1ba task_id=74bc6731-5885-44da-ab3a-8ddaf7b31256 task_name=ma7-samples
+2026/10/22 12:38:23 INFO executor started run_id=dbc0911a-61d1-4f5a-b6cb-ee096cd9e1ba epoch=1
+2026/10/22 12:38:23 INFO run state transition run_id=dbc0911a-61d1-4f5a-b6cb-ee096cd9e1ba from=queued to=running
+2026/10/22 12:38:26 ERROR session runner: failed to persist assistant message session_id=0d8e1571-34ec-491b-a04a-e54e6bbf3899 error="run is in a terminal state"
+2026/10/22 12:38:26 ERROR session runner: failed to persist assistant message session_id=6186cedb-0df7-4801-8a00-cd3be0d2a5c9 error="run is in a terminal state"
+2026/10/22 12:38:26 INFO executor finished run_id=dbc0911a-61d1-4f5a-b6cb-ee096cd9e1ba epoch=1
+2026/10/22 12:38:27 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:38:27 INFO all active workers and retests stop requested
+2026/10/22 12:38:27 INFO created run run_id=86caa9b6-9ec3-4006-beac-1ddfe3a7bb06 task_id=ffd48d5a-557d-4cbd-a196-e50895266a4f task_name=ma7-samples
+2026/10/22 12:38:27 INFO executor started run_id=86caa9b6-9ec3-4006-beac-1ddfe3a7bb06 epoch=1
+2026/10/22 12:38:27 INFO run state transition run_id=86caa9b6-9ec3-4006-beac-1ddfe3a7bb06 from=queued to=running
+2026/10/22 12:38:31 ERROR session runner: failed to persist assistant message session_id=1f0026b1-f061-4073-b897-8c5cc1399740 error="run is in a terminal state"
+2026/10/22 12:38:31 ERROR session runner: failed to persist assistant message session_id=5c246d2d-5764-428b-921f-e9388bbfecc5 error="run is in a terminal state"
+2026/10/22 12:38:31 INFO executor finished run_id=86caa9b6-9ec3-4006-beac-1ddfe3a7bb06 epoch=1
+2026/10/22 12:38:31 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:38:31 INFO all active workers and retests stop requested
+2026/10/22 12:38:32 INFO created run run_id=6d7d7044-cf74-42f2-9c4d-ff358fc6a94b task_id=818c6d9c-8001-42ed-bba3-29b500668dfa task_name=ma7-samples
+2026/10/22 12:38:32 INFO executor started run_id=6d7d7044-cf74-42f2-9c4d-ff358fc6a94b epoch=1
+2026/10/22 12:38:32 INFO run state transition run_id=6d7d7044-cf74-42f2-9c4d-ff358fc6a94b from=queued to=running
+2026/10/22 12:38:36 ERROR session runner: failed to persist assistant message session_id=2d86dbbc-7bdf-4552-bdf1-3ddd491a365e error="run is in a terminal state"
+2026/10/22 12:38:36 ERROR session runner: failed to persist assistant message session_id=bfa57550-fcae-4eb1-a548-2edd9cbddd0b error="run is in a terminal state"
+2026/10/22 12:38:36 INFO executor finished run_id=6d7d7044-cf74-42f2-9c4d-ff358fc6a94b epoch=1
+2026/10/22 12:38:36 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:38:36 INFO all active workers and retests stop requested
+2026/10/22 12:38:37 INFO created run run_id=3d4eab30-0390-475e-b054-fb9672c56d9e task_id=bda5e1d4-ad7c-4e37-83e8-b75d6d23ee95 task_name=ma7-samples
+2026/10/22 12:38:37 INFO executor started run_id=3d4eab30-0390-475e-b054-fb9672c56d9e epoch=1
+2026/10/22 12:38:37 INFO run state transition run_id=3d4eab30-0390-475e-b054-fb9672c56d9e from=queued to=running
+2026/10/22 12:38:41 ERROR session runner: failed to persist assistant message session_id=c1d37682-4c6d-4f2f-b630-b0f9cdaf9e34 error="run is in a terminal state"
+2026/10/22 12:38:41 ERROR session runner: failed to persist assistant message session_id=356adb79-e60f-4009-9a6f-f732ae3aed99 error="run is in a terminal state"
+2026/10/22 12:38:41 INFO executor finished run_id=3d4eab30-0390-475e-b054-fb9672c56d9e epoch=1
+2026/10/22 12:38:41 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:38:41 INFO all active workers and retests stop requested
+2026/10/22 12:38:42 INFO created run run_id=2536d12f-f524-404b-8e98-72b002697915 task_id=ac716aa7-b0c3-4696-8837-2c48ffcea07d task_name=ma7-samples
+2026/10/22 12:38:42 INFO executor started run_id=2536d12f-f524-404b-8e98-72b002697915 epoch=1
+2026/10/22 12:38:42 INFO run state transition run_id=2536d12f-f524-404b-8e98-72b002697915 from=queued to=running
+2026/10/22 12:38:45 ERROR session runner: failed to persist assistant message session_id=ab84ed3c-f49c-46e5-be07-d70ea6910c56 error="run is in a terminal state"
+2026/10/22 12:38:45 ERROR session runner: failed to persist assistant message session_id=4ae7392e-e28b-472b-a806-e4b1b6081430 error="run is in a terminal state"
+2026/10/22 12:38:46 INFO executor finished run_id=2536d12f-f524-404b-8e98-72b002697915 epoch=1
+2026/10/22 12:38:46 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:38:46 INFO all active workers and retests stop requested
+2026/10/22 12:38:47 INFO created run run_id=35422ef5-362d-4a8d-bfe2-630574a2b233 task_id=c91788fe-39a8-4c1e-8440-8b33812c3893 task_name=ma7-samples
+2026/10/22 12:38:47 INFO executor started run_id=35422ef5-362d-4a8d-bfe2-630574a2b233 epoch=1
+2026/10/22 12:38:47 INFO run state transition run_id=35422ef5-362d-4a8d-bfe2-630574a2b233 from=queued to=running
+2026/10/22 12:38:50 ERROR session runner: failed to persist assistant message session_id=68d560e3-fd21-4a99-b818-0d736e4dee59 error="run is in a terminal state"
+2026/10/22 12:38:50 ERROR session runner: failed to persist assistant message session_id=f9ab45a1-9249-4c7f-a26e-750e2091b2c2 error="run is in a terminal state"
+2026/10/22 12:38:51 INFO executor finished run_id=35422ef5-362d-4a8d-bfe2-630574a2b233 epoch=1
+2026/10/22 12:38:51 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:38:51 INFO all active workers and retests stop requested
+2026/10/22 12:38:52 INFO created run run_id=caa2d48a-babb-4cf2-a034-dfd72355778b task_id=8658cde4-fa5c-4d46-974b-996cad62024b task_name=ma7-samples
+2026/10/22 12:38:52 INFO executor started run_id=caa2d48a-babb-4cf2-a034-dfd72355778b epoch=1
+2026/10/22 12:38:52 INFO run state transition run_id=caa2d48a-babb-4cf2-a034-dfd72355778b from=queued to=running
+2026/10/22 12:38:55 ERROR session runner: failed to persist assistant message session_id=731e232a-6b94-4826-a9fd-b5f075e4f944 error="run is in a terminal state"
+2026/10/22 12:38:55 ERROR session runner: failed to persist assistant message session_id=910a807c-a310-4c5c-b19e-6a45e2ac65fb error="run is in a terminal state"
+2026/10/22 12:38:55 INFO executor finished run_id=caa2d48a-babb-4cf2-a034-dfd72355778b epoch=1
+2026/10/22 12:38:55 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:38:55 INFO all active workers and retests stop requested
+2026/10/22 12:38:56 INFO created run run_id=ec7f992f-6568-42cc-854d-bf8469f064e5 task_id=92a1a5b6-7c05-4dc5-bad4-faa364c9f428 task_name=ma7-samples
+2026/10/22 12:38:56 INFO executor started run_id=ec7f992f-6568-42cc-854d-bf8469f064e5 epoch=1
+2026/10/22 12:38:56 INFO run state transition run_id=ec7f992f-6568-42cc-854d-bf8469f064e5 from=queued to=running
+2026/10/22 12:39:00 ERROR session runner: failed to persist assistant message session_id=d92059db-9bda-479a-9fc3-7fea480053ef error="run is in a terminal state"
+2026/10/22 12:39:00 ERROR session runner: failed to persist assistant message session_id=d0846510-8901-455d-9fc2-cffff29dc46a error="run is in a terminal state"
+2026/10/22 12:39:00 INFO executor finished run_id=ec7f992f-6568-42cc-854d-bf8469f064e5 epoch=1
+2026/10/22 12:39:00 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:39:00 INFO all active workers and retests stop requested
+2026/10/22 12:39:01 INFO created run run_id=7316405f-39f3-4e83-b2c8-ebcaa923f701 task_id=50727102-2443-40b2-9fbd-f74a25cee26d task_name=ma7-samples
+2026/10/22 12:39:01 INFO executor started run_id=7316405f-39f3-4e83-b2c8-ebcaa923f701 epoch=1
+2026/10/22 12:39:01 INFO run state transition run_id=7316405f-39f3-4e83-b2c8-ebcaa923f701 from=queued to=running
+2026/10/22 12:39:05 ERROR session runner: failed to persist assistant message session_id=a7e67da0-f358-40bc-a3fe-ca93806a3d7c error="run is in a terminal state"
+2026/10/22 12:39:05 ERROR session runner: failed to persist assistant message session_id=fe2c0460-b8aa-42f0-9443-c5831d9a0a0d error="run is in a terminal state"
+2026/10/22 12:39:05 INFO executor finished run_id=7316405f-39f3-4e83-b2c8-ebcaa923f701 epoch=1
+2026/10/22 12:39:05 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:39:05 INFO all active workers and retests stop requested
+2026/10/22 12:39:06 INFO created run run_id=ff5b2513-3415-4e45-b7a2-b600280389e0 task_id=ddeae73e-1b2f-4e3e-b456-a91637fe36de task_name=ma7-samples
+2026/10/22 12:39:06 INFO executor started run_id=ff5b2513-3415-4e45-b7a2-b600280389e0 epoch=1
+2026/10/22 12:39:06 INFO run state transition run_id=ff5b2513-3415-4e45-b7a2-b600280389e0 from=queued to=running
+2026/10/22 12:39:10 ERROR session runner: failed to persist assistant message session_id=83887407-2b4e-4e07-b1ae-92077025155e error="run is in a terminal state"
+2026/10/22 12:39:10 ERROR session runner: failed to persist assistant message session_id=829b28f2-c4e2-41b7-b8fa-bf6d40f251e7 error="run is in a terminal state"
+2026/10/22 12:39:10 INFO executor finished run_id=ff5b2513-3415-4e45-b7a2-b600280389e0 epoch=1
+2026/10/22 12:39:10 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:39:10 INFO all active workers and retests stop requested
+2026/10/22 12:39:11 INFO created run run_id=fd72c046-d22e-4fde-8045-4bcc9705d46d task_id=79c45b01-1ca0-47f6-a969-e7d5890ef7c3 task_name=ma7-samples
+2026/10/22 12:39:11 INFO executor started run_id=fd72c046-d22e-4fde-8045-4bcc9705d46d epoch=1
+2026/10/22 12:39:11 INFO run state transition run_id=fd72c046-d22e-4fde-8045-4bcc9705d46d from=queued to=running
+2026/10/22 12:39:15 ERROR session runner: failed to persist assistant message session_id=979fe3bf-e9e5-4c75-be81-a850922c36c8 error="run is in a terminal state"
+2026/10/22 12:39:15 ERROR session runner: failed to persist assistant message session_id=9a863204-8da6-461d-be90-e1ba75bd8b36 error="run is in a terminal state"
+2026/10/22 12:39:15 INFO executor finished run_id=fd72c046-d22e-4fde-8045-4bcc9705d46d epoch=1
+2026/10/22 12:39:15 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:39:15 INFO all active workers and retests stop requested
+2026/10/22 12:39:16 INFO created run run_id=72431bd8-3a61-4771-85c1-4ac672e774ce task_id=fd6c5963-6acc-48fe-9d4b-ab6a85d8f7c5 task_name=ma7-samples
+2026/10/22 12:39:16 INFO executor started run_id=72431bd8-3a61-4771-85c1-4ac672e774ce epoch=1
+2026/10/22 12:39:16 INFO run state transition run_id=72431bd8-3a61-4771-85c1-4ac672e774ce from=queued to=running
+2026/10/22 12:39:20 ERROR session runner: failed to persist assistant message session_id=3b13fae2-cbe9-4167-945d-73bd3b507a9f error="run is in a terminal state"
+2026/10/22 12:39:20 ERROR session runner: failed to persist assistant message session_id=811c31c4-6162-4b02-af6c-0558fa0f4e65 error="run is in a terminal state"
+2026/10/22 12:39:20 INFO executor finished run_id=72431bd8-3a61-4771-85c1-4ac672e774ce epoch=1
+2026/10/22 12:39:20 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:39:20 INFO all active workers and retests stop requested
+2026/10/22 12:39:21 INFO created run run_id=514ff68a-c37a-498f-8d68-d2b60af1e947 task_id=e6836ca3-d4db-46d4-a18f-17c101fde8d0 task_name=ma7-samples
+2026/10/22 12:39:21 INFO executor started run_id=514ff68a-c37a-498f-8d68-d2b60af1e947 epoch=1
+2026/10/22 12:39:21 INFO run state transition run_id=514ff68a-c37a-498f-8d68-d2b60af1e947 from=queued to=running
+2026/10/22 12:39:24 ERROR session runner: failed to persist assistant message session_id=a30173da-dc13-4e03-a5a3-be20046fd607 error="run is in a terminal state"
+2026/10/22 12:39:24 ERROR session runner: failed to persist assistant message session_id=e6ef78fa-b881-4ee7-86a0-aa05d9cb60e1 error="run is in a terminal state"
+2026/10/22 12:39:24 INFO executor finished run_id=514ff68a-c37a-498f-8d68-d2b60af1e947 epoch=1
+2026/10/22 12:39:24 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:39:24 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A02_ClaimOverlapAndDispatchDuringPlannerCall (95.05s)
+    ma_acceptance_a01_a08_test.go:204: A02 failed 40 assertion(s); evidence ../../docs/多Agent核心与工作台-实施计划/证据/ma7/A02.json; first: {Round:1 Check:planner follow-up Detail:follow-up planner call did not start while workers were held}
+2026/10/22 12:39:25 INFO created run run_id=76b7a701-f820-47b3-be3b-0cb6df75574a task_id=f2f6480b-7b3b-403b-9a0f-6538e9b364f3 task_name=ma7-samples
+2026/10/22 12:39:25 INFO executor started run_id=76b7a701-f820-47b3-be3b-0cb6df75574a epoch=1
+2026/10/22 12:39:25 INFO run state transition run_id=76b7a701-f820-47b3-be3b-0cb6df75574a from=queued to=running
+2026/10/22 12:39:29 ERROR session runner: failed to persist assistant message session_id=278df73a-8a76-4dea-865c-ff1599978acb error="run is in a terminal state"
+2026/10/22 12:39:29 ERROR session runner: failed to persist assistant message session_id=4c1f39cf-3115-461f-8398-ad1bb08bbf80 error="run is in a terminal state"
+2026/10/22 12:39:30 INFO executor finished run_id=76b7a701-f820-47b3-be3b-0cb6df75574a epoch=1
+2026/10/22 12:39:30 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:39:30 INFO all active workers and retests stop requested
+2026/10/22 12:39:32 INFO created run run_id=acffbc5e-8450-41f2-8885-dcb29679e237 task_id=e22c32af-56f5-4a4d-ab0f-43aac93223e9 task_name=ma7-samples
+2026/10/22 12:39:32 INFO executor started run_id=acffbc5e-8450-41f2-8885-dcb29679e237 epoch=1
+2026/10/22 12:39:32 INFO run state transition run_id=acffbc5e-8450-41f2-8885-dcb29679e237 from=queued to=running
+2026/10/22 12:39:36 ERROR session runner: failed to persist assistant message session_id=d6def518-a307-47bb-8908-eec70271596b error="run is in a terminal state"
+2026/10/22 12:39:36 ERROR session runner: failed to persist assistant message session_id=7df167a4-1b88-469a-98e4-7f48431d5ba1 error="run is in a terminal state"
+2026/10/22 12:39:36 INFO executor finished run_id=acffbc5e-8450-41f2-8885-dcb29679e237 epoch=1
+2026/10/22 12:39:36 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:39:36 INFO all active workers and retests stop requested
+2026/10/22 12:39:38 INFO created run run_id=8cf034c4-e94b-4eb4-a342-2d4bca709a31 task_id=8974e7cd-8044-418c-be8f-5599fa79c1d5 task_name=ma7-samples
+2026/10/22 12:39:38 INFO executor started run_id=8cf034c4-e94b-4eb4-a342-2d4bca709a31 epoch=1
+2026/10/22 12:39:38 INFO run state transition run_id=8cf034c4-e94b-4eb4-a342-2d4bca709a31 from=queued to=running
+2026/10/22 12:39:42 ERROR session runner: failed to persist assistant message session_id=ee4b5b92-9e82-46a0-85f2-9630b75fec3a error="run is in a terminal state"
+2026/10/22 12:39:42 ERROR session runner: failed to persist assistant message session_id=877059d1-80d8-4821-a7d9-9e2f63f273e1 error="run is in a terminal state"
+2026/10/22 12:39:43 INFO executor finished run_id=8cf034c4-e94b-4eb4-a342-2d4bca709a31 epoch=1
+2026/10/22 12:39:43 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:39:43 INFO all active workers and retests stop requested
+2026/10/22 12:39:45 INFO created run run_id=095d1af1-a1a1-41c1-b83b-7b3205adc63a task_id=5714d05b-2afb-4dda-973e-1556c20e86b7 task_name=ma7-samples
+2026/10/22 12:39:45 INFO executor started run_id=095d1af1-a1a1-41c1-b83b-7b3205adc63a epoch=1
+2026/10/22 12:39:45 INFO run state transition run_id=095d1af1-a1a1-41c1-b83b-7b3205adc63a from=queued to=running
+2026/10/22 12:39:49 ERROR session runner: failed to persist assistant message session_id=dab37791-09bb-492d-ab08-392ab96916a9 error="run is in a terminal state"
+2026/10/22 12:39:49 ERROR session runner: failed to persist assistant message session_id=722ddc2f-7c43-4738-a1d2-31fa960fcdfd error="run is in a terminal state"
+2026/10/22 12:39:49 INFO executor finished run_id=095d1af1-a1a1-41c1-b83b-7b3205adc63a epoch=1
+2026/10/22 12:39:49 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:39:49 INFO all active workers and retests stop requested
+2026/10/22 12:39:51 INFO created run run_id=df53570b-c209-496b-84d9-7d3cedfcba81 task_id=ec68a6cc-d692-4ad6-9735-5c42cba64fb3 task_name=ma7-samples
+2026/10/22 12:39:51 INFO executor started run_id=df53570b-c209-496b-84d9-7d3cedfcba81 epoch=1
+2026/10/22 12:39:51 INFO run state transition run_id=df53570b-c209-496b-84d9-7d3cedfcba81 from=queued to=running
+2026/10/22 12:39:55 ERROR session runner: failed to persist assistant message session_id=8350d93d-868a-4127-ad98-754702cb1acc error="run is in a terminal state"
+2026/10/22 12:39:55 ERROR session runner: failed to persist assistant message session_id=5c65012b-cc62-440f-a441-6ab19cf9db55 error="run is in a terminal state"
+2026/10/22 12:39:55 INFO executor finished run_id=df53570b-c209-496b-84d9-7d3cedfcba81 epoch=1
+2026/10/22 12:39:55 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:39:55 INFO all active workers and retests stop requested
+2026/10/22 12:39:57 INFO created run run_id=d49e2bf4-0531-4de8-a61e-f309fbc4b47a task_id=55887147-1f54-4784-aecf-c9322d965548 task_name=ma7-samples
+2026/10/22 12:39:57 INFO executor started run_id=d49e2bf4-0531-4de8-a61e-f309fbc4b47a epoch=1
+2026/10/22 12:39:57 INFO run state transition run_id=d49e2bf4-0531-4de8-a61e-f309fbc4b47a from=queued to=running
+2026/10/22 12:40:02 ERROR session runner: failed to persist assistant message session_id=fcb58941-6791-4ef1-8d93-764d7841ddb0 error="run is in a terminal state"
+2026/10/22 12:40:02 ERROR session runner: failed to persist assistant message session_id=974c300d-dd8a-47e9-b0a1-24d748a3b424 error="run is in a terminal state"
+2026/10/22 12:40:02 INFO executor finished run_id=d49e2bf4-0531-4de8-a61e-f309fbc4b47a epoch=1
+2026/10/22 12:40:02 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:40:02 INFO all active workers and retests stop requested
+2026/10/22 12:40:04 INFO created run run_id=44bb1926-f961-4273-af47-b21ec0b4df90 task_id=5e0fe1e3-34e1-4b78-ae7e-08cc44efcf09 task_name=ma7-samples
+2026/10/22 12:40:04 INFO executor started run_id=44bb1926-f961-4273-af47-b21ec0b4df90 epoch=1
+2026/10/22 12:40:04 INFO run state transition run_id=44bb1926-f961-4273-af47-b21ec0b4df90 from=queued to=running
+2026/10/22 12:40:08 ERROR session runner: failed to persist assistant message session_id=e4dfad6e-071f-40c6-9043-dff3a4dbf9bc error="run is in a terminal state"
+2026/10/22 12:40:08 ERROR session runner: failed to persist assistant message session_id=800d97dc-625b-4f22-a8d6-2614ecec0b9d error="run is in a terminal state"
+2026/10/22 12:40:08 INFO executor finished run_id=44bb1926-f961-4273-af47-b21ec0b4df90 epoch=1
+2026/10/22 12:40:08 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:40:08 INFO all active workers and retests stop requested
+2026/10/22 12:40:10 INFO created run run_id=b2b951c1-0d7e-4f5b-aa03-02bae7cc8b74 task_id=70a2ad9f-b438-460d-9e51-14deb03c8495 task_name=ma7-samples
+2026/10/22 12:40:11 INFO executor started run_id=b2b951c1-0d7e-4f5b-aa03-02bae7cc8b74 epoch=1
+2026/10/22 12:40:11 INFO run state transition run_id=b2b951c1-0d7e-4f5b-aa03-02bae7cc8b74 from=queued to=running
+2026/10/22 12:40:15 ERROR session runner: failed to persist assistant message session_id=b5af4c73-262c-4b18-b71f-7eadbaeebb36 error="run is in a terminal state"
+2026/10/22 12:40:15 ERROR session runner: failed to persist assistant message session_id=35551006-c2a8-4e02-9b7e-9e20aff1fcac error="run is in a terminal state"
+2026/10/22 12:40:15 INFO executor finished run_id=b2b951c1-0d7e-4f5b-aa03-02bae7cc8b74 epoch=1
+2026/10/22 12:40:15 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:40:15 INFO all active workers and retests stop requested
+2026/10/22 12:40:17 INFO created run run_id=b139ce14-fea4-4324-ada2-20c0b731ebd6 task_id=2e6bb8e6-6b07-41eb-aff7-c229e13803ad task_name=ma7-samples
+2026/10/22 12:40:17 INFO executor started run_id=b139ce14-fea4-4324-ada2-20c0b731ebd6 epoch=1
+2026/10/22 12:40:17 INFO run state transition run_id=b139ce14-fea4-4324-ada2-20c0b731ebd6 from=queued to=running
+2026/10/22 12:40:21 ERROR session runner: failed to persist assistant message session_id=204c43b3-a510-4648-bbae-75c6de1fa2b5 error="run is in a terminal state"
+2026/10/22 12:40:21 ERROR session runner: failed to persist assistant message session_id=bd77f2b0-86c6-438a-9d75-3c66ce3de73c error="run is in a terminal state"
+2026/10/22 12:40:21 INFO executor finished run_id=b139ce14-fea4-4324-ada2-20c0b731ebd6 epoch=1
+2026/10/22 12:40:21 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:40:21 INFO all active workers and retests stop requested
+2026/10/22 12:40:24 INFO created run run_id=60a52ce9-9755-4d68-97cf-56f37071bc14 task_id=21cacf1d-af96-49ba-b0f0-2d5f4986d9b4 task_name=ma7-samples
+2026/10/22 12:40:24 INFO executor started run_id=60a52ce9-9755-4d68-97cf-56f37071bc14 epoch=1
+2026/10/22 12:40:24 INFO run state transition run_id=60a52ce9-9755-4d68-97cf-56f37071bc14 from=queued to=running
+2026/10/22 12:40:28 ERROR session runner: failed to persist assistant message session_id=afd6be7a-f0e7-4224-956f-cc6eea0cb191 error="run is in a terminal state"
+2026/10/22 12:40:28 ERROR session runner: failed to persist assistant message session_id=36f35183-6a68-40e5-81ad-2ff234f20ab6 error="run is in a terminal state"
+2026/10/22 12:40:28 INFO executor finished run_id=60a52ce9-9755-4d68-97cf-56f37071bc14 epoch=1
+2026/10/22 12:40:28 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:40:28 INFO all active workers and retests stop requested
+2026/10/22 12:40:30 INFO created run run_id=f1a4c641-2e85-4307-bdc5-4f20b395d529 task_id=0ede4734-20a6-47ff-94df-d4c48baa5863 task_name=ma7-samples
+2026/10/22 12:40:30 INFO executor started run_id=f1a4c641-2e85-4307-bdc5-4f20b395d529 epoch=1
+2026/10/22 12:40:30 INFO run state transition run_id=f1a4c641-2e85-4307-bdc5-4f20b395d529 from=queued to=running
+2026/10/22 12:40:34 ERROR session runner: failed to persist assistant message session_id=8208e990-37ce-4bc5-a4cc-8f65893f415d error="run is in a terminal state"
+2026/10/22 12:40:34 ERROR session runner: failed to persist assistant message session_id=25207dd6-9485-406d-92af-411a0f18ee49 error="run is in a terminal state"
+2026/10/22 12:40:35 INFO executor finished run_id=f1a4c641-2e85-4307-bdc5-4f20b395d529 epoch=1
+2026/10/22 12:40:35 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:40:35 INFO all active workers and retests stop requested
+2026/10/22 12:40:37 INFO created run run_id=6c2c5947-8fb3-4d17-b983-1ce150b0d3b7 task_id=637411d6-29fd-45d9-934c-fcdcc9afd1cb task_name=ma7-samples
+2026/10/22 12:40:37 INFO executor started run_id=6c2c5947-8fb3-4d17-b983-1ce150b0d3b7 epoch=1
+2026/10/22 12:40:37 INFO run state transition run_id=6c2c5947-8fb3-4d17-b983-1ce150b0d3b7 from=queued to=running
+2026/10/22 12:40:41 ERROR session runner: failed to persist assistant message session_id=18093288-ec2d-4a16-9736-8a2af811a08b error="run is in a terminal state"
+2026/10/22 12:40:41 ERROR session runner: failed to persist assistant message session_id=21f8cf9a-1588-48a8-8259-3bb77ab68819 error="run is in a terminal state"
+2026/10/22 12:40:41 INFO executor finished run_id=6c2c5947-8fb3-4d17-b983-1ce150b0d3b7 epoch=1
+2026/10/22 12:40:41 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:40:41 INFO all active workers and retests stop requested
+2026/10/22 12:40:43 INFO created run run_id=82ea487e-a692-4c61-a0c1-167edd46a86a task_id=4ca9d0d6-cc2f-481c-80b3-9f02611fa988 task_name=ma7-samples
+2026/10/22 12:40:43 INFO executor started run_id=82ea487e-a692-4c61-a0c1-167edd46a86a epoch=1
+2026/10/22 12:40:43 INFO run state transition run_id=82ea487e-a692-4c61-a0c1-167edd46a86a from=queued to=running
+2026/10/22 12:40:47 ERROR session runner: failed to persist assistant message session_id=80f01a16-6be3-48f6-bee8-71a9beb011ef error="run is in a terminal state"
+2026/10/22 12:40:47 ERROR session runner: failed to persist assistant message session_id=ac0b600d-75e4-48d1-b0cb-7d056c475478 error="run is in a terminal state"
+2026/10/22 12:40:47 INFO executor finished run_id=82ea487e-a692-4c61-a0c1-167edd46a86a epoch=1
+2026/10/22 12:40:48 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:40:48 INFO all active workers and retests stop requested
+2026/10/22 12:40:49 INFO created run run_id=d4915692-a8c0-48a9-bc81-ef6a54a27330 task_id=12e51271-4ba6-4083-b67a-a22a1fde1c78 task_name=ma7-samples
+2026/10/22 12:40:49 INFO executor started run_id=d4915692-a8c0-48a9-bc81-ef6a54a27330 epoch=1
+2026/10/22 12:40:49 INFO run state transition run_id=d4915692-a8c0-48a9-bc81-ef6a54a27330 from=queued to=running
+2026/10/22 12:40:54 ERROR session runner: failed to persist assistant message session_id=d5cd6edc-60f0-4e96-a192-f657eef8819c error="run is in a terminal state"
+2026/10/22 12:40:54 ERROR session runner: failed to persist assistant message session_id=d53c0410-b49d-472c-a3f4-1e05d7eea84d error="run is in a terminal state"
+2026/10/22 12:40:54 INFO executor finished run_id=d4915692-a8c0-48a9-bc81-ef6a54a27330 epoch=1
+2026/10/22 12:40:54 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:40:54 INFO all active workers and retests stop requested
+2026/10/22 12:40:56 INFO created run run_id=10ec7c4a-87b2-4a5d-b4a0-a810d86779ee task_id=d6c1b436-8969-43ba-b698-1cc051044764 task_name=ma7-samples
+2026/10/22 12:40:56 INFO executor started run_id=10ec7c4a-87b2-4a5d-b4a0-a810d86779ee epoch=1
+2026/10/22 12:40:56 INFO run state transition run_id=10ec7c4a-87b2-4a5d-b4a0-a810d86779ee from=queued to=running
+2026/10/22 12:41:00 ERROR session runner: failed to persist assistant message session_id=15190371-29ba-4b3a-8e0b-3f3184872202 error="run is in a terminal state"
+2026/10/22 12:41:00 ERROR session runner: failed to persist assistant message session_id=c7b77310-1a95-41e2-a18c-441d0bf297b8 error="run is in a terminal state"
+2026/10/22 12:41:00 INFO executor finished run_id=10ec7c4a-87b2-4a5d-b4a0-a810d86779ee epoch=1
+2026/10/22 12:41:00 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:00 INFO all active workers and retests stop requested
+2026/10/22 12:41:01 INFO created run run_id=55911b05-b4ad-4990-848a-7c21ba4a60ed task_id=2e9219f0-0277-4e74-8076-88f04adbb12b task_name=ma7-samples
+2026/10/22 12:41:01 INFO executor started run_id=55911b05-b4ad-4990-848a-7c21ba4a60ed epoch=1
+2026/10/22 12:41:01 INFO run state transition run_id=55911b05-b4ad-4990-848a-7c21ba4a60ed from=queued to=running
+2026/10/22 12:41:06 ERROR session runner: failed to persist assistant message session_id=adec8bdb-f262-41d6-bbe1-9b8b5871c068 error="run is in a terminal state"
+2026/10/22 12:41:06 ERROR session runner: failed to persist assistant message session_id=975534b0-5dcf-425c-87b7-ddfe204a03e7 error="run is in a terminal state"
+2026/10/22 12:41:06 INFO executor finished run_id=55911b05-b4ad-4990-848a-7c21ba4a60ed epoch=1
+2026/10/22 12:41:06 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:06 INFO all active workers and retests stop requested
+2026/10/22 12:41:07 INFO created run run_id=5f180c7b-3100-46d2-beff-2f0658894606 task_id=4c31e756-9771-4033-ad62-9af01f00db75 task_name=ma7-samples
+2026/10/22 12:41:07 INFO executor started run_id=5f180c7b-3100-46d2-beff-2f0658894606 epoch=1
+2026/10/22 12:41:07 INFO run state transition run_id=5f180c7b-3100-46d2-beff-2f0658894606 from=queued to=running
+2026/10/22 12:41:11 ERROR session runner: failed to persist assistant message session_id=9c24cc89-4d01-482e-911a-66ed575ea80c error="run is in a terminal state"
+2026/10/22 12:41:11 ERROR session runner: failed to persist assistant message session_id=11d73cee-b3d8-4377-be5a-ccba45b1d416 error="run is in a terminal state"
+2026/10/22 12:41:11 INFO executor finished run_id=5f180c7b-3100-46d2-beff-2f0658894606 epoch=1
+2026/10/22 12:41:11 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:11 INFO all active workers and retests stop requested
+2026/10/22 12:41:12 INFO created run run_id=b7048aec-e5d4-4c90-b2df-63c6a6334562 task_id=99d94924-c05b-4796-8357-33b9ff3d191b task_name=ma7-samples
+2026/10/22 12:41:12 INFO executor started run_id=b7048aec-e5d4-4c90-b2df-63c6a6334562 epoch=1
+2026/10/22 12:41:12 INFO run state transition run_id=b7048aec-e5d4-4c90-b2df-63c6a6334562 from=queued to=running
+2026/10/22 12:41:16 ERROR session runner: failed to persist assistant message session_id=33204911-26be-406d-884f-530f9416d8ca error="run is in a terminal state"
+2026/10/22 12:41:16 ERROR session runner: failed to persist assistant message session_id=2dce6cdd-edc2-496d-b067-8725c59d51d6 error="run is in a terminal state"
+2026/10/22 12:41:16 INFO executor finished run_id=b7048aec-e5d4-4c90-b2df-63c6a6334562 epoch=1
+2026/10/22 12:41:16 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:16 INFO all active workers and retests stop requested
+2026/10/22 12:41:17 INFO created run run_id=2bbb46bf-a67d-479a-9520-7723810b9ac6 task_id=061ab3ba-1a41-45c0-acd8-131a5989c61d task_name=ma7-samples
+2026/10/22 12:41:17 INFO executor started run_id=2bbb46bf-a67d-479a-9520-7723810b9ac6 epoch=1
+2026/10/22 12:41:17 INFO run state transition run_id=2bbb46bf-a67d-479a-9520-7723810b9ac6 from=queued to=running
+2026/10/22 12:41:22 ERROR session runner: failed to persist assistant message session_id=0d339d3d-1c91-4b45-9fc3-63cf3180758a error="run is in a terminal state"
+2026/10/22 12:41:22 ERROR session runner: failed to persist assistant message session_id=ad91797d-0b0d-4aec-a12c-49c1370a4548 error="run is in a terminal state"
+2026/10/22 12:41:22 INFO executor finished run_id=2bbb46bf-a67d-479a-9520-7723810b9ac6 epoch=1
+2026/10/22 12:41:22 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:22 INFO all active workers and retests stop requested
+2026/10/22 12:41:22 INFO created run run_id=a0faeea7-6881-4f04-aec9-83b514094a28 task_id=822c1c2a-52c5-4904-9704-d47967a2f6f4 task_name=ma7-samples
+2026/10/22 12:41:22 INFO executor started run_id=a0faeea7-6881-4f04-aec9-83b514094a28 epoch=1
+2026/10/22 12:41:22 INFO run state transition run_id=a0faeea7-6881-4f04-aec9-83b514094a28 from=queued to=running
+2026/10/22 12:41:27 ERROR session runner: failed to persist assistant message session_id=55a62ecf-5278-4a50-b70c-03e883e740d5 error="run is in a terminal state"
+2026/10/22 12:41:27 ERROR session runner: failed to persist assistant message session_id=4b664949-92da-4d3b-9ffd-cecb1cd3a76e error="run is in a terminal state"
+2026/10/22 12:41:27 INFO executor finished run_id=a0faeea7-6881-4f04-aec9-83b514094a28 epoch=1
+2026/10/22 12:41:27 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:27 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A03_InFlightFactCanDispatchSecondDirection (122.33s)
+    ma_acceptance_a01_a08_test.go:277: A03 failed 20 assertion(s); evidence ../../docs/多Agent核心与工作台-实施计划/证据/ma7/A03.json; first: {Round:1 Check:dispatch B while A in flight Detail:B arrived=0 A still held=1 planner_calls=2}
+2026/10/22 12:41:28 INFO created run run_id=272f9043-b684-4851-affc-901a1da2eb6c task_id=4db158af-a693-4841-976d-0c70cc96fb99 task_name=ma7-samples
+2026/10/22 12:41:28 INFO executor started run_id=272f9043-b684-4851-affc-901a1da2eb6c epoch=1
+2026/10/22 12:41:28 INFO run state transition run_id=272f9043-b684-4851-affc-901a1da2eb6c from=queued to=running
+2026/10/22 12:41:29 ERROR session runner: failed to persist assistant message session_id=c887199b-c8bf-4cae-89e2-a1ab6481dded error="run is in a terminal state"
+2026/10/22 12:41:29 ERROR session runner: failed to persist assistant message session_id=53059273-96ec-4e7c-b65b-8173b4b62927 error="run is in a terminal state"
+2026/10/22 12:41:29 INFO executor finished run_id=272f9043-b684-4851-affc-901a1da2eb6c epoch=1
+2026/10/22 12:41:29 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:29 INFO all active workers and retests stop requested
+2026/10/22 12:41:30 INFO created run run_id=3aee7a65-930c-465d-9fe0-03ed0e0927da task_id=28947d1f-5a9a-484c-9bcd-9ccd03a517c8 task_name=ma7-samples
+2026/10/22 12:41:30 INFO executor started run_id=3aee7a65-930c-465d-9fe0-03ed0e0927da epoch=1
+2026/10/22 12:41:30 INFO run state transition run_id=3aee7a65-930c-465d-9fe0-03ed0e0927da from=queued to=running
+2026/10/22 12:41:31 ERROR session runner: failed to persist assistant message session_id=e2bd0e1d-a2bb-400b-8070-a638cdeb5aeb error="run is in a terminal state"
+2026/10/22 12:41:31 ERROR session runner: failed to persist assistant message session_id=6d260a25-4f13-461e-84bd-ae2eee39dad0 error="run is in a terminal state"
+2026/10/22 12:41:31 INFO executor finished run_id=3aee7a65-930c-465d-9fe0-03ed0e0927da epoch=1
+2026/10/22 12:41:31 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:31 INFO all active workers and retests stop requested
+2026/10/22 12:41:32 INFO created run run_id=0ed8b943-a0b7-4f36-bded-0722ea789ff5 task_id=977092fa-9b27-4c3e-bccf-955a0fcd84c4 task_name=ma7-samples
+2026/10/22 12:41:32 INFO executor started run_id=0ed8b943-a0b7-4f36-bded-0722ea789ff5 epoch=1
+2026/10/22 12:41:32 INFO run state transition run_id=0ed8b943-a0b7-4f36-bded-0722ea789ff5 from=queued to=running
+2026/10/22 12:41:33 ERROR session runner: failed to persist assistant message session_id=4e13170f-0659-43d7-b430-847fcb3c78c5 error="run is in a terminal state"
+2026/10/22 12:41:33 ERROR session runner: failed to persist assistant message session_id=7789aa6d-226d-4e2c-a5ff-9fdcd2a35729 error="run is in a terminal state"
+2026/10/22 12:41:33 INFO executor finished run_id=0ed8b943-a0b7-4f36-bded-0722ea789ff5 epoch=1
+2026/10/22 12:41:33 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:33 INFO all active workers and retests stop requested
+2026/10/22 12:41:34 INFO created run run_id=a782a62a-113f-4728-b3ed-c202842bed6a task_id=b79fc19f-e9de-4c2c-95fd-3d4f584e04a7 task_name=ma7-samples
+2026/10/22 12:41:34 INFO executor started run_id=a782a62a-113f-4728-b3ed-c202842bed6a epoch=1
+2026/10/22 12:41:34 INFO run state transition run_id=a782a62a-113f-4728-b3ed-c202842bed6a from=queued to=running
+2026/10/22 12:41:35 ERROR session runner: failed to persist assistant message session_id=f50a280c-c947-4b41-8016-35786821eb0b error="run is in a terminal state"
+2026/10/22 12:41:35 ERROR session runner: failed to persist assistant message session_id=3597c24a-4298-43a2-ad32-175da9944d91 error="run is in a terminal state"
+2026/10/22 12:41:35 INFO executor finished run_id=a782a62a-113f-4728-b3ed-c202842bed6a epoch=1
+2026/10/22 12:41:35 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:35 INFO all active workers and retests stop requested
+2026/10/22 12:41:36 INFO created run run_id=643c3d33-ae25-4ad8-87d7-fb1de22ce73b task_id=eada81b0-6e04-4651-856b-9bad958d85e4 task_name=ma7-samples
+2026/10/22 12:41:36 INFO executor started run_id=643c3d33-ae25-4ad8-87d7-fb1de22ce73b epoch=1
+2026/10/22 12:41:36 INFO run state transition run_id=643c3d33-ae25-4ad8-87d7-fb1de22ce73b from=queued to=running
+2026/10/22 12:41:37 ERROR session runner: failed to persist assistant message session_id=e1f5b395-7ace-450e-a5a8-a3bc4de45207 error="run is in a terminal state"
+2026/10/22 12:41:37 ERROR session runner: failed to persist assistant message session_id=370b4f37-b00d-4402-9758-aa9e27baa546 error="run is in a terminal state"
+2026/10/22 12:41:37 INFO executor finished run_id=643c3d33-ae25-4ad8-87d7-fb1de22ce73b epoch=1
+2026/10/22 12:41:37 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:37 INFO all active workers and retests stop requested
+2026/10/22 12:41:38 INFO created run run_id=3161dc86-2cb2-4e28-8ca1-64ceb6fbdc1b task_id=d84f90fb-a7c5-4425-a57b-07c62a385887 task_name=ma7-samples
+2026/10/22 12:41:38 INFO executor started run_id=3161dc86-2cb2-4e28-8ca1-64ceb6fbdc1b epoch=1
+2026/10/22 12:41:38 INFO run state transition run_id=3161dc86-2cb2-4e28-8ca1-64ceb6fbdc1b from=queued to=running
+2026/10/22 12:41:39 ERROR session runner: failed to persist assistant message session_id=42527fe8-d184-488a-97fa-4cef0a9dc4fc error="run is in a terminal state"
+2026/10/22 12:41:39 ERROR session runner: failed to persist assistant message session_id=e7e266e3-e23f-49eb-8ff1-ea68a56e9f7d error="run is in a terminal state"
+2026/10/22 12:41:39 INFO executor finished run_id=3161dc86-2cb2-4e28-8ca1-64ceb6fbdc1b epoch=1
+2026/10/22 12:41:39 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:39 INFO all active workers and retests stop requested
+2026/10/22 12:41:39 INFO created run run_id=3fe6f3ee-32c7-473d-b793-39ca98dac70f task_id=619651a0-27b4-4f6f-ba58-271aa3a6d9bb task_name=ma7-samples
+2026/10/22 12:41:39 INFO executor started run_id=3fe6f3ee-32c7-473d-b793-39ca98dac70f epoch=1
+2026/10/22 12:41:39 INFO run state transition run_id=3fe6f3ee-32c7-473d-b793-39ca98dac70f from=queued to=running
+2026/10/22 12:41:40 ERROR session runner: failed to persist assistant message session_id=da829c10-cee9-4ca1-bd56-b5a6399b5815 error="run is in a terminal state"
+2026/10/22 12:41:40 ERROR session runner: failed to persist assistant message session_id=4252fc3a-0f27-4218-bc08-b0bd941aa6b8 error="run is in a terminal state"
+2026/10/22 12:41:40 INFO executor finished run_id=3fe6f3ee-32c7-473d-b793-39ca98dac70f epoch=1
+2026/10/22 12:41:40 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:40 INFO all active workers and retests stop requested
+2026/10/22 12:41:41 INFO created run run_id=6d566522-a1c6-4a0b-bccd-20f9b57b9f18 task_id=4e43dc5d-b186-41b3-be65-49eef514772a task_name=ma7-samples
+2026/10/22 12:41:41 INFO executor started run_id=6d566522-a1c6-4a0b-bccd-20f9b57b9f18 epoch=1
+2026/10/22 12:41:41 INFO run state transition run_id=6d566522-a1c6-4a0b-bccd-20f9b57b9f18 from=queued to=running
+2026/10/22 12:41:42 ERROR session runner: failed to persist assistant message session_id=21bdafda-71e1-44ee-9628-3c125e705b1a error="run is in a terminal state"
+2026/10/22 12:41:42 ERROR session runner: failed to persist assistant message session_id=702b35ce-e2ca-4546-88a2-1c69548723b5 error="run is in a terminal state"
+2026/10/22 12:41:42 INFO executor finished run_id=6d566522-a1c6-4a0b-bccd-20f9b57b9f18 epoch=1
+2026/10/22 12:41:42 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:42 INFO all active workers and retests stop requested
+2026/10/22 12:41:43 INFO created run run_id=b9f1de39-a7f5-4591-904f-9c1c28f8ad25 task_id=f70c8efc-50eb-4293-b629-cde18fb6de73 task_name=ma7-samples
+2026/10/22 12:41:43 INFO executor started run_id=b9f1de39-a7f5-4591-904f-9c1c28f8ad25 epoch=1
+2026/10/22 12:41:43 INFO run state transition run_id=b9f1de39-a7f5-4591-904f-9c1c28f8ad25 from=queued to=running
+2026/10/22 12:41:44 ERROR session runner: failed to persist assistant message session_id=ceebd989-1bcf-4c30-bd12-af801268e729 error="run is in a terminal state"
+2026/10/22 12:41:44 ERROR session runner: failed to persist assistant message session_id=b806074e-b3a2-42af-8b48-fa48abda99f3 error="run is in a terminal state"
+2026/10/22 12:41:44 INFO executor finished run_id=b9f1de39-a7f5-4591-904f-9c1c28f8ad25 epoch=1
+2026/10/22 12:41:44 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:44 INFO all active workers and retests stop requested
+2026/10/22 12:41:45 INFO created run run_id=8afd7834-0d0e-4226-8917-9dbac2cf37d2 task_id=ca66cf9f-185d-411b-a872-12acd139a3e4 task_name=ma7-samples
+2026/10/22 12:41:45 INFO executor started run_id=8afd7834-0d0e-4226-8917-9dbac2cf37d2 epoch=1
+2026/10/22 12:41:45 INFO run state transition run_id=8afd7834-0d0e-4226-8917-9dbac2cf37d2 from=queued to=running
+2026/10/22 12:41:46 ERROR session runner: failed to persist assistant message session_id=b9329fe2-4da9-47a1-b974-3cad9c1534db error="run is in a terminal state"
+2026/10/22 12:41:46 ERROR session runner: failed to persist assistant message session_id=0e72cbf1-17cc-42f6-9a54-009c201c3cf4 error="run is in a terminal state"
+2026/10/22 12:41:46 INFO executor finished run_id=8afd7834-0d0e-4226-8917-9dbac2cf37d2 epoch=1
+2026/10/22 12:41:46 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:46 INFO all active workers and retests stop requested
+2026/10/22 12:41:47 INFO created run run_id=c5b9b7b3-c340-4ef5-be4f-27a8b626a4a4 task_id=1f3bb564-d981-4be9-bd11-f2a286335525 task_name=ma7-samples
+2026/10/22 12:41:47 INFO executor started run_id=c5b9b7b3-c340-4ef5-be4f-27a8b626a4a4 epoch=1
+2026/10/22 12:41:47 INFO run state transition run_id=c5b9b7b3-c340-4ef5-be4f-27a8b626a4a4 from=queued to=running
+2026/10/22 12:41:48 ERROR session runner: failed to persist assistant message session_id=718c5715-afb3-47f9-b517-8524b42c82dd error="run is in a terminal state"
+2026/10/22 12:41:48 ERROR session runner: failed to persist assistant message session_id=a08782cf-d690-4f5f-a2e6-cdcebd63f652 error="run is in a terminal state"
+2026/10/22 12:41:48 INFO executor finished run_id=c5b9b7b3-c340-4ef5-be4f-27a8b626a4a4 epoch=1
+2026/10/22 12:41:48 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:48 INFO all active workers and retests stop requested
+2026/10/22 12:41:49 INFO created run run_id=b6175fae-dbe1-4591-aee1-833147977908 task_id=7d264bb9-3857-4b3c-86b8-dad70a514966 task_name=ma7-samples
+2026/10/22 12:41:49 INFO executor started run_id=b6175fae-dbe1-4591-aee1-833147977908 epoch=1
+2026/10/22 12:41:49 INFO run state transition run_id=b6175fae-dbe1-4591-aee1-833147977908 from=queued to=running
+2026/10/22 12:41:50 ERROR session runner: failed to persist assistant message session_id=15b32d06-fac5-4823-872e-84c922e1fa76 error="run is in a terminal state"
+2026/10/22 12:41:50 ERROR session runner: failed to persist assistant message session_id=dcd7e26f-5c96-404c-8263-7ee795c7dfd8 error="run is in a terminal state"
+2026/10/22 12:41:50 INFO executor finished run_id=b6175fae-dbe1-4591-aee1-833147977908 epoch=1
+2026/10/22 12:41:50 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:50 INFO all active workers and retests stop requested
+2026/10/22 12:41:51 INFO created run run_id=631ded45-4afc-4517-b518-fd7aade4a9dd task_id=6d5bb462-10f1-47b8-8764-5ab38a071630 task_name=ma7-samples
+2026/10/22 12:41:51 INFO executor started run_id=631ded45-4afc-4517-b518-fd7aade4a9dd epoch=1
+2026/10/22 12:41:51 INFO run state transition run_id=631ded45-4afc-4517-b518-fd7aade4a9dd from=queued to=running
+2026/10/22 12:41:52 ERROR session runner: failed to persist assistant message session_id=e826bd81-8175-4603-b858-d24005d5c4c3 error="run is in a terminal state"
+2026/10/22 12:41:52 ERROR session runner: failed to persist assistant message session_id=9a4ab920-a70f-4585-bd22-76aa9c8c2a33 error="run is in a terminal state"
+2026/10/22 12:41:52 INFO executor finished run_id=631ded45-4afc-4517-b518-fd7aade4a9dd epoch=1
+2026/10/22 12:41:52 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:52 INFO all active workers and retests stop requested
+2026/10/22 12:41:53 INFO created run run_id=8040e751-9b9b-4dde-a084-21ffba999aaa task_id=cab4a632-1a3c-4f23-9ef1-d3071c33b986 task_name=ma7-samples
+2026/10/22 12:41:53 INFO executor started run_id=8040e751-9b9b-4dde-a084-21ffba999aaa epoch=1
+2026/10/22 12:41:53 INFO run state transition run_id=8040e751-9b9b-4dde-a084-21ffba999aaa from=queued to=running
+2026/10/22 12:41:54 ERROR session runner: failed to persist assistant message session_id=8e945941-8718-40f4-9b11-c60d2085d3b3 error="run is in a terminal state"
+2026/10/22 12:41:54 ERROR session runner: failed to persist assistant message session_id=f0554d45-2395-4b96-a4dd-9181cb9e2823 error="run is in a terminal state"
+2026/10/22 12:41:54 INFO executor finished run_id=8040e751-9b9b-4dde-a084-21ffba999aaa epoch=1
+2026/10/22 12:41:54 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:54 INFO all active workers and retests stop requested
+2026/10/22 12:41:55 INFO created run run_id=94a7bd25-3aa9-4912-8506-6f3374cd84a3 task_id=fa406bed-1a19-4da8-9d02-55b5a14e3feb task_name=ma7-samples
+2026/10/22 12:41:55 INFO executor started run_id=94a7bd25-3aa9-4912-8506-6f3374cd84a3 epoch=1
+2026/10/22 12:41:55 INFO run state transition run_id=94a7bd25-3aa9-4912-8506-6f3374cd84a3 from=queued to=running
+2026/10/22 12:41:56 ERROR session runner: failed to persist assistant message session_id=68a9a6fc-ef90-4239-be13-77c854aa935e error="run is in a terminal state"
+2026/10/22 12:41:56 ERROR session runner: failed to persist assistant message session_id=e480cb8c-49f5-42c7-8935-1526f2576356 error="run is in a terminal state"
+2026/10/22 12:41:56 INFO executor finished run_id=94a7bd25-3aa9-4912-8506-6f3374cd84a3 epoch=1
+2026/10/22 12:41:56 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:56 INFO all active workers and retests stop requested
+2026/10/22 12:41:56 INFO created run run_id=e74fbeae-3fb7-4902-967b-764fbfbfaf53 task_id=bd54fbbd-ac1c-4b2e-8f18-d47d4e0185db task_name=ma7-samples
+2026/10/22 12:41:56 INFO executor started run_id=e74fbeae-3fb7-4902-967b-764fbfbfaf53 epoch=1
+2026/10/22 12:41:56 INFO run state transition run_id=e74fbeae-3fb7-4902-967b-764fbfbfaf53 from=queued to=running
+2026/10/22 12:41:57 ERROR session runner: failed to persist assistant message session_id=1af19eb0-e418-4c19-a87b-ea4ef5e512fa error="run is in a terminal state"
+2026/10/22 12:41:57 ERROR session runner: failed to persist assistant message session_id=1120cba4-3763-48c3-aa9b-c13d71aed24c error="run is in a terminal state"
+2026/10/22 12:41:57 INFO executor finished run_id=e74fbeae-3fb7-4902-967b-764fbfbfaf53 epoch=1
+2026/10/22 12:41:57 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:57 INFO all active workers and retests stop requested
+2026/10/22 12:41:58 INFO created run run_id=788344cf-ebb7-4eb8-921e-32b9b2e63050 task_id=7f8b6aca-dac1-4126-ad4c-c9ddb60f28ae task_name=ma7-samples
+2026/10/22 12:41:58 INFO executor started run_id=788344cf-ebb7-4eb8-921e-32b9b2e63050 epoch=1
+2026/10/22 12:41:58 INFO run state transition run_id=788344cf-ebb7-4eb8-921e-32b9b2e63050 from=queued to=running
+2026/10/22 12:41:59 ERROR session runner: failed to persist assistant message session_id=91097d2f-529f-4e24-9d48-e047b9a069d8 error="run is in a terminal state"
+2026/10/22 12:41:59 ERROR session runner: failed to persist assistant message session_id=7964a483-735a-442f-ae91-dfb658b92851 error="run is in a terminal state"
+2026/10/22 12:41:59 INFO executor finished run_id=788344cf-ebb7-4eb8-921e-32b9b2e63050 epoch=1
+2026/10/22 12:41:59 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:41:59 INFO all active workers and retests stop requested
+2026/10/22 12:42:00 INFO created run run_id=648bda84-c29e-4184-85ec-f515b1b172d6 task_id=4a65136d-0045-484d-8d36-f2ad08a8dd2a task_name=ma7-samples
+2026/10/22 12:42:00 INFO executor started run_id=648bda84-c29e-4184-85ec-f515b1b172d6 epoch=1
+2026/10/22 12:42:00 INFO run state transition run_id=648bda84-c29e-4184-85ec-f515b1b172d6 from=queued to=running
+2026/10/22 12:42:01 ERROR session runner: failed to persist assistant message session_id=13d6eb1a-9b29-4c75-ae58-47429c92ff64 error="run is in a terminal state"
+2026/10/22 12:42:01 ERROR session runner: failed to persist assistant message session_id=6d740232-dac0-4a73-a478-261eacfdc36b error="run is in a terminal state"
+2026/10/22 12:42:01 INFO executor finished run_id=648bda84-c29e-4184-85ec-f515b1b172d6 epoch=1
+2026/10/22 12:42:01 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:01 INFO all active workers and retests stop requested
+2026/10/22 12:42:02 INFO created run run_id=9bd30e07-fd87-4ba5-8e3a-02dd1e8de40d task_id=60dbd6c0-bdc7-47f5-b748-b537870f4154 task_name=ma7-samples
+2026/10/22 12:42:02 INFO executor started run_id=9bd30e07-fd87-4ba5-8e3a-02dd1e8de40d epoch=1
+2026/10/22 12:42:02 INFO run state transition run_id=9bd30e07-fd87-4ba5-8e3a-02dd1e8de40d from=queued to=running
+2026/10/22 12:42:03 ERROR session runner: failed to persist assistant message session_id=cf1465ca-95e5-4e42-8540-c2831a580fa2 error="run is in a terminal state"
+2026/10/22 12:42:03 ERROR session runner: failed to persist assistant message session_id=62bec669-376e-40eb-9598-4d51705e71cc error="run is in a terminal state"
+2026/10/22 12:42:03 INFO executor finished run_id=9bd30e07-fd87-4ba5-8e3a-02dd1e8de40d epoch=1
+2026/10/22 12:42:03 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:03 INFO all active workers and retests stop requested
+2026/10/22 12:42:04 INFO created run run_id=6aad5ef0-abdb-4340-b47d-020dd4b6a783 task_id=390cb265-23b4-4040-a360-6213bf5b1603 task_name=ma7-samples
+2026/10/22 12:42:04 INFO executor started run_id=6aad5ef0-abdb-4340-b47d-020dd4b6a783 epoch=1
+2026/10/22 12:42:04 INFO run state transition run_id=6aad5ef0-abdb-4340-b47d-020dd4b6a783 from=queued to=running
+2026/10/22 12:42:05 ERROR session runner: failed to persist assistant message session_id=8c486531-6f2c-4e4f-b380-71ea7cf49e52 error="run is in a terminal state"
+2026/10/22 12:42:05 ERROR session runner: failed to persist assistant message session_id=2f3ad67f-d79e-4232-a61b-84f2dbeb67cf error="run is in a terminal state"
+2026/10/22 12:42:05 INFO executor finished run_id=6aad5ef0-abdb-4340-b47d-020dd4b6a783 epoch=1
+2026/10/22 12:42:05 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:05 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A04_LocalProtocolAndExhaustionDoNotStopPeers (38.22s)
+    ma_acceptance_a01_a08_test.go:419: A04 failed 20 assertion(s); evidence ../../docs/多Agent核心与工作台-实施计划/证据/ma7/A04.json; first: {Round:1 Check:bounded recovery Detail:dir-exhaust model calls=6 snapshot worker_max_model_calls=5; requested grant is 3 plus at most one settlement call}
+2026/10/22 12:42:06 INFO created run run_id=d6d99fac-372b-46b7-bc72-ebb4451e8ea3 task_id=3676f59c-64f7-46a1-971a-82c63a9b878b task_name=ma7-samples
+2026/10/22 12:42:06 INFO executor started run_id=d6d99fac-372b-46b7-bc72-ebb4451e8ea3 epoch=1
+2026/10/22 12:42:06 INFO run state transition run_id=d6d99fac-372b-46b7-bc72-ebb4451e8ea3 from=queued to=running
+2026/10/22 12:42:06 ERROR engine: planner round 1 failed to submit plan run_id=d6d99fac-372b-46b7-bc72-ebb4451e8ea3 error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:06 INFO executor finished run_id=d6d99fac-372b-46b7-bc72-ebb4451e8ea3 epoch=1
+2026/10/22 12:42:07 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:07 INFO all active workers and retests stop requested
+2026/10/22 12:42:08 INFO created run run_id=9f306373-0305-40b6-be8d-5a1c2fc572da task_id=f34475e1-54b5-42d0-9235-74157ec1e9e0 task_name=ma7-samples
+2026/10/22 12:42:08 INFO executor started run_id=9f306373-0305-40b6-be8d-5a1c2fc572da epoch=1
+2026/10/22 12:42:08 INFO run state transition run_id=9f306373-0305-40b6-be8d-5a1c2fc572da from=queued to=running
+2026/10/22 12:42:08 ERROR engine: planner round 1 failed to submit plan run_id=9f306373-0305-40b6-be8d-5a1c2fc572da error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:08 INFO executor finished run_id=9f306373-0305-40b6-be8d-5a1c2fc572da epoch=1
+2026/10/22 12:42:10 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:10 INFO all active workers and retests stop requested
+2026/10/22 12:42:11 INFO created run run_id=f9b1379e-dde5-4d14-a40a-645589019246 task_id=249d2fc6-3e12-4bdc-90ac-ced795cacf15 task_name=ma7-samples
+2026/10/22 12:42:11 INFO executor started run_id=f9b1379e-dde5-4d14-a40a-645589019246 epoch=1
+2026/10/22 12:42:11 INFO run state transition run_id=f9b1379e-dde5-4d14-a40a-645589019246 from=queued to=running
+2026/10/22 12:42:11 ERROR engine: planner round 1 failed to submit plan run_id=f9b1379e-dde5-4d14-a40a-645589019246 error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:11 INFO executor finished run_id=f9b1379e-dde5-4d14-a40a-645589019246 epoch=1
+2026/10/22 12:42:12 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:12 INFO all active workers and retests stop requested
+2026/10/22 12:42:13 INFO created run run_id=dd1d7212-1a9e-4630-ab72-91e7080f2ff0 task_id=42d1da03-0fc7-43ce-8eeb-6e2f0a102e26 task_name=ma7-samples
+2026/10/22 12:42:13 INFO executor started run_id=dd1d7212-1a9e-4630-ab72-91e7080f2ff0 epoch=1
+2026/10/22 12:42:13 INFO run state transition run_id=dd1d7212-1a9e-4630-ab72-91e7080f2ff0 from=queued to=running
+2026/10/22 12:42:13 ERROR engine: planner round 1 failed to submit plan run_id=dd1d7212-1a9e-4630-ab72-91e7080f2ff0 error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:13 INFO executor finished run_id=dd1d7212-1a9e-4630-ab72-91e7080f2ff0 epoch=1
+2026/10/22 12:42:15 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:15 INFO all active workers and retests stop requested
+2026/10/22 12:42:15 INFO created run run_id=2c1de321-2581-41fa-88d3-53e8fd98037a task_id=b3e196a3-3b84-4e2b-825d-b24f5eb311ec task_name=ma7-samples
+2026/10/22 12:42:15 INFO executor started run_id=2c1de321-2581-41fa-88d3-53e8fd98037a epoch=1
+2026/10/22 12:42:15 INFO run state transition run_id=2c1de321-2581-41fa-88d3-53e8fd98037a from=queued to=running
+2026/10/22 12:42:15 ERROR engine: planner round 1 failed to submit plan run_id=2c1de321-2581-41fa-88d3-53e8fd98037a error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:15 INFO executor finished run_id=2c1de321-2581-41fa-88d3-53e8fd98037a epoch=1
+2026/10/22 12:42:17 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:17 INFO all active workers and retests stop requested
+2026/10/22 12:42:18 INFO created run run_id=0ea5a147-bb86-4f28-9bd2-7065d09c8384 task_id=3babe0b1-6aca-4b38-adb4-c0fda831e82b task_name=ma7-samples
+2026/10/22 12:42:18 INFO executor started run_id=0ea5a147-bb86-4f28-9bd2-7065d09c8384 epoch=1
+2026/10/22 12:42:18 INFO run state transition run_id=0ea5a147-bb86-4f28-9bd2-7065d09c8384 from=queued to=running
+2026/10/22 12:42:18 ERROR engine: planner round 1 failed to submit plan run_id=0ea5a147-bb86-4f28-9bd2-7065d09c8384 error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:18 INFO executor finished run_id=0ea5a147-bb86-4f28-9bd2-7065d09c8384 epoch=1
+2026/10/22 12:42:19 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:19 INFO all active workers and retests stop requested
+2026/10/22 12:42:20 INFO created run run_id=ac465c6a-6d81-4e39-948d-29c04184668b task_id=706686be-adb4-4625-8755-fe198e59a14f task_name=ma7-samples
+2026/10/22 12:42:20 INFO executor started run_id=ac465c6a-6d81-4e39-948d-29c04184668b epoch=1
+2026/10/22 12:42:20 INFO run state transition run_id=ac465c6a-6d81-4e39-948d-29c04184668b from=queued to=running
+2026/10/22 12:42:20 ERROR engine: planner round 1 failed to submit plan run_id=ac465c6a-6d81-4e39-948d-29c04184668b error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:20 INFO executor finished run_id=ac465c6a-6d81-4e39-948d-29c04184668b epoch=1
+2026/10/22 12:42:22 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:22 INFO all active workers and retests stop requested
+2026/10/22 12:42:23 INFO created run run_id=2cd38f5f-534e-4cce-8f7d-65539f7c01f7 task_id=09476d0c-f08f-41a6-9c18-623beb72e1e3 task_name=ma7-samples
+2026/10/22 12:42:23 INFO executor started run_id=2cd38f5f-534e-4cce-8f7d-65539f7c01f7 epoch=1
+2026/10/22 12:42:23 INFO run state transition run_id=2cd38f5f-534e-4cce-8f7d-65539f7c01f7 from=queued to=running
+2026/10/22 12:42:23 ERROR engine: planner round 1 failed to submit plan run_id=2cd38f5f-534e-4cce-8f7d-65539f7c01f7 error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:23 INFO executor finished run_id=2cd38f5f-534e-4cce-8f7d-65539f7c01f7 epoch=1
+2026/10/22 12:42:24 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:24 INFO all active workers and retests stop requested
+2026/10/22 12:42:25 INFO created run run_id=6f012cba-97ce-4cba-9f1e-f8534a8f7756 task_id=05a91fe7-99ea-40da-b306-18e487c2c100 task_name=ma7-samples
+2026/10/22 12:42:25 INFO executor started run_id=6f012cba-97ce-4cba-9f1e-f8534a8f7756 epoch=1
+2026/10/22 12:42:25 INFO run state transition run_id=6f012cba-97ce-4cba-9f1e-f8534a8f7756 from=queued to=running
+2026/10/22 12:42:25 ERROR engine: planner round 1 failed to submit plan run_id=6f012cba-97ce-4cba-9f1e-f8534a8f7756 error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:25 INFO executor finished run_id=6f012cba-97ce-4cba-9f1e-f8534a8f7756 epoch=1
+2026/10/22 12:42:27 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:27 INFO all active workers and retests stop requested
+2026/10/22 12:42:28 INFO created run run_id=64bb32b5-aee5-4737-b99e-c35b46bc060e task_id=6a32339e-6871-4070-923a-fcd24616112c task_name=ma7-samples
+2026/10/22 12:42:28 INFO executor started run_id=64bb32b5-aee5-4737-b99e-c35b46bc060e epoch=1
+2026/10/22 12:42:28 INFO run state transition run_id=64bb32b5-aee5-4737-b99e-c35b46bc060e from=queued to=running
+2026/10/22 12:42:28 ERROR engine: planner round 1 failed to submit plan run_id=64bb32b5-aee5-4737-b99e-c35b46bc060e error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:28 INFO executor finished run_id=64bb32b5-aee5-4737-b99e-c35b46bc060e epoch=1
+2026/10/22 12:42:29 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:29 INFO all active workers and retests stop requested
+2026/10/22 12:42:30 INFO created run run_id=6465b114-7622-4b12-bc80-7003f8949004 task_id=9ab41712-04cf-4f1f-bf7e-3cf7ee03a57a task_name=ma7-samples
+2026/10/22 12:42:30 INFO executor started run_id=6465b114-7622-4b12-bc80-7003f8949004 epoch=1
+2026/10/22 12:42:30 INFO run state transition run_id=6465b114-7622-4b12-bc80-7003f8949004 from=queued to=running
+2026/10/22 12:42:30 ERROR engine: planner round 1 failed to submit plan run_id=6465b114-7622-4b12-bc80-7003f8949004 error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:30 INFO executor finished run_id=6465b114-7622-4b12-bc80-7003f8949004 epoch=1
+2026/10/22 12:42:31 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:31 INFO all active workers and retests stop requested
+2026/10/22 12:42:33 INFO created run run_id=0aaaf67a-4419-4e25-84a8-38df7783a1e8 task_id=72a2b7a9-e60b-461d-9de5-a59cbddf34fb task_name=ma7-samples
+2026/10/22 12:42:33 INFO executor started run_id=0aaaf67a-4419-4e25-84a8-38df7783a1e8 epoch=1
+2026/10/22 12:42:33 INFO run state transition run_id=0aaaf67a-4419-4e25-84a8-38df7783a1e8 from=queued to=running
+2026/10/22 12:42:33 ERROR engine: planner round 1 failed to submit plan run_id=0aaaf67a-4419-4e25-84a8-38df7783a1e8 error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:33 INFO executor finished run_id=0aaaf67a-4419-4e25-84a8-38df7783a1e8 epoch=1
+2026/10/22 12:42:34 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:34 INFO all active workers and retests stop requested
+2026/10/22 12:42:35 INFO created run run_id=bb40423e-841c-4092-a903-89acbde5249a task_id=c058b62e-226a-4926-bf1f-54479c8da2d2 task_name=ma7-samples
+2026/10/22 12:42:35 INFO executor started run_id=bb40423e-841c-4092-a903-89acbde5249a epoch=1
+2026/10/22 12:42:35 INFO run state transition run_id=bb40423e-841c-4092-a903-89acbde5249a from=queued to=running
+2026/10/22 12:42:35 ERROR engine: planner round 1 failed to submit plan run_id=bb40423e-841c-4092-a903-89acbde5249a error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:35 INFO executor finished run_id=bb40423e-841c-4092-a903-89acbde5249a epoch=1
+2026/10/22 12:42:36 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:36 INFO all active workers and retests stop requested
+2026/10/22 12:42:37 INFO created run run_id=0e4f5b8d-124e-473d-ae46-39961f589957 task_id=a7a333ab-05d1-4fc0-ad17-c571069e1226 task_name=ma7-samples
+2026/10/22 12:42:37 INFO executor started run_id=0e4f5b8d-124e-473d-ae46-39961f589957 epoch=1
+2026/10/22 12:42:38 INFO run state transition run_id=0e4f5b8d-124e-473d-ae46-39961f589957 from=queued to=running
+2026/10/22 12:42:38 ERROR engine: planner round 1 failed to submit plan run_id=0e4f5b8d-124e-473d-ae46-39961f589957 error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:38 INFO executor finished run_id=0e4f5b8d-124e-473d-ae46-39961f589957 epoch=1
+2026/10/22 12:42:39 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:39 INFO all active workers and retests stop requested
+2026/10/22 12:42:40 INFO created run run_id=c6efe1d0-abbe-4321-b5b6-6dd68452e292 task_id=5c84e6aa-956e-4cb7-87ee-d484f7db7a97 task_name=ma7-samples
+2026/10/22 12:42:40 INFO executor started run_id=c6efe1d0-abbe-4321-b5b6-6dd68452e292 epoch=1
+2026/10/22 12:42:40 INFO run state transition run_id=c6efe1d0-abbe-4321-b5b6-6dd68452e292 from=queued to=running
+2026/10/22 12:42:40 ERROR engine: planner round 1 failed to submit plan run_id=c6efe1d0-abbe-4321-b5b6-6dd68452e292 error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:40 INFO executor finished run_id=c6efe1d0-abbe-4321-b5b6-6dd68452e292 epoch=1
+2026/10/22 12:42:42 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:42 INFO all active workers and retests stop requested
+2026/10/22 12:42:43 INFO created run run_id=6a12d61e-75e3-41eb-bef8-9e347ff4bb31 task_id=cf4e7cfd-f526-4d9b-b61d-bd1b37e19d38 task_name=ma7-samples
+2026/10/22 12:42:43 INFO executor started run_id=6a12d61e-75e3-41eb-bef8-9e347ff4bb31 epoch=1
+2026/10/22 12:42:43 INFO run state transition run_id=6a12d61e-75e3-41eb-bef8-9e347ff4bb31 from=queued to=running
+2026/10/22 12:42:43 ERROR engine: planner round 1 failed to submit plan run_id=6a12d61e-75e3-41eb-bef8-9e347ff4bb31 error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:43 INFO executor finished run_id=6a12d61e-75e3-41eb-bef8-9e347ff4bb31 epoch=1
+2026/10/22 12:42:44 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:44 INFO all active workers and retests stop requested
+2026/10/22 12:42:45 INFO created run run_id=6e65c538-b483-404b-af2c-c350e9d8686b task_id=f396aed5-4dba-418a-b17e-83ccd6844564 task_name=ma7-samples
+2026/10/22 12:42:45 INFO executor started run_id=6e65c538-b483-404b-af2c-c350e9d8686b epoch=1
+2026/10/22 12:42:45 INFO run state transition run_id=6e65c538-b483-404b-af2c-c350e9d8686b from=queued to=running
+2026/10/22 12:42:45 ERROR engine: planner round 1 failed to submit plan run_id=6e65c538-b483-404b-af2c-c350e9d8686b error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:45 INFO executor finished run_id=6e65c538-b483-404b-af2c-c350e9d8686b epoch=1
+2026/10/22 12:42:46 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:46 INFO all active workers and retests stop requested
+2026/10/22 12:42:47 INFO created run run_id=5b8aab07-0859-421b-9f24-70348153fa0c task_id=855d9871-87dc-43a4-93b4-97bc2bb6a6d0 task_name=ma7-samples
+2026/10/22 12:42:47 INFO executor started run_id=5b8aab07-0859-421b-9f24-70348153fa0c epoch=1
+2026/10/22 12:42:47 INFO run state transition run_id=5b8aab07-0859-421b-9f24-70348153fa0c from=queued to=running
+2026/10/22 12:42:47 ERROR engine: planner round 1 failed to submit plan run_id=5b8aab07-0859-421b-9f24-70348153fa0c error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:47 INFO executor finished run_id=5b8aab07-0859-421b-9f24-70348153fa0c epoch=1
+2026/10/22 12:42:49 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:49 INFO all active workers and retests stop requested
+2026/10/22 12:42:50 INFO created run run_id=6d93187d-c390-430d-8b60-df624de63e5b task_id=9da4f177-04c5-43bd-a0c6-350fdd1469cd task_name=ma7-samples
+2026/10/22 12:42:50 INFO executor started run_id=6d93187d-c390-430d-8b60-df624de63e5b epoch=1
+2026/10/22 12:42:50 INFO run state transition run_id=6d93187d-c390-430d-8b60-df624de63e5b from=queued to=running
+2026/10/22 12:42:50 ERROR engine: planner round 1 failed to submit plan run_id=6d93187d-c390-430d-8b60-df624de63e5b error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:50 INFO executor finished run_id=6d93187d-c390-430d-8b60-df624de63e5b epoch=1
+2026/10/22 12:42:51 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:51 INFO all active workers and retests stop requested
+2026/10/22 12:42:52 INFO created run run_id=15cb8eb6-1984-4c4a-b9a1-901e91fd42ba task_id=2610b462-dc63-4a28-91a9-035802590c94 task_name=ma7-samples
+2026/10/22 12:42:52 INFO executor started run_id=15cb8eb6-1984-4c4a-b9a1-901e91fd42ba epoch=1
+2026/10/22 12:42:52 INFO run state transition run_id=15cb8eb6-1984-4c4a-b9a1-901e91fd42ba from=queued to=running
+2026/10/22 12:42:52 ERROR engine: planner round 1 failed to submit plan run_id=15cb8eb6-1984-4c4a-b9a1-901e91fd42ba error="provider error: upstream model provider returned an error: Responses HTTP 429"
+2026/10/22 12:42:52 INFO executor finished run_id=15cb8eb6-1984-4c4a-b9a1-901e91fd42ba epoch=1
+2026/10/22 12:42:54 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:54 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A05_BadResponsesDoNotExecuteOrReplayForever (48.77s)
+    ma_acceptance_a01_a08_test.go:569: A05 failed 60 assertion(s); evidence ../../docs/多Agent核心与工作台-实施计划/证据/ma7/A05.json; first: {Round:1 Check:bounded 429 and 5xx recovery Detail:429=1 5xx=0 planner_calls=1 model_calls=1 events=1}
+2026/10/22 12:42:55 INFO created run run_id=93f6af83-fae8-49cd-a19a-c630e2c78289 task_id=1ca6f2be-a2a1-43e6-9d23-10c3649aa54b task_name=ma7-samples
+2026/10/22 12:42:55 INFO executor started run_id=93f6af83-fae8-49cd-a19a-c630e2c78289 epoch=1
+2026/10/22 12:42:55 INFO run state transition run_id=93f6af83-fae8-49cd-a19a-c630e2c78289 from=queued to=running
+2026/10/22 12:42:55 INFO executor finished run_id=93f6af83-fae8-49cd-a19a-c630e2c78289 epoch=1
+2026/10/22 12:42:55 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:55 INFO all active workers and retests stop requested
+2026/10/22 12:42:56 INFO created run run_id=d2f99945-3e63-4e25-a82c-b48050d96c0e task_id=b036d5e2-22d1-4ce2-9640-143e56b6914b task_name=ma7-samples
+2026/10/22 12:42:56 INFO executor started run_id=d2f99945-3e63-4e25-a82c-b48050d96c0e epoch=1
+2026/10/22 12:42:56 INFO run state transition run_id=d2f99945-3e63-4e25-a82c-b48050d96c0e from=queued to=running
+2026/10/22 12:42:57 INFO executor finished run_id=d2f99945-3e63-4e25-a82c-b48050d96c0e epoch=1
+2026/10/22 12:42:57 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:57 INFO all active workers and retests stop requested
+2026/10/22 12:42:58 INFO created run run_id=17b72ef0-6d82-4303-bb77-138eceae3f42 task_id=1a5a80b8-cdd2-4f25-814a-28b2115ca6e4 task_name=ma7-samples
+2026/10/22 12:42:58 INFO executor started run_id=17b72ef0-6d82-4303-bb77-138eceae3f42 epoch=1
+2026/10/22 12:42:58 INFO run state transition run_id=17b72ef0-6d82-4303-bb77-138eceae3f42 from=queued to=running
+2026/10/22 12:42:58 INFO executor finished run_id=17b72ef0-6d82-4303-bb77-138eceae3f42 epoch=1
+2026/10/22 12:42:58 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:42:58 INFO all active workers and retests stop requested
+2026/10/22 12:42:59 INFO created run run_id=a193ca33-aab2-434a-bbd0-079dc344e000 task_id=fabb127c-c571-4597-aa01-eb5f9e1874a0 task_name=ma7-samples
+2026/10/22 12:42:59 INFO executor started run_id=a193ca33-aab2-434a-bbd0-079dc344e000 epoch=1
+2026/10/22 12:42:59 INFO run state transition run_id=a193ca33-aab2-434a-bbd0-079dc344e000 from=queued to=running
+2026/10/22 12:43:00 INFO executor finished run_id=a193ca33-aab2-434a-bbd0-079dc344e000 epoch=1
+2026/10/22 12:43:00 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:00 INFO all active workers and retests stop requested
+2026/10/22 12:43:01 INFO created run run_id=7bb33092-b0b3-482b-b491-8e29b9739589 task_id=5838ce42-85f4-4c56-9ec5-ff5e870ccff1 task_name=ma7-samples
+2026/10/22 12:43:01 INFO executor started run_id=7bb33092-b0b3-482b-b491-8e29b9739589 epoch=1
+2026/10/22 12:43:01 INFO run state transition run_id=7bb33092-b0b3-482b-b491-8e29b9739589 from=queued to=running
+2026/10/22 12:43:01 INFO executor finished run_id=7bb33092-b0b3-482b-b491-8e29b9739589 epoch=1
+2026/10/22 12:43:01 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:01 INFO all active workers and retests stop requested
+2026/10/22 12:43:02 INFO created run run_id=f479bb49-bf98-40cf-bf3a-965f5520a811 task_id=2f995a4b-8d3b-4d86-9270-c87cebafdac9 task_name=ma7-samples
+2026/10/22 12:43:02 INFO executor started run_id=f479bb49-bf98-40cf-bf3a-965f5520a811 epoch=1
+2026/10/22 12:43:02 INFO run state transition run_id=f479bb49-bf98-40cf-bf3a-965f5520a811 from=queued to=running
+2026/10/22 12:43:02 INFO executor finished run_id=f479bb49-bf98-40cf-bf3a-965f5520a811 epoch=1
+2026/10/22 12:43:02 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:02 INFO all active workers and retests stop requested
+2026/10/22 12:43:03 INFO created run run_id=e84047c4-cdeb-4558-87ba-435ccab91246 task_id=97017ef4-bcf2-4564-b372-c8452564e8ee task_name=ma7-samples
+2026/10/22 12:43:03 INFO executor started run_id=e84047c4-cdeb-4558-87ba-435ccab91246 epoch=1
+2026/10/22 12:43:03 INFO run state transition run_id=e84047c4-cdeb-4558-87ba-435ccab91246 from=queued to=running
+2026/10/22 12:43:04 INFO executor finished run_id=e84047c4-cdeb-4558-87ba-435ccab91246 epoch=1
+2026/10/22 12:43:04 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:04 INFO all active workers and retests stop requested
+2026/10/22 12:43:04 INFO created run run_id=7f69b863-1600-4f4e-8fd1-f1cd350a5899 task_id=2ddd8c81-302b-4235-9056-b5cd2207e678 task_name=ma7-samples
+2026/10/22 12:43:04 INFO executor started run_id=7f69b863-1600-4f4e-8fd1-f1cd350a5899 epoch=1
+2026/10/22 12:43:04 INFO run state transition run_id=7f69b863-1600-4f4e-8fd1-f1cd350a5899 from=queued to=running
+2026/10/22 12:43:05 INFO executor finished run_id=7f69b863-1600-4f4e-8fd1-f1cd350a5899 epoch=1
+2026/10/22 12:43:05 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:05 INFO all active workers and retests stop requested
+2026/10/22 12:43:06 INFO created run run_id=f09aa045-66eb-4f74-9375-3a26d7900431 task_id=763dd41c-e6c4-4c6c-9738-f9518602b3fe task_name=ma7-samples
+2026/10/22 12:43:06 INFO executor started run_id=f09aa045-66eb-4f74-9375-3a26d7900431 epoch=1
+2026/10/22 12:43:06 INFO run state transition run_id=f09aa045-66eb-4f74-9375-3a26d7900431 from=queued to=running
+2026/10/22 12:43:06 INFO executor finished run_id=f09aa045-66eb-4f74-9375-3a26d7900431 epoch=1
+2026/10/22 12:43:06 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:06 INFO all active workers and retests stop requested
+2026/10/22 12:43:07 INFO created run run_id=2c7eb70f-3579-4657-86bb-4a2f96fa53ef task_id=4842c1b2-525e-4855-bd91-17de597701c4 task_name=ma7-samples
+2026/10/22 12:43:07 INFO executor started run_id=2c7eb70f-3579-4657-86bb-4a2f96fa53ef epoch=1
+2026/10/22 12:43:07 INFO run state transition run_id=2c7eb70f-3579-4657-86bb-4a2f96fa53ef from=queued to=running
+2026/10/22 12:43:08 INFO executor finished run_id=2c7eb70f-3579-4657-86bb-4a2f96fa53ef epoch=1
+2026/10/22 12:43:08 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:08 INFO all active workers and retests stop requested
+2026/10/22 12:43:09 INFO created run run_id=b2f92ec0-d992-41ba-9a83-b33d72e17ba1 task_id=8989c74d-4236-4a70-bb59-e1625e8333c8 task_name=ma7-samples
+2026/10/22 12:43:09 INFO executor started run_id=b2f92ec0-d992-41ba-9a83-b33d72e17ba1 epoch=1
+2026/10/22 12:43:09 INFO run state transition run_id=b2f92ec0-d992-41ba-9a83-b33d72e17ba1 from=queued to=running
+2026/10/22 12:43:09 INFO executor finished run_id=b2f92ec0-d992-41ba-9a83-b33d72e17ba1 epoch=1
+2026/10/22 12:43:09 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:09 INFO all active workers and retests stop requested
+2026/10/22 12:43:10 INFO created run run_id=5c9afc1b-8fee-49c7-93fc-94fd16ffba63 task_id=004d7014-170f-4f7e-b542-40fec04e222e task_name=ma7-samples
+2026/10/22 12:43:10 INFO executor started run_id=5c9afc1b-8fee-49c7-93fc-94fd16ffba63 epoch=1
+2026/10/22 12:43:10 INFO run state transition run_id=5c9afc1b-8fee-49c7-93fc-94fd16ffba63 from=queued to=running
+2026/10/22 12:43:11 INFO executor finished run_id=5c9afc1b-8fee-49c7-93fc-94fd16ffba63 epoch=1
+2026/10/22 12:43:11 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:11 INFO all active workers and retests stop requested
+2026/10/22 12:43:12 INFO created run run_id=c786ed5a-237d-466c-b91d-f7a5e2d7b297 task_id=b1fdbbf3-7167-4cfd-9759-9a5b3cbeeb5e task_name=ma7-samples
+2026/10/22 12:43:12 INFO executor started run_id=c786ed5a-237d-466c-b91d-f7a5e2d7b297 epoch=1
+2026/10/22 12:43:12 INFO run state transition run_id=c786ed5a-237d-466c-b91d-f7a5e2d7b297 from=queued to=running
+2026/10/22 12:43:12 INFO executor finished run_id=c786ed5a-237d-466c-b91d-f7a5e2d7b297 epoch=1
+2026/10/22 12:43:12 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:12 INFO all active workers and retests stop requested
+2026/10/22 12:43:13 INFO created run run_id=9b1bccf1-4a68-4f90-9e38-9c8e3a8837ae task_id=3614bf6c-f58e-4522-bd90-c2525b9e0aff task_name=ma7-samples
+2026/10/22 12:43:13 INFO executor started run_id=9b1bccf1-4a68-4f90-9e38-9c8e3a8837ae epoch=1
+2026/10/22 12:43:13 INFO run state transition run_id=9b1bccf1-4a68-4f90-9e38-9c8e3a8837ae from=queued to=running
+2026/10/22 12:43:14 INFO executor finished run_id=9b1bccf1-4a68-4f90-9e38-9c8e3a8837ae epoch=1
+2026/10/22 12:43:14 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:14 INFO all active workers and retests stop requested
+2026/10/22 12:43:15 INFO created run run_id=1300b25c-087a-4768-a749-12aa09faa26d task_id=bc2f1e7b-b91b-4bf0-a917-a71c43e83c17 task_name=ma7-samples
+2026/10/22 12:43:15 INFO executor started run_id=1300b25c-087a-4768-a749-12aa09faa26d epoch=1
+2026/10/22 12:43:15 INFO run state transition run_id=1300b25c-087a-4768-a749-12aa09faa26d from=queued to=running
+2026/10/22 12:43:15 INFO executor finished run_id=1300b25c-087a-4768-a749-12aa09faa26d epoch=1
+2026/10/22 12:43:15 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:15 INFO all active workers and retests stop requested
+2026/10/22 12:43:16 INFO created run run_id=5dfd2b47-2fb9-402f-8e32-88a22f009f6a task_id=5d010365-94d1-4c9e-8eb8-a98a17c9ce0f task_name=ma7-samples
+2026/10/22 12:43:16 INFO executor started run_id=5dfd2b47-2fb9-402f-8e32-88a22f009f6a epoch=1
+2026/10/22 12:43:16 INFO run state transition run_id=5dfd2b47-2fb9-402f-8e32-88a22f009f6a from=queued to=running
+2026/10/22 12:43:17 INFO executor finished run_id=5dfd2b47-2fb9-402f-8e32-88a22f009f6a epoch=1
+2026/10/22 12:43:17 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:17 INFO all active workers and retests stop requested
+2026/10/22 12:43:18 INFO created run run_id=d96f343b-b9c4-43b1-9496-0e4ebad61c57 task_id=d485c363-fa1d-41dd-960b-3ef13ee0fa46 task_name=ma7-samples
+2026/10/22 12:43:18 INFO executor started run_id=d96f343b-b9c4-43b1-9496-0e4ebad61c57 epoch=1
+2026/10/22 12:43:18 INFO run state transition run_id=d96f343b-b9c4-43b1-9496-0e4ebad61c57 from=queued to=running
+2026/10/22 12:43:18 INFO executor finished run_id=d96f343b-b9c4-43b1-9496-0e4ebad61c57 epoch=1
+2026/10/22 12:43:18 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:18 INFO all active workers and retests stop requested
+2026/10/22 12:43:19 INFO created run run_id=a6ea7dce-e010-4fe7-ba73-d536a97ea284 task_id=43968cc9-11cf-471b-8da8-dafa6a1d4747 task_name=ma7-samples
+2026/10/22 12:43:19 INFO executor started run_id=a6ea7dce-e010-4fe7-ba73-d536a97ea284 epoch=1
+2026/10/22 12:43:19 INFO run state transition run_id=a6ea7dce-e010-4fe7-ba73-d536a97ea284 from=queued to=running
+2026/10/22 12:43:19 INFO executor finished run_id=a6ea7dce-e010-4fe7-ba73-d536a97ea284 epoch=1
+2026/10/22 12:43:19 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:19 INFO all active workers and retests stop requested
+2026/10/22 12:43:20 INFO created run run_id=5b11efa4-549d-42dc-9f17-06d17dda5a91 task_id=e07c82cb-8667-4985-8a20-d260581cfe97 task_name=ma7-samples
+2026/10/22 12:43:20 INFO executor started run_id=5b11efa4-549d-42dc-9f17-06d17dda5a91 epoch=1
+2026/10/22 12:43:20 INFO run state transition run_id=5b11efa4-549d-42dc-9f17-06d17dda5a91 from=queued to=running
+2026/10/22 12:43:21 INFO executor finished run_id=5b11efa4-549d-42dc-9f17-06d17dda5a91 epoch=1
+2026/10/22 12:43:21 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:21 INFO all active workers and retests stop requested
+2026/10/22 12:43:21 INFO created run run_id=2c790fdc-cd99-4c99-bd4c-738f5335806f task_id=4299ef08-e43f-4e63-9e0d-f816c6395bb8 task_name=ma7-samples
+2026/10/22 12:43:21 INFO executor started run_id=2c790fdc-cd99-4c99-bd4c-738f5335806f epoch=1
+2026/10/22 12:43:21 INFO run state transition run_id=2c790fdc-cd99-4c99-bd4c-738f5335806f from=queued to=running
+2026/10/22 12:43:22 INFO executor finished run_id=2c790fdc-cd99-4c99-bd4c-738f5335806f epoch=1
+2026/10/22 12:43:22 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:22 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A06_SharedModelLimitQueuesAndCancel (28.19s)
+    ma_acceptance_a01_a08_test.go:622: A06 failed 20 assertion(s); evidence ../../docs/多Agent核心与工作台-实施计划/证据/ma7/A06.json; first: {Round:1 Check:shared limit 2 Detail:peak in-flight model requests=4 while N=4}
+2026/10/22 12:43:23 INFO created run run_id=c903eac8-7a8d-4dbc-b7dc-f3fafc184114 task_id=1dc96caf-8e9e-41f7-83e5-ae0218844a10 task_name=ma7-samples
+2026/10/22 12:43:23 INFO executor started run_id=c903eac8-7a8d-4dbc-b7dc-f3fafc184114 epoch=1
+2026/10/22 12:43:23 INFO run state transition run_id=c903eac8-7a8d-4dbc-b7dc-f3fafc184114 from=queued to=running
+2026/10/22 12:43:24 ERROR session runner: failed to persist assistant message session_id=0067269c-d485-4042-8080-868980e9480b error="run is in a terminal state"
+2026/10/22 12:43:24 ERROR session runner: failed to persist assistant message session_id=e93f832d-f549-4c05-a72d-6f6b327a3398 error="run is in a terminal state"
+2026/10/22 12:43:24 ERROR session runner: failed to persist assistant message session_id=bc31e08a-e72c-4cc8-83d0-ae1d7b604af7 error="run is in a terminal state"
+2026/10/22 12:43:24 INFO executor finished run_id=c903eac8-7a8d-4dbc-b7dc-f3fafc184114 epoch=1
+2026/10/22 12:43:24 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:24 INFO all active workers and retests stop requested
+2026/10/22 12:43:25 INFO created run run_id=aeaa0d1d-cde4-40f9-ae03-be896ddd9796 task_id=67b71228-2656-489a-b1f6-e8053dbbe10e task_name=ma7-samples
+2026/10/22 12:43:25 INFO executor started run_id=aeaa0d1d-cde4-40f9-ae03-be896ddd9796 epoch=1
+2026/10/22 12:43:25 INFO run state transition run_id=aeaa0d1d-cde4-40f9-ae03-be896ddd9796 from=queued to=running
+2026/10/22 12:43:26 ERROR session runner: failed to persist assistant message session_id=4dceeb79-105f-425d-9694-38683e191566 error="run is in a terminal state"
+2026/10/22 12:43:26 ERROR session runner: failed to persist assistant message session_id=b2567a66-7093-49da-8f65-ab47da62d225 error="run is in a terminal state"
+2026/10/22 12:43:26 ERROR session runner: failed to persist assistant message session_id=a376d668-9776-47c1-ab0b-805933ace46e error="run is in a terminal state"
+2026/10/22 12:43:26 INFO executor finished run_id=aeaa0d1d-cde4-40f9-ae03-be896ddd9796 epoch=1
+2026/10/22 12:43:26 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:26 INFO all active workers and retests stop requested
+2026/10/22 12:43:27 INFO created run run_id=46733384-0796-4ea3-b101-59471bbc2a0c task_id=f5ce92ca-6545-4a22-9def-94731fa03ee0 task_name=ma7-samples
+2026/10/22 12:43:27 INFO executor started run_id=46733384-0796-4ea3-b101-59471bbc2a0c epoch=1
+2026/10/22 12:43:27 INFO run state transition run_id=46733384-0796-4ea3-b101-59471bbc2a0c from=queued to=running
+2026/10/22 12:43:28 ERROR session runner: failed to persist assistant message session_id=cd7fe9ce-f6f4-4667-93e8-4faeb61c74f2 error="run is in a terminal state"
+2026/10/22 12:43:28 ERROR session runner: failed to persist assistant message session_id=46996c90-e52d-4377-9a80-a4b5298005ac error="run is in a terminal state"
+2026/10/22 12:43:28 ERROR session runner: failed to persist assistant message session_id=e8adeee7-602f-4ee6-9e64-09adde34be28 error="run is in a terminal state"
+2026/10/22 12:43:28 INFO executor finished run_id=46733384-0796-4ea3-b101-59471bbc2a0c epoch=1
+2026/10/22 12:43:28 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:28 INFO all active workers and retests stop requested
+2026/10/22 12:43:29 INFO created run run_id=6b4150bf-9d4e-4ef8-9735-3db51240bb0c task_id=88fa7271-c014-48b8-9966-5a883ba3fadb task_name=ma7-samples
+2026/10/22 12:43:29 INFO executor started run_id=6b4150bf-9d4e-4ef8-9735-3db51240bb0c epoch=1
+2026/10/22 12:43:29 INFO run state transition run_id=6b4150bf-9d4e-4ef8-9735-3db51240bb0c from=queued to=running
+2026/10/22 12:43:30 ERROR session runner: failed to persist assistant message session_id=9e6798cf-b48a-4db7-86b3-8b678c6da21c error="run is in a terminal state"
+2026/10/22 12:43:30 ERROR session runner: failed to persist assistant message session_id=5b2e28ff-ab83-4fc4-9481-67b677a1ed1d error="run is in a terminal state"
+2026/10/22 12:43:30 ERROR session runner: failed to persist assistant message session_id=b65e7cb5-4c6b-4038-ac4d-9a0d0aef301b error="run is in a terminal state"
+2026/10/22 12:43:30 INFO executor finished run_id=6b4150bf-9d4e-4ef8-9735-3db51240bb0c epoch=1
+2026/10/22 12:43:30 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:30 INFO all active workers and retests stop requested
+2026/10/22 12:43:32 INFO created run run_id=d351733c-04d4-4b4b-84bd-3dddf3c8bcbd task_id=248b17e6-fbbd-43de-90a8-13cb7849b58d task_name=ma7-samples
+2026/10/22 12:43:32 INFO executor started run_id=d351733c-04d4-4b4b-84bd-3dddf3c8bcbd epoch=1
+2026/10/22 12:43:32 INFO run state transition run_id=d351733c-04d4-4b4b-84bd-3dddf3c8bcbd from=queued to=running
+2026/10/22 12:43:33 ERROR session runner: failed to persist assistant message session_id=c90f8e9c-1ce5-4163-abf1-9bde7b2493d3 error="run is in a terminal state"
+2026/10/22 12:43:33 ERROR session runner: failed to persist assistant message session_id=9097dea6-7fd4-464c-b551-22e804e1f086 error="run is in a terminal state"
+2026/10/22 12:43:33 ERROR session runner: failed to persist assistant message session_id=ee27e709-038f-4042-8f7f-b2d74a08f3be error="run is in a terminal state"
+2026/10/22 12:43:33 INFO executor finished run_id=d351733c-04d4-4b4b-84bd-3dddf3c8bcbd epoch=1
+2026/10/22 12:43:33 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:33 INFO all active workers and retests stop requested
+2026/10/22 12:43:34 INFO created run run_id=474c3c42-6b40-49f0-9a8a-1407faba5d5a task_id=d08e275f-568d-4194-a4f2-dbb507c36850 task_name=ma7-samples
+2026/10/22 12:43:34 INFO executor started run_id=474c3c42-6b40-49f0-9a8a-1407faba5d5a epoch=1
+2026/10/22 12:43:34 INFO run state transition run_id=474c3c42-6b40-49f0-9a8a-1407faba5d5a from=queued to=running
+2026/10/22 12:43:35 ERROR session runner: failed to persist assistant message session_id=f204a0c5-30c7-4554-9ac5-c9bd80df2154 error="run is in a terminal state"
+2026/10/22 12:43:35 ERROR session runner: failed to persist assistant message session_id=2033859b-0c09-47b2-a62b-7240cfa84139 error="run is in a terminal state"
+2026/10/22 12:43:35 ERROR session runner: failed to persist assistant message session_id=a78eb8e7-f985-4b5a-b0c3-86e1bc45932d error="run is in a terminal state"
+2026/10/22 12:43:35 INFO executor finished run_id=474c3c42-6b40-49f0-9a8a-1407faba5d5a epoch=1
+2026/10/22 12:43:35 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:35 INFO all active workers and retests stop requested
+2026/10/22 12:43:36 INFO created run run_id=f368cc5a-9b21-4601-b5e7-fe6c7565a257 task_id=763df693-7310-4a11-85f5-c4a2a699dc97 task_name=ma7-samples
+2026/10/22 12:43:36 INFO executor started run_id=f368cc5a-9b21-4601-b5e7-fe6c7565a257 epoch=1
+2026/10/22 12:43:36 INFO run state transition run_id=f368cc5a-9b21-4601-b5e7-fe6c7565a257 from=queued to=running
+2026/10/22 12:43:37 ERROR session runner: failed to persist assistant message session_id=a746c329-11cb-40b4-9f99-27e5fe26ef17 error="run is in a terminal state"
+2026/10/22 12:43:37 ERROR session runner: failed to persist assistant message session_id=a38c2397-f5ac-4c3b-bbac-0fb57771afba error="run is in a terminal state"
+2026/10/22 12:43:37 ERROR session runner: failed to persist assistant message session_id=1055ff6d-1f48-4674-b7c9-745bf583eeee error="run is in a terminal state"
+2026/10/22 12:43:37 INFO executor finished run_id=f368cc5a-9b21-4601-b5e7-fe6c7565a257 epoch=1
+2026/10/22 12:43:37 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:37 INFO all active workers and retests stop requested
+2026/10/22 12:43:38 INFO created run run_id=ca63a72a-bf7c-4ba8-b7fd-a76ba479270e task_id=1858cd9d-db39-4a56-8bf9-84b344808505 task_name=ma7-samples
+2026/10/22 12:43:38 INFO executor started run_id=ca63a72a-bf7c-4ba8-b7fd-a76ba479270e epoch=1
+2026/10/22 12:43:38 INFO run state transition run_id=ca63a72a-bf7c-4ba8-b7fd-a76ba479270e from=queued to=running
+2026/10/22 12:43:39 ERROR session runner: failed to persist assistant message session_id=999af9f7-1dc4-4462-8df7-51355bbbeebc error="run is in a terminal state"
+2026/10/22 12:43:39 ERROR session runner: failed to persist assistant message session_id=d32f394c-f04e-4235-b80d-c693d803e7bb error="run is in a terminal state"
+2026/10/22 12:43:39 ERROR session runner: failed to persist assistant message session_id=c441f730-76d8-4d91-8e7d-7085b688681b error="run is in a terminal state"
+2026/10/22 12:43:39 INFO executor finished run_id=ca63a72a-bf7c-4ba8-b7fd-a76ba479270e epoch=1
+2026/10/22 12:43:39 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:39 INFO all active workers and retests stop requested
+2026/10/22 12:43:40 INFO created run run_id=9cc8698a-14be-4237-9f27-b94c63f77f8f task_id=321c36c1-6c57-42f5-87fa-88ca220381af task_name=ma7-samples
+2026/10/22 12:43:40 INFO executor started run_id=9cc8698a-14be-4237-9f27-b94c63f77f8f epoch=1
+2026/10/22 12:43:40 INFO run state transition run_id=9cc8698a-14be-4237-9f27-b94c63f77f8f from=queued to=running
+2026/10/22 12:43:41 ERROR session runner: failed to persist assistant message session_id=f0cb1f13-0cb1-4acc-b359-c6ce575a9899 error="run is in a terminal state"
+2026/10/22 12:43:41 ERROR session runner: failed to persist assistant message session_id=9c0cd114-d71f-4a55-a150-3c2b22e57991 error="run is in a terminal state"
+2026/10/22 12:43:41 ERROR session runner: failed to persist assistant message session_id=5d9a7841-1fac-4332-8043-4d1bd5f1e1a4 error="run is in a terminal state"
+2026/10/22 12:43:41 INFO executor finished run_id=9cc8698a-14be-4237-9f27-b94c63f77f8f epoch=1
+2026/10/22 12:43:41 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:41 INFO all active workers and retests stop requested
+2026/10/22 12:43:42 INFO created run run_id=35d1d78e-d7ab-44b2-b816-2ed8ae4cdb2a task_id=4001731f-caf0-4d65-b310-55a82ee0fc52 task_name=ma7-samples
+2026/10/22 12:43:42 INFO executor started run_id=35d1d78e-d7ab-44b2-b816-2ed8ae4cdb2a epoch=1
+2026/10/22 12:43:42 INFO run state transition run_id=35d1d78e-d7ab-44b2-b816-2ed8ae4cdb2a from=queued to=running
+2026/10/22 12:43:43 ERROR session runner: failed to persist assistant message session_id=86633203-53bf-4e86-891c-3768cb7a0e98 error="run is in a terminal state"
+2026/10/22 12:43:43 ERROR session runner: failed to persist assistant message session_id=5537ba4c-cea5-4eff-9c60-aa6d05ae3501 error="run is in a terminal state"
+2026/10/22 12:43:43 ERROR session runner: failed to persist assistant message session_id=22a722f7-2ab9-467d-a451-f6e788ea85ef error="run is in a terminal state"
+2026/10/22 12:43:43 INFO executor finished run_id=35d1d78e-d7ab-44b2-b816-2ed8ae4cdb2a epoch=1
+2026/10/22 12:43:43 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:43 INFO all active workers and retests stop requested
+2026/10/22 12:43:44 INFO created run run_id=70d609b4-c313-4ea4-8734-3d9c5a97254d task_id=7c4214a7-6257-4a6e-8db7-3df523be820d task_name=ma7-samples
+2026/10/22 12:43:44 INFO executor started run_id=70d609b4-c313-4ea4-8734-3d9c5a97254d epoch=1
+2026/10/22 12:43:44 INFO run state transition run_id=70d609b4-c313-4ea4-8734-3d9c5a97254d from=queued to=running
+2026/10/22 12:43:46 ERROR session runner: failed to persist assistant message session_id=218107d1-5f9d-42ed-aac5-dd3e11da05e1 error="run is in a terminal state"
+2026/10/22 12:43:46 ERROR session runner: failed to persist assistant message session_id=303f28e1-ac2d-4ed4-bcd1-d88236369625 error="run is in a terminal state"
+2026/10/22 12:43:46 ERROR session runner: failed to persist assistant message session_id=bc490672-1314-493b-ad2b-15c94cb39470 error="run is in a terminal state"
+2026/10/22 12:43:46 INFO executor finished run_id=70d609b4-c313-4ea4-8734-3d9c5a97254d epoch=1
+2026/10/22 12:43:46 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:46 INFO all active workers and retests stop requested
+2026/10/22 12:43:47 INFO created run run_id=54b19af7-7f97-492e-a2c0-3da59879f756 task_id=4190fc39-84ae-4caa-a4dc-d0763d46d98c task_name=ma7-samples
+2026/10/22 12:43:47 INFO executor started run_id=54b19af7-7f97-492e-a2c0-3da59879f756 epoch=1
+2026/10/22 12:43:47 INFO run state transition run_id=54b19af7-7f97-492e-a2c0-3da59879f756 from=queued to=running
+2026/10/22 12:43:48 ERROR session runner: failed to persist assistant message session_id=a072dbb8-759c-4713-855c-24634d11b33d error="run is in a terminal state"
+2026/10/22 12:43:48 ERROR session runner: failed to persist assistant message session_id=eb0384dc-080e-49a9-b71b-783c9b09231a error="run is in a terminal state"
+2026/10/22 12:43:48 ERROR session runner: failed to persist assistant message session_id=4e4ba703-6940-4ec6-a098-3db39189445a error="run is in a terminal state"
+2026/10/22 12:43:48 INFO executor finished run_id=54b19af7-7f97-492e-a2c0-3da59879f756 epoch=1
+2026/10/22 12:43:48 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:48 INFO all active workers and retests stop requested
+2026/10/22 12:43:49 INFO created run run_id=52f9826f-64ea-4c54-9f25-ed922d7cc657 task_id=061761c3-e71f-47e0-b991-3ae332a29bc4 task_name=ma7-samples
+2026/10/22 12:43:49 INFO executor started run_id=52f9826f-64ea-4c54-9f25-ed922d7cc657 epoch=1
+2026/10/22 12:43:49 INFO run state transition run_id=52f9826f-64ea-4c54-9f25-ed922d7cc657 from=queued to=running
+2026/10/22 12:43:50 ERROR session runner: failed to persist assistant message session_id=72366d8a-bd6e-4f94-9cce-fed67c776596 error="run is in a terminal state"
+2026/10/22 12:43:50 ERROR session runner: failed to persist assistant message session_id=3d3a619c-ae6f-4d9d-8bfa-2aa15624999f error="run is in a terminal state"
+2026/10/22 12:43:50 ERROR session runner: failed to persist assistant message session_id=bd0c86e0-8979-42ab-b6f0-4f8544f475f4 error="run is in a terminal state"
+2026/10/22 12:43:50 INFO executor finished run_id=52f9826f-64ea-4c54-9f25-ed922d7cc657 epoch=1
+2026/10/22 12:43:50 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:50 INFO all active workers and retests stop requested
+2026/10/22 12:43:51 INFO created run run_id=0211860f-6a43-4a37-8f0a-1a508fa12cde task_id=09c6d314-1ab7-4e1a-8304-efb108a53339 task_name=ma7-samples
+2026/10/22 12:43:51 INFO executor started run_id=0211860f-6a43-4a37-8f0a-1a508fa12cde epoch=1
+2026/10/22 12:43:51 INFO run state transition run_id=0211860f-6a43-4a37-8f0a-1a508fa12cde from=queued to=running
+2026/10/22 12:43:52 ERROR session runner: failed to persist assistant message session_id=cb502459-5d6c-4ea1-bdeb-4b548d58e08c error="run is in a terminal state"
+2026/10/22 12:43:52 ERROR session runner: failed to persist assistant message session_id=db9b1127-5a0b-4b99-b480-f40e93d2c78e error="run is in a terminal state"
+2026/10/22 12:43:52 ERROR session runner: failed to persist assistant message session_id=b937524c-dbd2-4bdc-80b1-9be2e1ca003f error="run is in a terminal state"
+2026/10/22 12:43:52 INFO executor finished run_id=0211860f-6a43-4a37-8f0a-1a508fa12cde epoch=1
+2026/10/22 12:43:52 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:52 INFO all active workers and retests stop requested
+2026/10/22 12:43:53 INFO created run run_id=79b78eba-80af-466a-b3eb-d1cc38ccffd5 task_id=b70bf90b-73f3-4c19-9a44-b6e64e4f6007 task_name=ma7-samples
+2026/10/22 12:43:53 INFO executor started run_id=79b78eba-80af-466a-b3eb-d1cc38ccffd5 epoch=1
+2026/10/22 12:43:53 INFO run state transition run_id=79b78eba-80af-466a-b3eb-d1cc38ccffd5 from=queued to=running
+2026/10/22 12:43:54 ERROR session runner: failed to persist assistant message session_id=09292382-ff05-4a5d-ab9a-0eab755393fd error="run is in a terminal state"
+2026/10/22 12:43:54 ERROR session runner: failed to persist assistant message session_id=30c62526-8468-4298-865a-8e71057a19ae error="run is in a terminal state"
+2026/10/22 12:43:54 ERROR session runner: failed to persist assistant message session_id=17c489fe-24c2-41d8-9800-85c38f8ca997 error="run is in a terminal state"
+2026/10/22 12:43:54 INFO executor finished run_id=79b78eba-80af-466a-b3eb-d1cc38ccffd5 epoch=1
+2026/10/22 12:43:54 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:54 INFO all active workers and retests stop requested
+2026/10/22 12:43:55 INFO created run run_id=e7339063-21ca-4a97-bf6f-daa636ac840d task_id=cd734014-a01d-44b9-9a76-aea31e7ee4f3 task_name=ma7-samples
+2026/10/22 12:43:55 INFO executor started run_id=e7339063-21ca-4a97-bf6f-daa636ac840d epoch=1
+2026/10/22 12:43:55 INFO run state transition run_id=e7339063-21ca-4a97-bf6f-daa636ac840d from=queued to=running
+2026/10/22 12:43:56 ERROR session runner: failed to persist assistant message session_id=516f892e-fc3c-449f-8f8a-04941234b2ae error="run is in a terminal state"
+2026/10/22 12:43:56 ERROR session runner: failed to persist assistant message session_id=df628f98-466f-4896-83f6-2fee583b3d14 error="run is in a terminal state"
+2026/10/22 12:43:56 ERROR session runner: failed to persist assistant message session_id=d5364ad4-6b36-4c28-ae25-503cce967f11 error="run is in a terminal state"
+2026/10/22 12:43:56 INFO executor finished run_id=e7339063-21ca-4a97-bf6f-daa636ac840d epoch=1
+2026/10/22 12:43:56 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:56 INFO all active workers and retests stop requested
+2026/10/22 12:43:57 INFO created run run_id=745164d8-2645-4c90-ad73-c62cba58ae32 task_id=59cb6415-597b-492d-b1e5-0704bedb00e2 task_name=ma7-samples
+2026/10/22 12:43:57 INFO executor started run_id=745164d8-2645-4c90-ad73-c62cba58ae32 epoch=1
+2026/10/22 12:43:57 INFO run state transition run_id=745164d8-2645-4c90-ad73-c62cba58ae32 from=queued to=running
+2026/10/22 12:43:58 ERROR session runner: failed to persist assistant message session_id=e0d2c4d2-681b-41d7-9c6b-5c7e652586ac error="run is in a terminal state"
+2026/10/22 12:43:58 ERROR session runner: failed to persist assistant message session_id=207de33d-6ba5-4dbc-a571-f100ae924c39 error="run is in a terminal state"
+2026/10/22 12:43:58 ERROR session runner: failed to persist assistant message session_id=c8b1d776-f29f-4d10-9582-612e05cfeb4d error="run is in a terminal state"
+2026/10/22 12:43:58 INFO executor finished run_id=745164d8-2645-4c90-ad73-c62cba58ae32 epoch=1
+2026/10/22 12:43:58 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:43:58 INFO all active workers and retests stop requested
+2026/10/22 12:43:59 INFO created run run_id=90395f02-4f73-4da0-ba49-bc8ea1971f5a task_id=c40c2a16-8f99-4c56-b8d3-36bf2369d20a task_name=ma7-samples
+2026/10/22 12:43:59 INFO executor started run_id=90395f02-4f73-4da0-ba49-bc8ea1971f5a epoch=1
+2026/10/22 12:43:59 INFO run state transition run_id=90395f02-4f73-4da0-ba49-bc8ea1971f5a from=queued to=running
+2026/10/22 12:44:01 ERROR session runner: failed to persist assistant message session_id=6713b964-6a3c-4bc9-92e9-430801c24d91 error="run is in a terminal state"
+2026/10/22 12:44:01 ERROR session runner: failed to persist assistant message session_id=9a081db5-d03f-4fe1-aab5-5bf195ef1729 error="run is in a terminal state"
+2026/10/22 12:44:01 ERROR session runner: failed to persist assistant message session_id=3bdf9b5d-66d9-42cb-960f-47f7403f0047 error="run is in a terminal state"
+2026/10/22 12:44:01 INFO executor finished run_id=90395f02-4f73-4da0-ba49-bc8ea1971f5a epoch=1
+2026/10/22 12:44:01 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:01 INFO all active workers and retests stop requested
+2026/10/22 12:44:02 INFO created run run_id=34c744f9-49cf-410a-a445-d5f989986b03 task_id=07a4b482-f5a4-43c4-8f51-b31a5e8fc4f1 task_name=ma7-samples
+2026/10/22 12:44:02 INFO executor started run_id=34c744f9-49cf-410a-a445-d5f989986b03 epoch=1
+2026/10/22 12:44:02 INFO run state transition run_id=34c744f9-49cf-410a-a445-d5f989986b03 from=queued to=running
+2026/10/22 12:44:03 ERROR session runner: failed to persist assistant message session_id=9fb5ef11-bd3d-4acd-94ac-f15e39fa1ecf error="run is in a terminal state"
+2026/10/22 12:44:03 ERROR session runner: failed to persist assistant message session_id=b3ee479f-99b3-4a12-af75-c70d3320f076 error="run is in a terminal state"
+2026/10/22 12:44:03 ERROR session runner: failed to persist assistant message session_id=fde2fd0e-c787-4783-9606-2d4b0a329509 error="run is in a terminal state"
+2026/10/22 12:44:03 INFO executor finished run_id=34c744f9-49cf-410a-a445-d5f989986b03 epoch=1
+2026/10/22 12:44:03 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:03 INFO all active workers and retests stop requested
+2026/10/22 12:44:04 INFO created run run_id=ef08b7ff-303a-4dd3-bfd3-e24d501753ef task_id=ab2bc79e-f2e9-4fab-aa4f-518ac6d72026 task_name=ma7-samples
+2026/10/22 12:44:04 INFO executor started run_id=ef08b7ff-303a-4dd3-bfd3-e24d501753ef epoch=1
+2026/10/22 12:44:04 INFO run state transition run_id=ef08b7ff-303a-4dd3-bfd3-e24d501753ef from=queued to=running
+2026/10/22 12:44:05 ERROR session runner: failed to persist assistant message session_id=4da62ee0-b5b9-484c-a160-83b2932e1f0d error="run is in a terminal state"
+2026/10/22 12:44:05 ERROR session runner: failed to persist assistant message session_id=97261007-6c40-4f90-b9c6-8151d0c11ee1 error="run is in a terminal state"
+2026/10/22 12:44:05 ERROR session runner: failed to persist assistant message session_id=277ccb93-2ff3-475f-9097-6bd37c86541d error="run is in a terminal state"
+2026/10/22 12:44:05 INFO executor finished run_id=ef08b7ff-303a-4dd3-bfd3-e24d501753ef epoch=1
+2026/10/22 12:44:05 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:05 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A07_PlannerSteerAndKillAreRealCommands (43.20s)
+    ma_acceptance_a01_a08_test.go:685: A07 failed 40 assertion(s); evidence ../../docs/多Agent核心与工作台-实施计划/证据/ma7/A07.json; first: {Round:1 Check:planner tools Detail:steer_work present=false kill_work present=false}
+2026/10/22 12:44:06 INFO created run run_id=90506817-7cf5-4a03-b891-46ca8b906d34 task_id=d0b5b2cd-36e0-4f49-8d4d-44f492da725c task_name=ma7-samples
+2026/10/22 12:44:06 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:06 INFO all active workers and retests stop requested
+2026/10/22 12:44:07 INFO created run run_id=42fc57d4-c690-451b-be88-17bd120c62a2 task_id=602a8b9b-e15c-4381-b607-9ca34cc8fe85 task_name=ma7-samples
+2026/10/22 12:44:07 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:07 INFO all active workers and retests stop requested
+2026/10/22 12:44:08 INFO created run run_id=74bb4ed8-4377-4d4b-aa6a-5336a408835f task_id=5f389485-83a7-4780-ba0a-0f235c95cf72 task_name=ma7-samples
+2026/10/22 12:44:08 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:08 INFO all active workers and retests stop requested
+2026/10/22 12:44:09 INFO created run run_id=e407005c-e379-42c6-9551-bd4257e608fe task_id=6a85adb2-ae05-4bfa-9735-1fa20853eb4d task_name=ma7-samples
+2026/10/22 12:44:09 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:09 INFO all active workers and retests stop requested
+2026/10/22 12:44:10 INFO created run run_id=8bf37277-0ede-431f-a5e6-5bd730a7f0c2 task_id=c22a8e34-103e-40d5-a3c9-5e0e4b676f6d task_name=ma7-samples
+2026/10/22 12:44:10 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:10 INFO all active workers and retests stop requested
+2026/10/22 12:44:11 INFO created run run_id=bee9151c-0dc6-41e2-b308-ebe138bdd72f task_id=4f48d0fe-ba1e-40a7-abc2-3e412b57316d task_name=ma7-samples
+2026/10/22 12:44:11 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:11 INFO all active workers and retests stop requested
+2026/10/22 12:44:12 INFO created run run_id=ec4b2c67-0345-4a3b-acef-483c9847e4ca task_id=55527eac-053b-4b23-b53b-464d05313727 task_name=ma7-samples
+2026/10/22 12:44:12 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:12 INFO all active workers and retests stop requested
+2026/10/22 12:44:12 INFO created run run_id=938a1993-7fab-4f63-9ef2-dadd1f947c11 task_id=d5c64f2c-4712-4f5d-8332-c7ec3a95c2f4 task_name=ma7-samples
+2026/10/22 12:44:12 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:12 INFO all active workers and retests stop requested
+2026/10/22 12:44:13 INFO created run run_id=58baff75-d992-4141-8cdd-3322fcb5cbe7 task_id=0dfc2bb7-58e7-4263-a49c-7a2387006f93 task_name=ma7-samples
+2026/10/22 12:44:13 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:13 INFO all active workers and retests stop requested
+2026/10/22 12:44:14 INFO created run run_id=bba5689a-d039-4151-ad6a-6e082bf80650 task_id=489e1ce7-ef1f-43e6-954e-fc85166c2068 task_name=ma7-samples
+2026/10/22 12:44:14 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:14 INFO all active workers and retests stop requested
+2026/10/22 12:44:15 INFO created run run_id=ed7222a8-14dc-4c3c-9276-717461f4550b task_id=a9d91c8e-a2cc-4d7b-8c07-a2864aa01e8a task_name=ma7-samples
+2026/10/22 12:44:15 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:15 INFO all active workers and retests stop requested
+2026/10/22 12:44:16 INFO created run run_id=a8f10309-d232-49de-ad6d-69127fd5435a task_id=45afa4ab-f785-47a7-870c-47f2950ed241 task_name=ma7-samples
+2026/10/22 12:44:16 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:16 INFO all active workers and retests stop requested
+2026/10/22 12:44:16 INFO created run run_id=1ad653e1-7335-46bc-9101-221d4921ca4c task_id=561dcadd-41b2-42d2-9e2f-a2c96f9e8ee4 task_name=ma7-samples
+2026/10/22 12:44:16 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:16 INFO all active workers and retests stop requested
+2026/10/22 12:44:17 INFO created run run_id=d2a3be56-5e09-4a02-82db-2112b1300d43 task_id=293445f7-5ce3-4bd4-8591-235048bc5d36 task_name=ma7-samples
+2026/10/22 12:44:17 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:17 INFO all active workers and retests stop requested
+2026/10/22 12:44:18 INFO created run run_id=c13b085b-6398-47ea-941a-9a8148efecc4 task_id=50cec561-1fe2-4419-b425-30b061e55a17 task_name=ma7-samples
+2026/10/22 12:44:18 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:18 INFO all active workers and retests stop requested
+2026/10/22 12:44:19 INFO created run run_id=79c6562e-3f94-47c3-b2a1-b5fe43086760 task_id=b173759f-7df2-4a06-9915-34b3978c5480 task_name=ma7-samples
+2026/10/22 12:44:19 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:19 INFO all active workers and retests stop requested
+2026/10/22 12:44:19 INFO created run run_id=b2d9c54d-3680-4864-b852-afc5795a894b task_id=ab11bea8-f8fc-42c5-8d59-952a4955cc43 task_name=ma7-samples
+2026/10/22 12:44:19 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:19 INFO all active workers and retests stop requested
+2026/10/22 12:44:20 INFO created run run_id=280e540a-86d7-41dd-9b6a-494cf1fad413 task_id=07aa4068-a3f6-4727-99b4-a8d3197fd679 task_name=ma7-samples
+2026/10/22 12:44:20 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:20 INFO all active workers and retests stop requested
+2026/10/22 12:44:21 INFO created run run_id=7a3a4e84-bb74-434a-bd64-75cb9e7ea8aa task_id=26ac5882-6e41-4d64-9b7c-36006e7806e5 task_name=ma7-samples
+2026/10/22 12:44:21 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:21 INFO all active workers and retests stop requested
+2026/10/22 12:44:22 INFO created run run_id=041577ad-e059-4c65-8037-11fe8b0cedd4 task_id=b930ea69-7f80-435b-8363-3096415ffeab task_name=ma7-samples
+2026/10/22 12:44:22 INFO worker manager closed (no new workers accepted)
+2026/10/22 12:44:22 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A08_MainAgentIdempotentBoundary (16.50s)
+    ma_acceptance_a01_a08_test.go:726: A08 failed 20 assertion(s); evidence ../../docs/多Agent核心与工作台-实施计划/证据/ma7/A08.json; first: {Round:1 Check:submit Detail:status 404 body 404 page not found
+        }
+FAIL
+FAIL	agent-workbench/backend/test	492.317s
+FAIL
+EXIT:1
