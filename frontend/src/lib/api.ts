@@ -62,12 +62,20 @@ export function newRequestID(): string {
 export class ApiError extends Error {
   status: number;
   data?: unknown;
+  code?: string;
+  scope?: string;
+  retryable?: boolean;
+  suggestedAction?: string;
 
-  constructor(message: string, status: number, data?: unknown) {
+  constructor(message: string, status: number, data?: unknown, extra?: { code?: string; scope?: string; retryable?: boolean; suggestedAction?: string }) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.data = data;
+    this.code = extra?.code;
+    this.scope = extra?.scope;
+    this.retryable = extra?.retryable;
+    this.suggestedAction = extra?.suggestedAction;
   }
 }
 
@@ -98,6 +106,8 @@ async function request<T>(
           errorData = json;
           if (json.error && typeof json.error === 'string') {
             errorMessage = json.error;
+          } else if (json.error && typeof json.error === 'object' && typeof json.error.message === 'string') {
+            errorMessage = json.error.code ? `${json.error.code}: ${json.error.message}` : json.error.message;
           } else if (json.message && typeof json.message === 'string') {
             errorMessage = json.message;
           } else {
@@ -110,7 +120,13 @@ async function request<T>(
     } catch {
       // Ignore body read errors and use standard error message
     }
-    throw new ApiError(errorMessage, response.status, errorData);
+    const envelope = errorData && typeof errorData === 'object' && 'error' in errorData ? (errorData as { error?: { code?: string; scope?: string; retryable?: boolean; suggested_action?: string } }).error : undefined;
+    throw new ApiError(errorMessage, response.status, errorData, envelope && typeof envelope === 'object' ? {
+      code: envelope.code,
+      scope: envelope.scope,
+      retryable: envelope.retryable,
+      suggestedAction: envelope.suggested_action,
+    } : undefined);
   }
 
   if (response.status === 204) {
@@ -195,6 +211,9 @@ export const api = {
     }
     if (input?.mock_scenario !== undefined) {
       body.mock_scenario = input.mock_scenario;
+    }
+    if (input?.budget !== undefined) {
+      body.budget = input.budget;
     }
 
     return request<Run>(`/api/tasks/${taskId}/runs`, {

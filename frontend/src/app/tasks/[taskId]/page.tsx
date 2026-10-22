@@ -324,33 +324,22 @@ export default function TaskDetailPage() {
 
               {executorType === 'orchestrator' && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1">
-                    Worker 并发数
+                  <label htmlFor="worker-count" className="block text-xs font-medium text-gray-400 mb-1">
+                    Worker 池 N（1–8）
                   </label>
-                  <div className="grid grid-cols-2 gap-1.5 bg-gray-900 p-1 rounded-lg border border-gray-800">
-                    <button
-                      type="button"
-                      onClick={() => setParallelWorkers(1)}
-                      className={`py-1 text-xs font-medium rounded-md transition-colors ${
-                        parallelWorkers === 1
-                          ? 'bg-indigo-600 text-white shadow-sm'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      单 Worker (串行)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setParallelWorkers(2)}
-                      className={`py-1 text-xs font-medium rounded-md transition-colors ${
-                        parallelWorkers === 2
-                          ? 'bg-indigo-600 text-white shadow-sm'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      双 Worker (并行)
-                    </button>
-                  </div>
+                  <input
+                    id="worker-count"
+                    type="number"
+                    min={1}
+                    max={8}
+                    step={1}
+                    value={parallelWorkers}
+                    onChange={(event) => setParallelWorkers(Number(event.target.value))}
+                    className="w-full px-3 py-1.5 bg-gray-900 border border-gray-800 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <p className="mt-1 text-[11px] text-gray-500 leading-relaxed">
+                    同一个执行池。没有单独的双 Worker 执行器。新探索任务在统一工作台创建，默认 3；这里默认 1，以兼容旧记录。
+                  </p>
                 </div>
               )}
 

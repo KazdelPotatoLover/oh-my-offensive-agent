@@ -399,6 +399,9 @@ export default function RunDetailPage() {
         <span className="text-gray-200 font-mono font-medium">
           Run {run.id.slice(0, 8)}
         </span>
+        <Link href={`/workbench/tasks/${taskId}/runs/${runId}`} className="text-blue-300 hover:text-blue-200">
+          在统一工作台打开
+        </Link>
       </div>
 
       {/* Provider Info Banner */}

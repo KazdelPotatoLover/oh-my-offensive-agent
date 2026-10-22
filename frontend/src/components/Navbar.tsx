@@ -24,6 +24,12 @@ export function Navbar() {
           </Link>
           <nav className="flex items-center space-x-1">
             <Link
+              href="/workbench"
+              className="text-gray-300 hover:text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors"
+            >
+              工作台
+            </Link>
+            <Link
               href="/tasks"
               className="text-gray-300 hover:text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors"
             >

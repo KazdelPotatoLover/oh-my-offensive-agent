@@ -125,6 +125,11 @@ export interface CreateRunInput {
     max_model_calls?: number;
     max_tool_calls?: number;
     max_parallel_workers?: number;
+    worker_max_model_calls?: number;
+    worker_max_tool_calls?: number;
+    worker_timeout_seconds?: number;
+    planner_reserved_model_calls?: number;
+    main_reserved_model_calls?: number;
     run_timeout_seconds?: number;
     model_timeout_seconds?: number;
     tool_timeout_seconds?: number;
