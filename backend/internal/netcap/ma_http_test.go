@@ -547,8 +547,8 @@ func ma3Pool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	raw := os.Getenv("TEST_DATABASE_URL")
 	u, err := url.Parse(raw)
-	if err != nil || u.Path != "/agent_workbench_ma3" {
-		t.Fatalf("refusing TEST_DATABASE_URL %q; tests truncate and require /agent_workbench_ma3", raw)
+	if err != nil || (u.Path != "/agent_workbench_ma3" && u.Path != "/agent_workbench_ma_integration") {
+		t.Fatalf("refusing TEST_DATABASE_URL %q; tests truncate and require /agent_workbench_ma3 or /agent_workbench_ma_integration", raw)
 	}
 	_, file, _, _ := runtime.Caller(0)
 	if err := db.RunMigrations(raw, filepath.Join(filepath.Dir(file), "..", "..", "migrations")); err != nil {
