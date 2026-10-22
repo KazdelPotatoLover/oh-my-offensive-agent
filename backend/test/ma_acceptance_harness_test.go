@@ -105,7 +105,8 @@ func writeAcceptanceEvidence(t *testing.T, id string, payload any) string {
 	t.Helper()
 	dir := os.Getenv("MA_ACCEPTANCE_EVIDENCE")
 	if dir == "" {
-		dir = filepath.Join("..", "..", "docs", "多Agent核心与工作台-实施计划", "证据", "ma7")
+		// Integration acceptance must not overwrite the pre-merge ma7 baseline.
+		dir = filepath.Join("..", "..", "docs", "多Agent核心与工作台-实施计划", "证据", "integration-20round")
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Logf("evidence directory: %v", err)

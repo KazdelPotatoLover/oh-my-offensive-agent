@@ -1,6 +1,7 @@
 package test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -720,11 +721,23 @@ func TestMA_A16_HistoryAndReleaseGates(t *testing.T) {
 		Command:  "go test ./test/ -count=1 -run TestMA_A16_HistoryAndReleaseGates",
 		Observed: map[string]any{},
 	}
-	for _, n := range []int{contract.MigrationRuntimeConstraints, contract.MigrationModelDiagnostics, contract.MigrationHTTPCapture, contract.MigrationExecutionJobs, contract.MigrationMainControl} {
+	// 026/028/029/030 landed with the owners. 027 stays absent on purpose.
+	// An empty file is still a failure. This does not pass the release gates below.
+	for _, n := range []int{contract.MigrationRuntimeConstraints, contract.MigrationHTTPCapture, contract.MigrationExecutionJobs, contract.MigrationMainControl} {
 		matches, _ := filepath.Glob(filepath.Join(migrationsPath, fmt.Sprintf("%03d_*", n)))
-		if len(matches) > 0 {
-			report.fail(1, "reserved migration", strings.Join(matches, ","))
+		if len(matches) == 0 {
+			report.fail(1, "landed migration missing", fmt.Sprintf("%03d", n))
+			continue
 		}
+		for _, name := range matches {
+			body, err := os.ReadFile(name)
+			if err != nil || len(bytes.TrimSpace(body)) == 0 {
+				report.fail(1, "empty migration", name)
+			}
+		}
+	}
+	if matches, _ := filepath.Glob(filepath.Join(migrationsPath, "027_*")); len(matches) > 0 {
+		report.fail(1, "027 must stay absent", strings.Join(matches, ","))
 	}
 	env := setupTestEnv(t)
 	t.Cleanup(env.teardown)

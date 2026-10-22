@@ -634,14 +634,15 @@ func TestMA_A07_PlannerSteerAndKillAreRealCommands(t *testing.T) {
 			t.Fatal(err)
 		}
 		configureLocalModel(t, double, "chat_completions")
-		var sawSteer, sawKill bool
+		var followups atomic.Int32
+		var sawSteer, sawKill, issuedSteer, issuedKill atomic.Bool
 		double.SetDynamic(func(body []byte) (modeldouble.Step, bool) {
 			text := string(body)
 			if strings.Contains(text, `"name":"steer_work"`) || strings.Contains(text, `"name": "steer_work"`) {
-				sawSteer = true
+				sawSteer.Store(true)
 			}
 			if strings.Contains(text, `"name":"kill_work"`) || strings.Contains(text, `"name": "kill_work"`) {
-				sawKill = true
+				sawKill.Store(true)
 			}
 			switch classifyModelBody(body) {
 			case "worker":
@@ -649,7 +650,21 @@ func TestMA_A07_PlannerSteerAndKillAreRealCommands(t *testing.T) {
 			case "planner_initial":
 				return planStep(body, namedPlan([]string{"dir-steer", "dir-kill", "dir-keep"}), modeldouble.KindChatTool), true
 			case "planner_followup":
-				return modeldouble.Step{Kind: modeldouble.KindChatTool, Name: "kill_work", Arguments: `{"work_item_key":"dir-kill","reason":"stop this direction"}`}, true
+				n := followups.Add(1)
+				if n == 1 {
+					id := promptWorkItemID(text, "dir-kill")
+					if id == "" {
+						return modeldouble.Step{Kind: modeldouble.KindText, Text: "kill id missing"}, true
+					}
+					issuedKill.Store(true)
+					return modeldouble.Step{Kind: modeldouble.KindChatTool, Name: "kill_work", Arguments: fmt.Sprintf(`{"work_item_id":%q,"reason":"stop this direction"}`, id)}, true
+				}
+				id := promptWorkItemID(text, "dir-steer")
+				if id == "" {
+					return modeldouble.Step{Kind: modeldouble.KindText, Text: "steer id missing"}, true
+				}
+				issuedSteer.Store(true)
+				return modeldouble.Step{Kind: modeldouble.KindChatTool, Name: "steer_work", Arguments: fmt.Sprintf(`{"work_item_id":%q,"instruction":"stay on the authorized lab path"}`, id)}, true
 			default:
 				return modeldouble.Step{}, false
 			}
@@ -663,18 +678,53 @@ func TestMA_A07_PlannerSteerAndKillAreRealCommands(t *testing.T) {
 			continue
 		}
 		_ = double.Barrier("workers").WaitArrived(1, 3*time.Second)
-		time.Sleep(800 * time.Millisecond)
-		if !sawSteer || !sawKill {
-			report.fail(round, "planner tools", fmt.Sprintf("steer_work present=%t kill_work present=%t", sawSteer, sawKill))
+		var historyHeld int
+		_ = env.pool.QueryRow(t.Context(), `SELECT count(*) FROM agent_messages m JOIN agent_sessions s ON s.id=m.session_id JOIN work_items w ON w.id=s.work_item_id WHERE w.run_id=$1 AND w.key='dir-kill'`, runID).Scan(&historyHeld)
+		deadline := time.Now().Add(4 * time.Second)
+		for time.Now().Before(deadline) && followups.Load() < 2 {
+			var killedNow string
+			_ = env.pool.QueryRow(t.Context(), `SELECT status FROM work_items WHERE run_id=$1 AND key='dir-kill'`, runID).Scan(&killedNow)
+			if killedNow == "cancelled" || killedNow == "stopped" || killedNow == "failed" {
+				if followups.Load() >= 2 || time.Now().Add(1500*time.Millisecond).After(deadline) {
+					break
+				}
+			}
+			time.Sleep(40 * time.Millisecond)
+		}
+		if !sawSteer.Load() || !sawKill.Load() {
+			report.fail(round, "planner tools", fmt.Sprintf("steer_work present=%t kill_work present=%t", sawSteer.Load(), sawKill.Load()))
+		}
+		if followups.Load() == 0 {
+			report.fail(round, "planner follow-up", "no follow-up planner call while a worker was held")
+		}
+		if !issuedKill.Load() {
+			report.fail(round, "kill arguments", "follow-up did not send kill_work with the prompt work_item_id")
+		}
+		if !issuedSteer.Load() {
+			report.fail(round, "steer arguments", "follow-up did not send steer_work with the prompt work_item_id")
 		}
 		var killed, kept string
 		_ = env.pool.QueryRow(t.Context(), `SELECT status FROM work_items WHERE run_id=$1 AND key='dir-kill'`, runID).Scan(&killed)
 		_ = env.pool.QueryRow(t.Context(), `SELECT status FROM work_items WHERE run_id=$1 AND key='dir-keep'`, runID).Scan(&kept)
 		if killed != "cancelled" && killed != "stopped" && killed != "failed" {
-			report.fail(round, "kill target", fmt.Sprintf("dir-kill status=%q dir-keep status=%q", killed, kept))
+			report.fail(round, "kill target", fmt.Sprintf("dir-kill status=%q dir-keep status=%q followups=%d", killed, kept, followups.Load()))
 		}
 		if kept == "cancelled" {
 			report.fail(round, "kill isolation", "dir-keep was cancelled with dir-kill")
+		}
+		var steerMsgs, keepSteers int
+		_ = env.pool.QueryRow(t.Context(), `SELECT count(*) FROM work_control_messages m JOIN work_items w ON w.id=m.work_item_id WHERE w.run_id=$1 AND w.key='dir-steer' AND m.message='stay on the authorized lab path'`, runID).Scan(&steerMsgs)
+		_ = env.pool.QueryRow(t.Context(), `SELECT count(*) FROM work_control_messages m JOIN work_items w ON w.id=m.work_item_id WHERE w.run_id=$1 AND w.key='dir-keep'`, runID).Scan(&keepSteers)
+		if steerMsgs == 0 {
+			report.fail(round, "steer target", "dir-steer has no control message from the planner")
+		}
+		if keepSteers != 0 {
+			report.fail(round, "steer isolation", fmt.Sprintf("dir-keep received %d steer messages", keepSteers))
+		}
+		var historyAfter int
+		_ = env.pool.QueryRow(t.Context(), `SELECT count(*) FROM agent_messages m JOIN agent_sessions s ON s.id=m.session_id JOIN work_items w ON w.id=s.work_item_id WHERE w.run_id=$1 AND w.key='dir-kill'`, runID).Scan(&historyAfter)
+		if historyAfter < historyHeld {
+			report.fail(round, "same intent history", fmt.Sprintf("dir-kill messages %d -> %d", historyHeld, historyAfter))
 		}
 		double.Barrier("workers").Release()
 		stopRun(t, env, runID)
@@ -691,37 +741,165 @@ func TestMA_A08_MainAgentIdempotentBoundary(t *testing.T) {
 	report := &acceptanceReport{ID: "A08", Owner: "agent-5", Rounds: acceptanceRounds(), Command: "go test ./test/ -count=1 -run TestMA_A08_MainAgentIdempotentBoundary"}
 	for round := 1; round <= report.Rounds; round++ {
 		env := setupTestEnv(t)
-		task := createSampleTask(t, env)
-		run, _, err := env.runService.Create(t.Context(), task.ID, model.CreateRunRequest{}, nil)
+		double, err := modeldouble.New()
 		if err != nil {
 			t.Fatal(err)
 		}
+		configureLocalModel(t, double, "chat_completions")
+		double.SetDynamic(func(body []byte) (modeldouble.Step, bool) {
+			if classifyModelBody(body) == "planner_initial" {
+				return modeldouble.Step{Kind: modeldouble.KindText, Text: "holding", Barrier: "planner"}, true
+			}
+			return modeldouble.Step{Kind: modeldouble.KindText, Text: "wait"}, true
+		})
+		task := createSampleTask(t, env)
+		runID, resp := startOrchestratedRun(t, env, task.ID, 1)
+		if resp.Code != 201 || !double.Barrier("planner").WaitArrived(1, 3*time.Second) {
+			report.fail(round, "running run", fmt.Sprintf("create %d planner_arrived=%d body %s", resp.Code, double.Barrier("planner").Arrived(), resp.Body.String()))
+			double.Close()
+			env.teardown()
+			continue
+		}
+		var epoch int
+		var liveStatus string
+		_ = env.pool.QueryRow(t.Context(), `SELECT current_epoch, status FROM runs WHERE id=$1`, runID).Scan(&epoch, &liveStatus)
+		if liveStatus != "running" {
+			report.fail(round, "running run", "status="+liveStatus)
+		}
+		run := model.Run{ID: runID, CurrentEpoch: epoch}
 		path := fmt.Sprintf("/api/runs/%s/main/messages", run.ID)
+		var attemptsBefore int
+		_ = env.pool.QueryRow(t.Context(), `SELECT count(*) FROM attempts a JOIN work_items w ON w.id=a.work_item_id WHERE w.run_id=$1`, run.ID).Scan(&attemptsBefore)
+		budgetBody := map[string]any{"message": "grant budget additional_model_calls 10", "expected_epoch": run.CurrentEpoch}
+		budgetKey := fmt.Sprintf("ma7-a08-budget-%d", round)
+		budgetResp := acceptanceJSON(t, env, "POST", path, budgetBody, map[string]string{"Idempotency-Key": budgetKey})
+		if budgetResp.Code != 202 {
+			report.fail(round, "budget chat submit", fmt.Sprintf("status %d body %s", budgetResp.Code, budgetResp.Body.String()))
+		}
+		if status, errText := waitMainTurn(t, env, run.ID, budgetKey); status == "queued" || status == "running" || status == "" {
+			report.fail(round, "budget chat drain", fmt.Sprintf("status=%q err=%s", status, errText))
+		}
+		var grants int
+		var mainGrants int
+		_ = env.pool.QueryRow(t.Context(), `SELECT count(*) FROM budget_grants WHERE run_id=$1`, run.ID).Scan(&grants)
+		_ = env.pool.QueryRow(t.Context(), `SELECT count(*) FROM execution_commands WHERE run_id=$1 AND command_type='grant_budget' AND principal_kind='mainagent'`, run.ID).Scan(&mainGrants)
+		if grants != 0 || mainGrants != 0 {
+			report.fail(round, "chat cannot grant", fmt.Sprintf("grants=%d main_grant_commands=%d", grants, mainGrants))
+		}
+		grant := acceptanceJSON(t, env, "POST", fmt.Sprintf("/api/runs/%s/commands", run.ID), map[string]any{
+			"type": "grant_budget", "expected_epoch": run.CurrentEpoch,
+			"payload": map[string]any{"additional_model_calls": 10},
+		}, map[string]string{"Idempotency-Key": fmt.Sprintf("ma7-human-grant-%d", round)})
+		if grant.Code != 200 {
+			report.fail(round, "human structured grant", fmt.Sprintf("status %d body %s", grant.Code, grant.Body.String()))
+		} else if !strings.Contains(grant.Body.String(), `"principal_kind":"human"`) && !strings.Contains(grant.Body.String(), `"actor_id"`) {
+			var kind string
+			_ = env.pool.QueryRow(t.Context(), `SELECT principal_kind FROM execution_commands WHERE run_id=$1 AND command_type='grant_budget' ORDER BY created_at DESC LIMIT 1`, run.ID).Scan(&kind)
+			if kind != "human" {
+				report.fail(round, "human grant principal", fmt.Sprintf("principal_kind=%q body=%s", kind, grant.Body.String()))
+			}
+		}
+		_ = env.pool.QueryRow(t.Context(), `SELECT count(*) FROM budget_grants WHERE run_id=$1`, run.ID).Scan(&grants)
+		if grants != 1 {
+			report.fail(round, "human grant once", fmt.Sprintf("grants=%d", grants))
+		}
+		grantReplay := acceptanceJSON(t, env, "POST", fmt.Sprintf("/api/runs/%s/commands", run.ID), map[string]any{
+			"type": "grant_budget", "expected_epoch": run.CurrentEpoch,
+			"payload": map[string]any{"additional_model_calls": 10},
+		}, map[string]string{"Idempotency-Key": fmt.Sprintf("ma7-human-grant-%d", round)})
+		_ = env.pool.QueryRow(t.Context(), `SELECT count(*) FROM budget_grants WHERE run_id=$1`, run.ID).Scan(&grants)
+		if grantReplay.Code != 200 || grants != 1 || !strings.Contains(grantReplay.Body.String(), `"replayed":true`) {
+			report.fail(round, "human grant replay", fmt.Sprintf("status %d grants=%d body %s", grantReplay.Code, grants, grantReplay.Body.String()))
+		}
 		body := map[string]any{"message": "pause the run", "expected_epoch": run.CurrentEpoch}
 		headers := map[string]string{"Idempotency-Key": fmt.Sprintf("ma7-a08-%d", round)}
 		first := acceptanceJSON(t, env, "POST", path, body, headers)
 		if first.Code != 202 {
 			report.fail(round, "submit", fmt.Sprintf("status %d body %s", first.Code, first.Body.String()))
-		} else if !strings.Contains(first.Body.String(), "message_id") || !strings.Contains(first.Body.String(), "turn_id") {
+		} else if !strings.Contains(first.Body.String(), "message_id") || !strings.Contains(first.Body.String(), "turn_id") || !strings.Contains(first.Body.String(), "session_id") {
 			report.fail(round, "refs", first.Body.String())
 		}
 		second := acceptanceJSON(t, env, "POST", path, body, headers)
 		if second.Code != first.Code || second.Body.String() != first.Body.String() {
 			report.fail(round, "idempotent replay", fmt.Sprintf("first %d second %d", first.Code, second.Code))
 		}
-		var grants int
-		_ = env.pool.QueryRow(t.Context(), `SELECT count(*) FROM budget_grants WHERE run_id=$1`, run.ID).Scan(&grants)
-		if grants != 0 {
-			report.fail(round, "no implicit grant", fmt.Sprintf("grants=%d", grants))
+		var turns int
+		_ = env.pool.QueryRow(t.Context(), `SELECT count(*) FROM main_turns WHERE run_id=$1 AND idempotency_key=$2`, run.ID, headers["Idempotency-Key"]).Scan(&turns)
+		if turns != 1 {
+			report.fail(round, "replay side effect", fmt.Sprintf("pause turns=%d", turns))
 		}
-		grant := acceptanceJSON(t, env, "POST", fmt.Sprintf("/api/runs/%s/commands", run.ID), map[string]any{
-			"type": "grant_budget", "expected_epoch": run.CurrentEpoch,
-			"payload": map[string]any{"additional_model_calls": 10},
-		}, map[string]string{"Idempotency-Key": "ma7-grant"})
-		if grant.Code == 200 || grant.Code == 202 {
-			report.fail(round, "main cannot grant", fmt.Sprintf("grant returned %d", grant.Code))
+		if status, errText := waitMainTurn(t, env, run.ID, headers["Idempotency-Key"]); status == "queued" || status == "running" || status == "" {
+			report.fail(round, "pause drain", fmt.Sprintf("status=%q err=%s", status, errText))
 		}
+		var pauseCmds, cited int
+		var sessionID string
+		_ = env.pool.QueryRow(t.Context(), `SELECT count(*) FROM execution_commands WHERE run_id=$1 AND command_type='pause_run' AND principal_kind='mainagent'`, run.ID).Scan(&pauseCmds)
+		_ = env.pool.QueryRow(t.Context(), `
+			SELECT count(*), COALESCE(max(s.id::text), '')
+			FROM execution_commands c
+			JOIN main_messages m ON m.command_id=c.id
+			JOIN main_turns t ON t.id=m.turn_id
+			JOIN main_conversations conv ON conv.id=t.conversation_id
+			JOIN agent_sessions s ON s.id=conv.session_id
+			WHERE c.run_id=$1 AND c.command_type='pause_run' AND c.principal_kind='mainagent'`, run.ID).Scan(&cited, &sessionID)
+		if pauseCmds != 1 || cited != 1 || sessionID == "" {
+			var turnStatus, turnErr string
+			_ = env.pool.QueryRow(t.Context(), `SELECT status, COALESCE(error::text,'') FROM main_turns WHERE run_id=$1 AND idempotency_key=$2`, run.ID, headers["Idempotency-Key"]).Scan(&turnStatus, &turnErr)
+			report.fail(round, "pause cites command and session", fmt.Sprintf("pause_cmds=%d cited=%d session=%q turn=%s err=%s", pauseCmds, cited, sessionID, turnStatus, turnErr))
+		}
+		var modelCalls int
+		_ = env.pool.QueryRow(t.Context(), `SELECT count(*) FROM main_model_calls WHERE run_id=$1`, run.ID).Scan(&modelCalls)
+		if modelCalls != 0 {
+			report.fail(round, "nil provider executed a model call", fmt.Sprintf("main_model_calls=%d", modelCalls))
+		}
+		var runStatus, cardStatus, schema string
+		_ = env.pool.QueryRow(t.Context(), `SELECT status FROM runs WHERE id=$1`, run.ID).Scan(&runStatus)
+		card := acceptanceJSON(t, env, "GET", fmt.Sprintf("/api/runs/%s/workbench", run.ID), nil, nil)
+		var snap struct {
+			SchemaVersion string `json:"schema_version"`
+			Run           struct {
+				Status string `json:"status"`
+			} `json:"run"`
+		}
+		_ = json.Unmarshal(card.Body.Bytes(), &snap)
+		schema, cardStatus = snap.SchemaVersion, snap.Run.Status
+		if card.Code != 200 || schema != "workbench.v1" || cardStatus != runStatus {
+			report.fail(round, "live workbench card", fmt.Sprintf("status %d schema=%q card=%q db=%q body %s", card.Code, schema, cardStatus, runStatus, card.Body.String()))
+		}
+		question := acceptanceJSON(t, env, "POST", path, map[string]any{
+			"message": "what is the run status?", "expected_epoch": run.CurrentEpoch,
+		}, map[string]string{"Idempotency-Key": fmt.Sprintf("ma7-a08-query-%d", round)})
+		if question.Code != 202 {
+			report.fail(round, "terminal query", fmt.Sprintf("status %d body %s", question.Code, question.Body.String()))
+		}
+		_, _ = waitMainTurn(t, env, run.ID, fmt.Sprintf("ma7-a08-query-%d", round))
+		var attemptsAfter int
+		_ = env.pool.QueryRow(t.Context(), `SELECT count(*) FROM attempts a JOIN work_items w ON w.id=a.work_item_id WHERE w.run_id=$1`, run.ID).Scan(&attemptsAfter)
+		if attemptsAfter != attemptsBefore {
+			report.fail(round, "query starts engine", fmt.Sprintf("attempts %d -> %d", attemptsBefore, attemptsAfter))
+		}
+		double.Barrier("planner").Release()
+		double.Close()
 		env.teardown()
 	}
 	report.finish(t)
+}
+
+func waitMainTurn(t *testing.T, env *TestEnv, runID uuid.UUID, key string) (string, string) {
+	t.Helper()
+	deadline := time.Now().Add(4 * time.Second)
+	var status, errText string
+	for {
+		err := env.pool.QueryRow(t.Context(), `SELECT status, COALESCE(error::text, '') FROM main_turns WHERE run_id=$1 AND idempotency_key=$2`, runID, key).Scan(&status, &errText)
+		if err == nil && status != "queued" && status != "running" {
+			return status, errText
+		}
+		if time.Now().After(deadline) {
+			if err != nil {
+				errText = err.Error()
+			}
+			return status, errText
+		}
+		time.Sleep(30 * time.Millisecond)
+	}
 }
