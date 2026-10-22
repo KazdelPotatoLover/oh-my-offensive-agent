@@ -219,7 +219,7 @@ func (t *RecordFactTool) Parameters() json.RawMessage {
 			"summary": {"type": "string", "description": "Concise summary of the observed conclusion (one sentence)"},
 			"detail": {"type": "string", "description": "Supporting details, findings, or features"},
 			"confidence": {"type": "string", "enum": ["observed", "inferred"], "description": "observed (directly seen in tool output) or inferred (deduced)"},
-			"evidence": {"type": "string", "description": "One line of critical evidence or output snippet"},
+			"evidence": {"type": "string", "description": "Evidence text INCLUDING the exact _execution.source_tool_call_id from a successful target read, or a saved observation UUID. Without that source reference the fact stays unverified. Never use an asset ID as evidence."},
 			"intent_id": {"type": "string", "description": "UUID of the intent node that produced this fact (defaults to current worker intent if omitted)"},
 			"asset_ids": {"type": "array", "items": {"type": "string"}, "description": "UUIDs of related assets"}
 		},

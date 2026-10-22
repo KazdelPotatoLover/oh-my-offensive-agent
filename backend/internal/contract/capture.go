@@ -9,6 +9,13 @@ import (
 	"github.com/google/uuid"
 )
 
+// HTTPExchangeBody carries the captured bytes, not the display preview.
+type HTTPExchangeBody struct {
+	Receipt *HTTPReceipt
+	Body    []byte
+	Headers map[string]string
+}
+
 const (
 	CaptureDirect       = "direct"
 	CaptureTLSIntercept = "tls_intercept"

@@ -173,8 +173,20 @@ func validateObservationSourceTx(ctx context.Context, tx pgx.Tx, runID, sessionI
 			return v, fmt.Errorf("unknown http asset: %w", ErrInvalidObservationSource)
 		}
 		targetKey = parsed.String()
+	case "http_request":
+		var epoch int
+		if err := tx.QueryRow(ctx, `SELECT current_epoch FROM runs WHERE id=$1`, runID).Scan(&epoch); err != nil {
+			return v, err
+		}
+		if err := tx.QueryRow(ctx, `SELECT asset_id FROM http_receipts WHERE source_tool_call_id=$1 AND run_id=$2 AND epoch_number=$3 AND minted_by='gateway' AND asset_id IS NOT NULL`, sourceID, runID, epoch).Scan(&resolved); err != nil {
+			return v, fmt.Errorf("HTTP observation requires an asset-bound capture: %w", ErrInvalidObservationSource)
+		}
+		if _, err := targetEvidence(ctx, tx, runID, resolved, sourceID, epoch, &attemptSession); err != nil {
+			return v, err
+		}
+		targetKey = resolved.String()
 	default:
-		return v, fmt.Errorf("source tool call must be read_sample or get_endpoint, got %q: %w", toolName, ErrInvalidObservationSource)
+		return v, fmt.Errorf("source tool call must be read_sample, get_endpoint or captured http_request, got %q: %w", toolName, ErrInvalidObservationSource)
 	}
 	if assetID != nil && *assetID != resolved {
 		return v, fmt.Errorf("asset_id does not match source tool call: %w", ErrAssetSampleMismatch)

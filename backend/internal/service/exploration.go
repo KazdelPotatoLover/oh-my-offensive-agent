@@ -163,6 +163,13 @@ func validFactTool(ctx context.Context, tx pgx.Tx, runID, callID uuid.UUID, asse
 		if _, err := targetEvidence(ctx, tx, runID, assetID, callID, current, nil); err != nil {
 			return false
 		}
+	case "http_request":
+		if err := tx.QueryRow(ctx, `SELECT asset_id FROM http_receipts WHERE source_tool_call_id=$1 AND run_id=$2 AND epoch_number=$3 AND minted_by='gateway' AND asset_id IS NOT NULL`, callID, runID, current).Scan(&assetID); err != nil {
+			return false
+		}
+		if _, err := targetEvidence(ctx, tx, runID, assetID, callID, current, nil); err != nil {
+			return false
+		}
 	case "read_sample":
 		var response targetResponse
 		if json.Unmarshal([]byte(output), &response) != nil || response.StatusCode < 100 || response.StatusCode > 599 {

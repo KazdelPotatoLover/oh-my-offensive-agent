@@ -139,6 +139,29 @@ func (g *Gateway) Lookup(ctx context.Context, scope contract.ExecutionScope, rec
 	return g.store.LookupScoped(ctx, scope, receiptID)
 }
 
+// ExchangeBody feeds execution proxies from the very same captured exchange.
+// It never redials or substitutes the redacted, shortened display preview.
+func (g *Gateway) ExchangeBody(ctx context.Context, scope contract.ExecutionScope, in contract.HTTPRequestInput) (*contract.HTTPExchangeBody, error) {
+	receipt, err := g.Exchange(ctx, scope, in)
+	if err != nil {
+		return nil, err
+	}
+	if receipt == nil || receipt.ResponseArtifactID == nil {
+		return nil, contractError(contract.CodeExecutionUnavailable, "capture has no response artifact")
+	}
+	view, err := g.store.ReadArtifact(ctx, scope, *receipt.ResponseArtifactID, true)
+	if err != nil {
+		return nil, err
+	}
+	headers := map[string]string{}
+	for key, values := range view.Headers {
+		if !hopHeader(key) && !isSensitiveHeader(key) && len(values) > 0 {
+			headers[key] = values[0]
+		}
+	}
+	return &contract.HTTPExchangeBody{Receipt: receipt, Body: view.Body, Headers: headers}, nil
+}
+
 // Revoke stops in-flight exchanges and revokes job capabilities for the scope.
 func (g *Gateway) Revoke(ctx context.Context, req contract.RevokeRequest) (*contract.RevokeReport, error) {
 	if err := req.Validate(); err != nil {

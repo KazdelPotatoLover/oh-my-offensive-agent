@@ -20,11 +20,7 @@ import (
 
 // BodyExchange is the optional full-body result. The frozen HTTPReceipt only
 // carries a preview, so a gateway that can return the fetched body implements this.
-type BodyExchange struct {
-	Receipt *contract.HTTPReceipt
-	Body    []byte
-	Headers map[string]string
-}
+type BodyExchange = contract.HTTPExchangeBody
 
 // ResponseBodyGateway is implemented by a capture gateway that can return the
 // response body it fetched. The execution proxy never fetches the target itself.
@@ -173,11 +169,7 @@ func exchangeBody(ctx context.Context, gw contract.CaptureGateway, scope contrac
 	if bodyGW, ok := gw.(ResponseBodyGateway); ok {
 		return bodyGW.ExchangeBody(ctx, scope, in)
 	}
-	receipt, err := gw.Exchange(ctx, scope, in)
-	if err != nil {
-		return nil, err
-	}
-	return &BodyExchange{Receipt: receipt, Body: []byte(receipt.ResponsePreview)}, nil
+	return nil, unavailable("capture gateway cannot return the full response body")
 }
 
 func dropSensitive(in map[string]string) map[string]string {

@@ -568,6 +568,22 @@ func (s *Store) AssetInRun(ctx context.Context, runID, assetID uuid.UUID) (bool,
 	return ok, err
 }
 
+func (s *Store) AssetForURL(ctx context.Context, scope contract.ExecutionScope, rawURL string) (*uuid.UUID, error) {
+	var id uuid.UUID
+	err := s.pool.QueryRow(ctx, `SELECT ra.asset_id FROM run_assets ra JOIN assets a ON a.id=ra.asset_id
+		WHERE ra.run_id=$1 AND a.kind='http_endpoint'
+		AND (ra.snapshot->'metadata'->>'url'=$2 OR a.external_key=$2 OR a.external_key='GET '||$2)
+		AND ($3::uuid IS NULL OR EXISTS(SELECT 1 FROM work_item_assets wa WHERE wa.work_item_id=$3 AND wa.asset_id=ra.asset_id))
+		ORDER BY ra.asset_id LIMIT 1`, scope.RunID, rawURL, scope.WorkItemID).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &id, nil
+}
+
 func (s *Store) AssetInWorkItem(ctx context.Context, workItemID, assetID uuid.UUID) (bool, error) {
 	var ok bool
 	err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM work_item_assets WHERE work_item_id=$1 AND asset_id=$2)`, workItemID, assetID).Scan(&ok)

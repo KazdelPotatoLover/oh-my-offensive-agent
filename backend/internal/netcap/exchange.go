@@ -299,6 +299,15 @@ func (t *Transport) prepare(ctx context.Context, scope contract.ExecutionScope, 
 }
 
 func (t *Transport) resolveTarget(ctx context.Context, scope contract.ExecutionScope, in contract.HTTPRequestInput) (*url.URL, *uuid.UUID, error) {
+	// URL-only reads can cite an already assigned asset without requiring the
+	// model to translate the URL into an ID. This never creates new scope.
+	if in.AssetID == nil && strings.TrimSpace(in.URL) != "" {
+		id, err := t.store.AssetForURL(ctx, scope, strings.TrimSpace(in.URL))
+		if err != nil {
+			return nil, nil, err
+		}
+		in.AssetID = id
+	}
 	var assetURL string
 	if in.AssetID != nil {
 		ok, err := t.store.AssetInRun(ctx, scope.RunID, *in.AssetID)

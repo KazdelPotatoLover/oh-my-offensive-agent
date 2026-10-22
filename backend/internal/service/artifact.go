@@ -1,9 +1,12 @@
 package service
 
 import (
+	"agent-workbench/backend/internal/contract"
+	"agent-workbench/backend/internal/netcap"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -198,7 +201,21 @@ func (s *RunService) ReadArtifact(ctx context.Context, runID, artifactID uuid.UU
 	var content, hash, name string
 	var owner uuid.UUID
 	var sourceID *uuid.UUID
-	if err := s.pool.QueryRow(ctx, `SELECT run_id,content,sha256,name,source_tool_call_id FROM artifacts WHERE id=$1`, artifactID).Scan(&owner, &content, &hash, &name, &sourceID); err != nil {
+	err := s.pool.QueryRow(ctx, `SELECT run_id,content,sha256,name,source_tool_call_id FROM artifacts WHERE id=$1`, artifactID).Scan(&owner, &content, &hash, &name, &sourceID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		var epoch int
+		if err = s.pool.QueryRow(ctx, `SELECT run_id,epoch_number FROM http_capture_artifacts WHERE id=$1`, artifactID).Scan(&owner, &epoch); err != nil {
+			return nil, err
+		}
+		if owner != runID {
+			return nil, ErrCrossRunBoundary
+		}
+		view, readErr := netcap.NewStore(s.pool).ReadArtifact(ctx, contract.ExecutionScope{RunID: runID, EpochNumber: epoch}, artifactID, false)
+		if readErr != nil {
+			return nil, readErr
+		}
+		content, hash, name = string(view.Body), view.SHA256, "http-capture"
+	} else if err != nil {
 		return nil, err
 	}
 	if owner != runID {
