@@ -42,15 +42,23 @@ services:
       LLM_API_KEY: '${LLM_API_KEY:-}'
       LLM_BASE_URL: '${LLM_BASE_URL:-}'
       LLM_MODEL: '${LLM_MODEL:-}'
-      # Command execution stays unwired until OMA_BROKER_URL, OMA_BROKER_TOKEN,
-      # and OMA_WORKSPACE_ROOT are all set. A partial set fails closed at startup.
+      LLM_MAX_INFLIGHT: '${LLM_MAX_INFLIGHT:-2}'
+      LLM_MAX_OUTPUT_TOKENS: '${LLM_MAX_OUTPUT_TOKENS:-4096}'
+      LLM_MODEL_RECOVERY_ATTEMPTS: '${LLM_MODEL_RECOVERY_ATTEMPTS:-3}'
+      OMA_BROKER_URL: http://127.0.0.1:${OMA_BROKER_PORT:-28184}
+      OMA_BROKER_TOKEN: '${OMA_BROKER_TOKEN:?Run python3 scripts/prepare-runtime.py first}'
+      OMA_WORKSPACE_ROOT: '${OMA_WORKSPACE_ROOT:-/tmp/oma-workspaces}'
+      OMA_CAPTURE_LISTEN: '127.0.0.1:${OMA_CAPTURE_PORT:-28183}'
+      # Keep the workspace path identical on the host, API and broker.
       # This service must not mount the Docker socket.
     volumes:
-      - execution-workspaces:/var/lib/oma/workspaces
+      - ${OMA_WORKSPACE_ROOT:-/tmp/oma-workspaces}:${OMA_WORKSPACE_ROOT:-/tmp/oma-workspaces}
     depends_on:
       db:
         condition: service_healthy
       fixture:
+        condition: service_started
+      execution-broker:
         condition: service_started
 
   frontend:
@@ -72,14 +80,15 @@ services:
     build:
       context: ./backend
       dockerfile: ../deploy/execution/broker.Dockerfile
-    command: ["/oma-broker", "--listen", "0.0.0.0:28184", "--workspace-root", "/var/lib/oma/workspaces"]
+    command: ["/oma-broker", "--listen", "0.0.0.0:28184", "--workspace-root", "${OMA_WORKSPACE_ROOT:-/tmp/oma-workspaces}"]
     environment:
-      OMA_BROKER_TOKEN: ${OMA_BROKER_TOKEN:-}
+      OMA_BROKER_TOKEN: '${OMA_BROKER_TOKEN:?Run python3 scripts/prepare-runtime.py first}'
     ports:
-      - "127.0.0.1:28184:28184"
+      - "127.0.0.1:${OMA_BROKER_PORT:-28184}:28184"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - execution-workspaces:/var/lib/oma/workspaces
+      - execution-broker-state:/var/lib/oma/broker
+      - ${OMA_WORKSPACE_ROOT:-/tmp/oma-workspaces}:${OMA_WORKSPACE_ROOT:-/tmp/oma-workspaces}
     read_only: true
     cap_drop: ["ALL"]
     security_opt: ["no-new-privileges:true"]
@@ -90,7 +99,7 @@ services:
 
 volumes:
   pgdata:
-  execution-workspaces:
+  execution-broker-state:
 
 networks:
   execution_broker:
