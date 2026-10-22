@@ -102,11 +102,10 @@ GET/HEAD 的进行中相同请求会 singleflight。完成后再次请求会重�
 
 ```text
 TEST_DATABASE_URL=.../agent_workbench_ma3 go test ./internal/netcap/ -count=1 -timeout 180s
-ok  agent-workbench/backend/internal/netcap  3.152s
+ok  agent-workbench/backend/internal/netcap  2.979s
 
 TEST_DATABASE_URL=.../agent_workbench_ma3 go test ./test/ -count=1 -timeout 180s -run 'TestMAHTTP|TestHTTPTraceability'
-ok  agent-workbench/backend/test  2.396s   (TestMAHTTP)
-ok  agent-workbench/backend/test  12.476s  (TestHTTPTraceability)
+ok  agent-workbench/backend/test  15.279s
 ```
 
 覆盖了本地 HTTP 和自签 HTTPS、两个登录身份不串 cookie、JSON/表单、跨 origin 重定向剥离认证、缺失凭据不拨号、错误证书不记 completed、取消和截断、N=4 页上限与 pacing、进行中去重后再次请求仍打网络、伪造收据、知识查询、命令 stdout、旧 epoch、认证请求不能标 fixed、旧 GET 复测先 still_reproducible 再 fixed、原始 artifact 可读。未认证代理返回 407。伪造 `X-Run-Id` 不能代理策略外 origin。
