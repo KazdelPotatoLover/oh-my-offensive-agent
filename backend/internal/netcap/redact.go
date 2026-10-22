@@ -71,7 +71,11 @@ func redactBodyPreview(body []byte, binary bool) string {
 	text := string(body)
 	text = redactSensitiveText(text)
 	if len(text) > previewLimit {
-		return text[:previewLimit]
+		end := previewLimit
+		for !utf8.RuneStart(text[end]) {
+			end--
+		}
+		return text[:end]
 	}
 	return text
 }

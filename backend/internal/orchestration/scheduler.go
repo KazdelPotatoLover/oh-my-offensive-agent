@@ -194,6 +194,12 @@ func (e *Engine) waitUntilPlannerNeeded(ctx context.Context) error {
 			return ctx.Err()
 		}
 		if e.plannerShouldEvaluate(ctx) {
+			// Dirty flags and persisted changes can make us ready before we
+			// receive a channel notification. Coalesce every wake path before
+			// starting (and charging for) a planner round, as ARTEX does.
+			if err := e.coalescePlannerSignals(ctx); err != nil {
+				return err
+			}
 			e.plannerDirty.Store(false)
 			e.idleDecision.Store(false)
 			return nil
@@ -211,18 +217,6 @@ func (e *Engine) waitPlannerSignal(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-e.notifyChan:
-		debounce := time.NewTimer(e.debounce)
-		defer debounce.Stop()
-	drain:
-		for {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-e.notifyChan:
-			case <-debounce.C:
-				break drain
-			}
-		}
 		return nil
 	case <-timer.C:
 		latest, err := e.runService.LatestExplorationChange(ctx, e.runID, e.epoch)
@@ -233,6 +227,20 @@ func (e *Engine) waitPlannerSignal(ctx context.Context) error {
 			e.plannerDirty.Store(true)
 		}
 		return nil
+	}
+}
+
+func (e *Engine) coalescePlannerSignals(ctx context.Context) error {
+	timer := time.NewTimer(e.debounce)
+	defer timer.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-e.notifyChan:
+		case <-timer.C:
+			return ctx.Err()
+		}
 	}
 }
 
