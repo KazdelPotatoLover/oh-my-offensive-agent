@@ -1,0 +1,20 @@
+{
+  "id": "A02",
+  "status": "fail",
+  "owner": "agent-1",
+  "rounds": 1,
+  "failures": [
+    {
+      "round": 1,
+      "check": "planner follow-up",
+      "detail": "follow-up planner call did not start while workers were held"
+    },
+    {
+      "round": 1,
+      "check": "dispatch during planner call",
+      "detail": "only 2 directions claimed while planner call was in flight; pending directions were not claimed"
+    }
+  ],
+  "command": "go test ./test/ -count=1 -run TestMA_A02_ClaimOverlapAndDispatchDuringPlannerCall",
+  "finished_at": "2026-10-22T08:12:04Z"
+}

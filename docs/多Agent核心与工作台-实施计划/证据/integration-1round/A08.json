@@ -1,0 +1,15 @@
+{
+  "id": "A08",
+  "status": "fail",
+  "owner": "agent-5",
+  "rounds": 1,
+  "failures": [
+    {
+      "round": 1,
+      "check": "main cannot grant",
+      "detail": "grant returned 200"
+    }
+  ],
+  "command": "go test ./test/ -count=1 -run TestMA_A08_MainAgentIdempotentBoundary",
+  "finished_at": "2026-10-22T08:12:29Z"
+}

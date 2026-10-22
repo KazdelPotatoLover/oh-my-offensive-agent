@@ -1,0 +1,23 @@
+{
+  "id": "A04",
+  "status": "pass",
+  "owner": "agent-1",
+  "rounds": 1,
+  "failures": null,
+  "observed": {
+    "round-1": {
+      "bad_finish_reason": "protocol_error",
+      "bad_model_calls": 1,
+      "bad_status": "failed",
+      "dir_ok_model_calls": 1,
+      "dir_slow_model_calls": 1,
+      "exhaust_finish_reason": "worker_settlement_complete",
+      "exhaust_model_calls": 4,
+      "exhaust_status": "exhausted",
+      "granted_worker_model_calls": 3,
+      "slow_barrier": 1
+    }
+  },
+  "command": "go test ./test/ -count=1 -run TestMA_A04_LocalProtocolAndExhaustionDoNotStopPeers",
+  "finished_at": "2026-10-22T08:12:12Z"
+}

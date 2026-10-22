@@ -1,0 +1,28 @@
+{
+  "id": "A06",
+  "status": "fail",
+  "owner": "agent-2",
+  "rounds": 1,
+  "failures": [
+    {
+      "round": 1,
+      "check": "shared limit 2",
+      "detail": "peak in-flight model requests=4 while N=4"
+    },
+    {
+      "round": 1,
+      "check": "cancel queued model calls",
+      "detail": "in_flight=4 after stop"
+    },
+    {
+      "round": 1,
+      "check": "A06 leak",
+      "detail": "running_attempts=4 running_sessions=4 open_model_calls=4 model_inflight=4"
+    }
+  ],
+  "observed": {
+    "contract_gap": "ModelCapacity is a read model; no frozen create field names the shared limit"
+  },
+  "command": "go test ./test/ -count=1 -run TestMA_A06_SharedModelLimitQueuesAndCancel",
+  "finished_at": "2026-10-22T08:12:24Z"
+}

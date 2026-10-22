@@ -145,7 +145,7 @@ func TestMA_A09_AuthenticatedHTTPIdentityAndTLS(t *testing.T) {
 	if strings.Contains(output, "clerk-pass") || strings.Contains(output, "auditor-pass") || strings.Contains(output, "tok-") {
 		report.fail(1, "credential alias", "tool output stored a password or raw token")
 	}
-	wb := postJSON(t, env2, http.MethodGet, fmt.Sprintf("/api/runs/%s/workbench", runID), nil, nil)
+	wb := acceptanceJSON(t, env2, http.MethodGet, fmt.Sprintf("/api/runs/%s/workbench", runID), nil, nil)
 	if wb.Code != 200 || !strings.Contains(wb.Body.String(), `"ref:`) {
 		report.fail(1, "credential ref", fmt.Sprintf("workbench %d did not expose ref: aliases", wb.Code))
 	}
@@ -230,13 +230,13 @@ func TestMA_A10_OriginLimitDedupAndNoNetworkInLock(t *testing.T) {
 			report.fail(1, "dedup", row.Path+" was in the log more than once while held")
 		}
 	}
-	wb := postJSON(t, env, http.MethodGet, fmt.Sprintf("/api/runs/%s/workbench", runID), nil, nil)
+	wb := acceptanceJSON(t, env, http.MethodGet, fmt.Sprintf("/api/runs/%s/workbench", runID), nil, nil)
 	if wb.Code != 200 || !strings.Contains(wb.Body.String(), `"effective":4`) {
 		report.fail(1, "pacing does not lower effective", fmt.Sprintf("workbench %d %s", wb.Code, wb.Body.String()))
 	}
 	factDone := make(chan int, 1)
 	go func() {
-		w := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/facts", runID), map[string]any{
+		w := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/facts", runID), map[string]any{
 			"summary": "control-plane write while origin request is held", "confidence": "observed",
 		}, nil)
 		factDone <- w.Code
@@ -369,13 +369,13 @@ func TestMA_A12_StopKillEpochNoLeak(t *testing.T) {
 	}
 	var killID uuid.UUID
 	_ = env.pool.QueryRow(context.Background(), `SELECT id FROM work_items WHERE run_id=$1 AND key='dir-kill'`, runID).Scan(&killID)
-	cmd := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/commands", runID), map[string]any{
+	cmd := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/commands", runID), map[string]any{
 		"type": "kill_work", "expected_epoch": 1, "work_item_id": killID, "payload": map[string]any{"reason": "stop this direction"},
 	}, map[string]string{"Idempotency-Key": "ma7-a12-kill"})
 	if cmd.Code == http.StatusNotFound {
 		report.fail(1, "command route", "POST /commands returned 404")
 	}
-	replay := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/commands", runID), map[string]any{
+	replay := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/commands", runID), map[string]any{
 		"type": "stop_run", "expected_epoch": 1,
 	}, map[string]string{"Idempotency-Key": "ma7-a12-kill"})
 	if cmd.Code != http.StatusNotFound && replay.Code != http.StatusConflict {
@@ -404,11 +404,11 @@ func TestMA_A12_StopKillEpochNoLeak(t *testing.T) {
 	}
 	var callsAfterStop int
 	_ = env.pool.QueryRow(context.Background(), `SELECT count(*) FROM model_calls WHERE run_id=$1`, runID).Scan(&callsAfterStop)
-	epoch := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/commands", runID), map[string]any{
+	epoch := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/commands", runID), map[string]any{
 		"type": "start_epoch", "expected_epoch": 1, "payload": map[string]any{"reason": "continue same run"},
 	}, map[string]string{"Idempotency-Key": "ma7-a12-epoch"})
 	if epoch.Code == http.StatusNotFound {
-		legacy := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/epochs/new", runID), map[string]any{
+		legacy := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/epochs/new", runID), map[string]any{
 			"reason": "continue same run", "expected_epoch": 1,
 		}, nil)
 		report.Observed["legacy_epoch"] = legacy.Code
@@ -453,7 +453,7 @@ func TestMA_A13_ProofRequiresTrustedTargetEvidence(t *testing.T) {
 	if err := env.pool.QueryRow(context.Background(), `SELECT asset_id FROM run_assets WHERE run_id=$1 LIMIT 1`, run.ID).Scan(&assetID); err != nil {
 		t.Fatal(err)
 	}
-	goals := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/goals", run.ID), map[string]any{
+	goals := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/goals", run.ID), map[string]any{
 		"goals": []map[string]any{{"text": "The synthetic mismatch is independently verified on the target"}},
 	}, nil)
 	var goalWrap struct {
@@ -467,7 +467,7 @@ func TestMA_A13_ProofRequiresTrustedTargetEvidence(t *testing.T) {
 		report.finish(t)
 		return
 	}
-	fact := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/facts", run.ID), map[string]any{
+	fact := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/facts", run.ID), map[string]any{
 		"summary": "command stdout said the counts matched", "confidence": "inferred",
 	}, nil)
 	var factWrap struct {
@@ -476,7 +476,7 @@ func TestMA_A13_ProofRequiresTrustedTargetEvidence(t *testing.T) {
 		} `json:"fact"`
 	}
 	_ = json.Unmarshal(fact.Body.Bytes(), &factWrap)
-	proved := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/goals/%s/prove", run.ID, goalWrap.Goals[0].ID), map[string]any{
+	proved := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/goals/%s/prove", run.ID, goalWrap.Goals[0].ID), map[string]any{
 		"evidence_id": factWrap.Fact.ID, "reason": "reading the recorded fact is enough",
 	}, nil)
 	if proved.Code < 400 {
@@ -489,7 +489,7 @@ func TestMA_A13_ProofRequiresTrustedTargetEvidence(t *testing.T) {
 	if insertErr != nil {
 		report.fail(1, "stage stdout row", insertErr.Error())
 	} else {
-		finding := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/findings", run.ID), map[string]any{
+		finding := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/findings", run.ID), map[string]any{
 			"asset_id": assetID, "title": "stdout proof", "category": "logic", "severity": "low",
 			"description": "command stdout", "source_kind": "empirical", "source_tool_call_id": cmdID,
 		}, nil)
@@ -505,7 +505,7 @@ func TestMA_A13_ProofRequiresTrustedTargetEvidence(t *testing.T) {
 	if insertErr != nil {
 		report.fail(1, "stage fake receipt", insertErr.Error())
 	} else {
-		finding := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/findings", run.ID), map[string]any{
+		finding := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/findings", run.ID), map[string]any{
 			"asset_id": assetID, "title": "inserted receipt", "category": "logic", "severity": "low",
 			"description": "no lab request", "source_kind": "empirical", "source_tool_call_id": fakeHTTP,
 		}, nil)
@@ -513,7 +513,7 @@ func TestMA_A13_ProofRequiresTrustedTargetEvidence(t *testing.T) {
 			report.fail(1, "inserted success is not a network receipt", finding.Body.String())
 		}
 	}
-	spec := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/findings", run.ID), map[string]any{
+	spec := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/findings", run.ID), map[string]any{
 		"asset_id": assetID, "title": "synthetic mismatch note", "category": "logic", "severity": "info",
 		"description": "not yet verified", "source_kind": "speculative",
 	}, nil)
@@ -524,7 +524,7 @@ func TestMA_A13_ProofRequiresTrustedTargetEvidence(t *testing.T) {
 		report.finish(t)
 		return
 	}
-	retest := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/findings/%s/retests", run.ID, finding.ID), map[string]any{"notes": "independent check"}, nil)
+	retest := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/findings/%s/retests", run.ID, finding.ID), map[string]any{"notes": "independent check"}, nil)
 	var retestWrap struct {
 		Retest struct {
 			ID uuid.UUID `json:"id"`
@@ -534,12 +534,12 @@ func TestMA_A13_ProofRequiresTrustedTargetEvidence(t *testing.T) {
 	if retest.Code >= 400 || retestWrap.Retest.ID == uuid.Nil {
 		report.fail(1, "retest", fmt.Sprintf("%d %s", retest.Code, retest.Body.String()))
 	} else {
-		finished := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/findings/%s/retests/%s/finish", run.ID, finding.ID, retestWrap.Retest.ID), map[string]any{
+		finished := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/findings/%s/retests/%s/finish", run.ID, finding.ID, retestWrap.Retest.ID), map[string]any{
 			"verdict": "fixed", "evidence": "command stdout said fixed", "summary": "prose only",
 		}, nil)
 		report.Observed["fixed_status"] = finished.Code
 		if finished.Code < 400 {
-			again := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/goals/%s/prove", run.ID, goalWrap.Goals[0].ID), map[string]any{
+			again := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/goals/%s/prove", run.ID, goalWrap.Goals[0].ID), map[string]any{
 				"evidence_id": finding.ID, "reason": "fixed finding still proves the goal",
 			}, nil)
 			if again.Code < 400 {
@@ -549,12 +549,12 @@ func TestMA_A13_ProofRequiresTrustedTargetEvidence(t *testing.T) {
 			report.fail(1, "fixed invalidation not observed", fmt.Sprintf("finish status %d body %s", finished.Code, finished.Body.String()))
 		}
 	}
-	withdraw := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/findings/%s/withdraw", run.ID, finding.ID), map[string]any{"reason": "synthetic proof withdrawn"}, nil)
+	withdraw := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/findings/%s/withdraw", run.ID, finding.ID), map[string]any{"reason": "synthetic proof withdrawn"}, nil)
 	report.Observed["withdraw_status"] = withdraw.Code
 	if withdraw.Code == http.StatusNotFound {
 		report.fail(1, "withdraw invalidates proof", "POST findings/{id}/withdraw returned 404")
 	} else if withdraw.Code < 400 {
-		again := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/goals/%s/prove", run.ID, goalWrap.Goals[0].ID), map[string]any{
+		again := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/goals/%s/prove", run.ID, goalWrap.Goals[0].ID), map[string]any{
 			"evidence_id": finding.ID, "reason": "withdrawn finding still proves the goal",
 		}, nil)
 		if again.Code < 400 {
@@ -737,13 +737,13 @@ func TestMA_A16_HistoryAndReleaseGates(t *testing.T) {
 	if err := env.pool.QueryRow(context.Background(), `SELECT asset_id FROM run_assets WHERE run_id=$1 LIMIT 1`, run.ID).Scan(&assetID); err != nil {
 		t.Fatal(err)
 	}
-	spec := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/findings", run.ID), map[string]any{
+	spec := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/findings", run.ID), map[string]any{
 		"asset_id": assetID, "title": "historical synthetic note", "category": "logic", "severity": "info",
 		"description": "must survive migration", "source_kind": "speculative",
 	}, nil)
 	var finding model.Finding
 	_ = json.Unmarshal(spec.Body.Bytes(), &finding)
-	review := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/findings/%s/reviews", run.ID, finding.ID), map[string]any{
+	review := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/findings/%s/reviews", run.ID, finding.ID), map[string]any{
 		"status": "confirmed", "comment": "ma7 historical review", "reviewer": "ma7-acceptance",
 		"expected_version": 0, "request_id": uuid.NewString(),
 	}, nil)

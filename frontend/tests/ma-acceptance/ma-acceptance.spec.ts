@@ -7,8 +7,8 @@ test.beforeAll(() => {
   if (!backend) {
     throw new Error('Set MA_ACCEPTANCE_BACKEND_URL. This spec does not use the shared dev backend.');
   }
-  if (!database.includes('agent_workbench_ma7') || database.endsWith('/agent_workbench')) {
-    throw new Error('MA_ACCEPTANCE_DATABASE_URL must be the agent 7 database.');
+  if (!database.includes('agent_workbench_ma_integration') || database.endsWith('/agent_workbench') || database.includes('agent_workbench_ma7')) {
+    throw new Error('MA_ACCEPTANCE_DATABASE_URL must be the integration database.');
   }
 });
 

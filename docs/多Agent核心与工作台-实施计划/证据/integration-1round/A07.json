@@ -1,0 +1,15 @@
+{
+  "id": "A07",
+  "status": "fail",
+  "owner": "agent-5",
+  "rounds": 1,
+  "failures": [
+    {
+      "round": 1,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\""
+    }
+  ],
+  "command": "go test ./test/ -count=1 -run TestMA_A07_PlannerSteerAndKillAreRealCommands",
+  "finished_at": "2026-10-22T08:12:28Z"
+}

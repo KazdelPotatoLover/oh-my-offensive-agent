@@ -1,0 +1,35 @@
+{
+  "id": "A01",
+  "status": "pass",
+  "owner": "agent-1",
+  "rounds": 1,
+  "failures": null,
+  "observed": {
+    "round 1 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 1 discovery=true N=1": {
+      "attempt_count": 1,
+      "barrier_met": true,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 1,
+      "worker_barrier": 1
+    },
+    "round 1 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    }
+  },
+  "command": "go test ./test/ -count=1 -run TestMA_A01_DiscoveryWorkerCapacityRequiresRealOverlap",
+  "finished_at": "2026-10-22T08:12:00Z"
+}

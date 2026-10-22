@@ -22,7 +22,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const acceptanceDBName = "agent_workbench_ma7"
+const acceptanceDBName = "agent_workbench_ma_integration"
 
 func acceptanceRounds() int {
 	if raw := os.Getenv("MA_ACCEPTANCE_ROUNDS"); raw != "" {
@@ -39,10 +39,25 @@ func requireAcceptanceDB(t *testing.T) {
 	t.Helper()
 	raw := os.Getenv("TEST_DATABASE_URL")
 	if raw == "" {
-		t.Fatal("TEST_DATABASE_URL is required and must name agent_workbench_ma7")
+		t.Fatal("TEST_DATABASE_URL is required and must name agent_workbench_ma_integration")
 	}
-	if strings.Contains(raw, "/agent_workbench?") || strings.HasSuffix(raw, "/agent_workbench") || strings.Contains(raw, "agent_workbench_test") || strings.Contains(raw, "oma_artex_test") {
-		t.Fatalf("refusing to run acceptance tests against a shared or development database")
+	denied := []string{
+		"/agent_workbench?",
+		"/agent_workbench_test",
+		"oma_artex_test",
+		"oma_phase2_review_4484633",
+		"agent_workbench_ma1",
+		"agent_workbench_ma2",
+		"agent_workbench_ma3",
+		"agent_workbench_ma4",
+		"agent_workbench_ma5",
+		"agent_workbench_ma6",
+		"agent_workbench_ma7",
+	}
+	for _, name := range denied {
+		if strings.Contains(raw, name) || strings.HasSuffix(raw, "/agent_workbench") {
+			t.Fatalf("refusing to run acceptance tests against %s", name)
+		}
 	}
 	if !strings.Contains(raw, "/"+acceptanceDBName) {
 		t.Fatalf("acceptance tests must use %s, got a different database", acceptanceDBName)
@@ -109,7 +124,7 @@ func writeAcceptanceEvidence(t *testing.T, id string, payload any) string {
 	return path
 }
 
-func postJSON(t *testing.T, env *TestEnv, method, path string, body any, headers map[string]string) *httptest.ResponseRecorder {
+func acceptanceJSON(t *testing.T, env *TestEnv, method, path string, body any, headers map[string]string) *httptest.ResponseRecorder {
 	t.Helper()
 	var reader io.Reader
 	if body != nil {
@@ -202,7 +217,7 @@ func startOrchestratedRun(t *testing.T, env *TestEnv, taskID uuid.UUID, workers 
 			"worker_timeout_seconds": 20,
 		},
 	}
-	w := postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/tasks/%s/runs", taskID), body, nil)
+	w := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/tasks/%s/runs", taskID), body, nil)
 	var run model.Run
 	_ = json.Unmarshal(w.Body.Bytes(), &run)
 	return run.ID, w
@@ -330,7 +345,7 @@ func snapshotWorkerCount(t *testing.T, env *TestEnv, runID uuid.UUID) int {
 
 func stopRun(t *testing.T, env *TestEnv, runID uuid.UUID) {
 	t.Helper()
-	_ = postJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/stop", runID), map[string]any{}, nil)
+	_ = acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/stop", runID), map[string]any{}, nil)
 	deadline := time.Now().Add(4 * time.Second)
 	for time.Now().Before(deadline) {
 		run, err := env.runService.Get(context.Background(), runID)

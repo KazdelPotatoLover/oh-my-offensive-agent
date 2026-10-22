@@ -1,0 +1,40 @@
+{
+  "id": "A16",
+  "status": "fail",
+  "owner": "agent-0",
+  "rounds": 1,
+  "failures": [
+    {
+      "round": 1,
+      "check": "reserved migration",
+      "detail": "../migrations/026_runtime_attempt_constraint.down.sql,../migrations/026_runtime_attempt_constraint.up.sql"
+    },
+    {
+      "round": 1,
+      "check": "reserved migration",
+      "detail": "../migrations/028_http_capture.down.sql,../migrations/028_http_capture.up.sql"
+    },
+    {
+      "round": 1,
+      "check": "reserved migration",
+      "detail": "../migrations/029_execution_jobs.down.sql,../migrations/029_execution_jobs.up.sql"
+    },
+    {
+      "round": 1,
+      "check": "reserved migration",
+      "detail": "../migrations/030_main_control.down.sql,../migrations/030_main_control.up.sql"
+    },
+    {
+      "round": 1,
+      "check": "old database upgrade",
+      "detail": "agent_workbench was not migrated or compared; development history was not copied or rewritten"
+    },
+    {
+      "round": 1,
+      "check": "release gates",
+      "detail": "full go test -race, go vet, frontend build, Playwright, and Compose smoke were not run on an integration commit. Compose binds host ports 25432/28080/23000/29090 and was not started."
+    }
+  ],
+  "command": "go test ./test/ -count=1 -run TestMA_A16_HistoryAndReleaseGates",
+  "finished_at": "2026-10-22T08:12:50Z"
+}

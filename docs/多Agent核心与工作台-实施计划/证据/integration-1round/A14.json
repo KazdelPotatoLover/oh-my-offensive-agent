@@ -1,0 +1,43 @@
+{
+  "id": "A14",
+  "status": "fail",
+  "owner": "agent-1",
+  "rounds": 1,
+  "failures": [
+    {
+      "round": 1,
+      "check": "authorized analysis",
+      "detail": "identities=map[]; workers did not keep materials separate"
+    },
+    {
+      "round": 1,
+      "check": "script container",
+      "detail": "jobs=0 err=\u003cnil\u003e"
+    }
+  ],
+  "observed": {
+    "diagnostics": {
+      "event_statuses": {
+        "200": 8
+      },
+      "first_model_call": "completed tool_calls ",
+      "model_events": 9,
+      "tools": [
+        "submit_plan:success:{\"created_count\":3,\"message\":\"Plan submitted successfully with 3 work items\",\"status\":\"success\"}",
+        "get_endpoint:success:{\"error\":null,\"integrity\":{\"saved_bytes\":238,\"is_truncated\":false,\"note\":\"\"},\"request\":{\"method\":\"GET\",\"url\":\"http://127.0.0.1:45351/m-868c6e3463fd/\",\"asset_id\":\"c54b253a-ba6b-4c06",
+        "get_endpoint:success:{\"error\":null,\"integrity\":{\"saved_bytes\":13,\"is_truncated\":false,\"note\":\"\"},\"request\":{\"method\":\"GET\",\"url\":\"http://127.0.0.1:45351/m-868c6e3463fd/verify\",\"asset_id\":\"0c5be94b-7b0e",
+        "get_endpoint:success:{\"error\":null,\"integrity\":{\"saved_bytes\":13,\"is_truncated\":false,\"note\":\"\"},\"request\":{\"method\":\"GET\",\"url\":\"http://127.0.0.1:45351/m-868c6e3463fd/verify\",\"asset_id\":\"0c5be94b-7b0e",
+        "http_request:rejected:tool not found: unknown tool 'http_request'",
+        "run_command:rejected:tool not found: unknown tool 'run_command'"
+      ],
+      "work_items": "dir-entry:running,dir-analyze:running,dir-script:running"
+    },
+    "identities": {},
+    "paths": {
+      "/m-868c6e3463fd/": 1,
+      "/m-868c6e3463fd/verify": 2
+    }
+  },
+  "command": "go test ./test/ -count=1 -run TestMA_A14_LabCollaborationIsMaterial",
+  "finished_at": "2026-10-22T08:12:49Z"
+}

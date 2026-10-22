@@ -1,0 +1,36 @@
+{
+  "id": "A05",
+  "status": "fail",
+  "owner": "agent-2",
+  "rounds": 1,
+  "failures": [
+    {
+      "round": 1,
+      "check": "bounded 429 and 5xx recovery",
+      "detail": "429=1 5xx=0 planner_calls=1 model_calls=1 events=1"
+    },
+    {
+      "round": 1,
+      "check": "incomplete arguments case reached",
+      "detail": "worker_calls=0"
+    },
+    {
+      "round": 1,
+      "check": "truncated follow-up reached",
+      "detail": "follow_calls=0"
+    }
+  ],
+  "observed": {
+    "round-1": {
+      "events": 1,
+      "follow_calls": 0,
+      "model_calls": 1,
+      "planner_calls": 1,
+      "status_429": 1,
+      "status_5xx": 0,
+      "worker_calls": 0
+    }
+  },
+  "command": "go test ./test/ -count=1 -run TestMA_A05_BadResponsesDoNotExecuteOrReplayForever",
+  "finished_at": "2026-10-22T08:12:14Z"
+}

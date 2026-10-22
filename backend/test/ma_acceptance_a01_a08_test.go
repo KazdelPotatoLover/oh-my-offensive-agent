@@ -84,7 +84,7 @@ func observeCapacity(t *testing.T, report *acceptanceReport, round int, app *lab
 	if snapshotN != requested {
 		report.fail(round, label+" snapshot", fmt.Sprintf("snapshot max_parallel_workers=%d requested=%d", snapshotN, requested))
 	}
-	eff := postJSON(t, env, "GET", fmt.Sprintf("/api/runs/%s/budget/effective", runID), nil, nil)
+	eff := acceptanceJSON(t, env, "GET", fmt.Sprintf("/api/runs/%s/budget/effective", runID), nil, nil)
 	if eff.Code != 200 || !strings.Contains(eff.Body.String(), fmt.Sprintf(`"max_parallel_workers":%d`, requested)) {
 		report.fail(round, label+" effective", fmt.Sprintf("status %d body %s", eff.Code, eff.Body.String()))
 	}
@@ -246,7 +246,7 @@ func TestMA_A03_InFlightFactCanDispatchSecondDirection(t *testing.T) {
 		if !double.Barrier("a").WaitArrived(1, 3*time.Second) {
 			report.fail(round, "worker A", "A did not enter the barrier")
 		}
-		fact := postJSON(t, env, "POST", fmt.Sprintf("/api/runs/%s/facts", runID), map[string]any{
+		fact := acceptanceJSON(t, env, "POST", fmt.Sprintf("/api/runs/%s/facts", runID), map[string]any{
 			"summary":    "A local catalog link was observed while A was still running.",
 			"detail":     "synthetic fact for wake-up ordering",
 			"confidence": "observed",
@@ -699,13 +699,13 @@ func TestMA_A08_MainAgentIdempotentBoundary(t *testing.T) {
 		path := fmt.Sprintf("/api/runs/%s/main/messages", run.ID)
 		body := map[string]any{"message": "pause the run", "expected_epoch": run.CurrentEpoch}
 		headers := map[string]string{"Idempotency-Key": fmt.Sprintf("ma7-a08-%d", round)}
-		first := postJSON(t, env, "POST", path, body, headers)
+		first := acceptanceJSON(t, env, "POST", path, body, headers)
 		if first.Code != 202 {
 			report.fail(round, "submit", fmt.Sprintf("status %d body %s", first.Code, first.Body.String()))
 		} else if !strings.Contains(first.Body.String(), "message_id") || !strings.Contains(first.Body.String(), "turn_id") {
 			report.fail(round, "refs", first.Body.String())
 		}
-		second := postJSON(t, env, "POST", path, body, headers)
+		second := acceptanceJSON(t, env, "POST", path, body, headers)
 		if second.Code != first.Code || second.Body.String() != first.Body.String() {
 			report.fail(round, "idempotent replay", fmt.Sprintf("first %d second %d", first.Code, second.Code))
 		}
@@ -714,7 +714,7 @@ func TestMA_A08_MainAgentIdempotentBoundary(t *testing.T) {
 		if grants != 0 {
 			report.fail(round, "no implicit grant", fmt.Sprintf("grants=%d", grants))
 		}
-		grant := postJSON(t, env, "POST", fmt.Sprintf("/api/runs/%s/commands", run.ID), map[string]any{
+		grant := acceptanceJSON(t, env, "POST", fmt.Sprintf("/api/runs/%s/commands", run.ID), map[string]any{
 			"type": "grant_budget", "expected_epoch": run.CurrentEpoch,
 			"payload": map[string]any{"additional_model_calls": 10},
 		}, map[string]string{"Idempotency-Key": "ma7-grant"})
