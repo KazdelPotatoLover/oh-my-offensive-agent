@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"agent-workbench/backend/internal/agent"
+	"agent-workbench/backend/internal/contract"
 	"agent-workbench/backend/internal/model"
 )
 
@@ -334,6 +335,28 @@ type WorkerBudgetGate struct {
 	settlementModelsAllowed int
 	settlementModelsUsed    int
 	inSettlement            atomic.Bool
+	limiter                 *ModelLimiter
+	plannerReserve          int
+	mainReserve             int
+}
+
+func (w *WorkerBudgetGate) UseModelLimiter(limiter *ModelLimiter) {
+	if w == nil {
+		return
+	}
+	w.mu.Lock()
+	w.limiter = limiter
+	w.mu.Unlock()
+}
+
+func (w *WorkerBudgetGate) SetReserves(planner, main int) {
+	if w == nil {
+		return
+	}
+	w.mu.Lock()
+	w.plannerReserve = planner
+	w.mainReserve = main
+	w.mu.Unlock()
 }
 
 func NewWorkerBudgetGate(bm *BudgetManager, cfg model.BudgetConfig) *WorkerBudgetGate {
@@ -369,6 +392,28 @@ func (w *WorkerBudgetGate) TryAcquire() bool {
 }
 
 func (w *WorkerBudgetGate) TryAcquireModel(ctx context.Context, isSettlement bool) agent.BudgetGateResult {
+	w.mu.Lock()
+	limiter := w.limiter
+	w.mu.Unlock()
+	held := false
+	if limiter != nil {
+		if err := limiter.Acquire(ctx); err != nil {
+			return agent.BudgetGateResult{
+				Allowed: false,
+				Scope:   agent.ScopeGlobal,
+				Cause:   model.ResolveCancelCause(ctx),
+			}
+		}
+		held = true
+	}
+	res := w.tryAcquireModelLocked(ctx, isSettlement)
+	if held && !res.Allowed && limiter != nil {
+		limiter.Release()
+	}
+	return res
+}
+
+func (w *WorkerBudgetGate) tryAcquireModelLocked(ctx context.Context, isSettlement bool) agent.BudgetGateResult {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -441,6 +486,14 @@ func (w *WorkerBudgetGate) TryAcquireModel(ctx context.Context, isSettlement boo
 				Cause:        model.CauseWorkerSettlementComplete,
 				IsSettlement: false,
 			}
+		}
+	}
+
+	if !isSettlement && contract.WorkerModelCallsAdmittable(w.bm.RemainingModelCalls(), w.plannerReserve, w.mainReserve) <= 0 {
+		return agent.BudgetGateResult{
+			Allowed: false,
+			Scope:   agent.ScopeGlobal,
+			Cause:   model.CauseModelBudgetExhausted,
 		}
 	}
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 
 	"agent-workbench/backend/internal/agent"
 	"agent-workbench/backend/internal/checker"
+	"agent-workbench/backend/internal/contract"
 	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/orchestration"
 	"agent-workbench/backend/internal/provider"
@@ -73,14 +75,45 @@ func (h *RunHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req model.CreateRunRequest
-	// Body may be empty
-	if r.Body != nil && r.ContentLength != 0 {
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	var raw []byte
+	if r.Body != nil {
+		raw, err = io.ReadAll(r.Body)
+		if err != nil {
 			respondError(w, http.StatusBadRequest, "invalid JSON")
 			return
 		}
 	}
+	var req model.CreateRunRequest
+	if len(raw) > 0 {
+		if err := json.Unmarshal(raw, &req); err != nil {
+			respondError(w, http.StatusBadRequest, "invalid JSON")
+			return
+		}
+	}
+	task, taskErr := h.taskService.Get(r.Context(), taskID)
+	if taskErr != nil {
+		if errors.Is(taskErr, service.ErrNotFound) {
+			respondError(w, http.StatusNotFound, "task not found")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to get task")
+		return
+	}
+	present, requested := orchestration.WorkerFieldInJSON(raw)
+	resolved, resolveErr := contract.ResolveRequestedWorkers(present, requested, taskIsExploration(task), contract.MaxParallelWorkers)
+	if resolveErr != nil {
+		var coded *contract.Error
+		if errors.As(resolveErr, &coded) {
+			respondJSON(w, coded.Code.DefaultHTTPStatus(), map[string]string{"error": coded.Message, "code": string(coded.Code)})
+			return
+		}
+		respondError(w, http.StatusBadRequest, resolveErr.Error())
+		return
+	}
+	if req.Budget == nil {
+		req.Budget = &model.BudgetConfig{}
+	}
+	req.Budget.MaxParallelWorkers = resolved
 
 	// Get idempotency key from header
 	var idempotencyKey *string
@@ -194,15 +227,17 @@ func (h *RunHandler) startRunExecutor(run *model.Run) error {
 			return providerErr
 		}
 
+		workers, workerErr := orchestration.WorkersFromSnapshot(run.ExecutionInput)
+		if workerErr != nil {
+			return workerErr
+		}
+		budget.MaxParallelWorkers = workers
 		if executorType == "agent" {
 			runner := agent.NewAgentRunner(run.ID, h.runService, p, tools.DefaultRegistry(), budget)
 			startErr = h.manager.StartExecutor(run.ID, runner)
 		} else {
-			// Discovery is sequential. Every provider, including mock, must
-			// honor the original recorded model/tool hard caps.
-			if isDiscovery {
-				budget.MaxParallelWorkers = 1
-			}
+			// Discovery uses the same pool size as the accepted request.
+			// Origin pacing is not a reason to force a serial pool.
 			engine := orchestration.NewEngine(run.ID, h.runService, p, budget)
 			startErr = h.manager.StartExecutor(run.ID, engine)
 		}
@@ -211,6 +246,25 @@ func (h *RunHandler) startRunExecutor(run *model.Run) error {
 	}
 
 	return startErr
+}
+
+func taskIsExploration(task *model.Task) bool {
+	if task == nil {
+		return false
+	}
+	var scope map[string]any
+	if len(task.Scope) > 0 && json.Unmarshal(task.Scope, &scope) == nil {
+		if mode, _ := scope["mode"].(string); mode == "discovery" {
+			return true
+		}
+	}
+	var cfg map[string]any
+	if len(task.Config) > 0 && json.Unmarshal(task.Config, &cfg) == nil {
+		if exploration, _ := cfg["exploration"].(bool); exploration {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *RunHandler) Get(w http.ResponseWriter, r *http.Request) {
@@ -1196,6 +1250,7 @@ func (h *RunHandler) SteerWorkItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.manager != nil {
+		h.manager.NoteSteer(runID, workItemID, req.Instructions)
 		h.manager.Nudge(runID)
 	}
 	respondJSON(w, http.StatusOK, map[string]string{"status": "steered"})

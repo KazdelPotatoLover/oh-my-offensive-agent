@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"agent-workbench/backend/internal/contract"
 	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/orchestration"
 	"agent-workbench/backend/internal/provider"
@@ -202,8 +203,9 @@ func (m *Manager) QuiesceEpoch(ctx context.Context, runID uuid.UUID) error {
 // RevokeEpoch revokes and cancels any executor registered with epoch <= oldEpoch.
 func (m *Manager) RevokeEpoch(runID uuid.UUID, oldEpoch int) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-	if ep, ok := m.executorEpochs[runID]; ok && ep <= oldEpoch {
+	exec := m.executors[runID]
+	ep, ok := m.executorEpochs[runID]
+	if ok && ep <= oldEpoch {
 		if cancel, ok := m.cancels[runID]; ok {
 			cancel(model.TerminationCause("epoch_revoked"))
 		}
@@ -212,31 +214,50 @@ func (m *Manager) RevokeEpoch(runID uuid.UUID, oldEpoch int) {
 		delete(m.executorEpochs, runID)
 		delete(m.executorDone, runID)
 		slog.Info("manager: revoked stale executor", "run_id", runID, "epoch", ep)
+	} else {
+		exec = nil
+	}
+	m.mu.Unlock()
+	if exec != nil && oldEpoch >= 1 {
+		m.revokeExecutor(exec, contract.RevokeRequest{
+			Scope: contract.ExecutionScope{
+				RunID:       runID,
+				EpochNumber: oldEpoch,
+				Role:        contract.RolePlanner,
+			},
+			Kind:   contract.RevokeAttempt,
+			Reason: "epoch_revoked",
+		})
 	}
 }
 
 // Stop requests cancellation for a run. If worker is not yet registered, records pending cancel.
 func (m *Manager) Stop(runID uuid.UUID) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
+	exec := m.executors[runID]
+	epoch := m.executorEpochs[runID]
 	if cancel, ok := m.cancels[runID]; ok {
 		cancel(model.CauseUserStop)
+		m.mu.Unlock()
 		slog.Info("worker stop requested (active cancel called)", "run_id", runID)
-	} else {
-		// Stop requested before worker registered!
-		m.pendingCancel[runID] = true
-		slog.Info("worker stop requested before registration (pending cancel recorded)", "run_id", runID)
+		m.revokeRun(exec, runID, epoch, string(model.CauseUserStop))
+		return
 	}
+	m.pendingCancel[runID] = true
+	m.mu.Unlock()
+	slog.Info("worker stop requested before registration (pending cancel recorded)", "run_id", runID)
 }
 
 // StopAndFinalizeIfIdle also acknowledges a stop when its executor already exited.
 // pendingCancel ensures a registration racing with this path receives cancellation.
 func (m *Manager) StopAndFinalizeIfIdle(ctx context.Context, runID uuid.UUID) error {
 	m.mu.Lock()
+	exec := m.executors[runID]
+	epoch := m.executorEpochs[runID]
 	if cancel, ok := m.cancels[runID]; ok {
 		cancel(model.CauseUserStop)
 		m.mu.Unlock()
+		m.revokeRun(exec, runID, epoch, string(model.CauseUserStop))
 		return nil
 	}
 	m.pendingCancel[runID] = true
@@ -247,15 +268,24 @@ func (m *Manager) StopAndFinalizeIfIdle(ctx context.Context, runID uuid.UUID) er
 // StopAll cancels all active worker executions and retest sessions.
 func (m *Manager) StopAll() {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
+	type stopTarget struct {
+		runID uuid.UUID
+		epoch int
+		exec  Executor
+	}
+	targets := make([]stopTarget, 0, len(m.cancels))
 	for runID, cancel := range m.cancels {
 		cancel(model.CauseShutdown)
+		targets = append(targets, stopTarget{runID: runID, epoch: m.executorEpochs[runID], exec: m.executors[runID]})
 		slog.Info("worker stop requested via StopAll", "run_id", runID)
 	}
 	for retestID, cancel := range m.retestCancels {
 		cancel(model.CauseShutdown)
 		slog.Info("retest stop requested via StopAll", "retest_id", retestID)
+	}
+	m.mu.Unlock()
+	for _, target := range targets {
+		m.revokeRun(target.exec, target.runID, target.epoch, string(model.CauseShutdown))
 	}
 	slog.Info("all active workers and retests stop requested")
 }
@@ -299,17 +329,77 @@ func (m *Manager) RefreshBudget(ctx context.Context, runID uuid.UUID) error {
 	return nil
 }
 
-// KillWorkItem cancels the in-flight execution context of a specific work item.
+// KillWorkItem cancels one direction. A run-scoped stop is not used here.
 func (m *Manager) KillWorkItem(runID, workItemID uuid.UUID, reason string) error {
 	m.mu.Lock()
 	exec, ok := m.executors[runID]
+	epoch := m.executorEpochs[runID]
 	m.mu.Unlock()
-	if ok {
-		if ctrl, isCtrl := exec.(ControllableExecutor); isCtrl {
-			return ctrl.KillWorkItem(context.Background(), workItemID, reason)
+	if !ok {
+		return nil
+	}
+	if epoch < 1 {
+		epoch = 1
+	}
+	if revoker, isRevoker := exec.(contract.ResourceRevoker); isRevoker {
+		item := workItemID
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		_, err := revoker.Revoke(ctx, contract.RevokeRequest{
+			Scope: contract.ExecutionScope{
+				RunID:       runID,
+				EpochNumber: epoch,
+				Role:        contract.RoleWorker,
+				WorkItemID:  &item,
+			},
+			Kind:   contract.RevokeAttempt,
+			Reason: reason,
+		})
+		cancel()
+		if err == nil {
+			return nil
 		}
 	}
+	if ctrl, isCtrl := exec.(ControllableExecutor); isCtrl {
+		return ctrl.KillWorkItem(context.Background(), workItemID, reason)
+	}
 	return nil
+}
+
+// NoteSteer records guidance for the pre-tool replan port without writing it again.
+func (m *Manager) NoteSteer(runID, workItemID uuid.UUID, message string) {
+	m.mu.Lock()
+	exec := m.executors[runID]
+	m.mu.Unlock()
+	if noter, ok := exec.(interface{ NoteSteer(uuid.UUID, string) }); ok {
+		noter.NoteSteer(workItemID, message)
+	}
+}
+
+func (m *Manager) revokeRun(exec Executor, runID uuid.UUID, epoch int, reason string) {
+	if epoch < 1 {
+		epoch = 1
+	}
+	m.revokeExecutor(exec, contract.RevokeRequest{
+		Scope: contract.ExecutionScope{
+			RunID:       runID,
+			EpochNumber: epoch,
+			Role:        contract.RolePlanner,
+		},
+		Kind:   contract.RevokeAttempt,
+		Reason: reason,
+	})
+}
+
+func (m *Manager) revokeExecutor(exec Executor, req contract.RevokeRequest) {
+	revoker, ok := exec.(contract.ResourceRevoker)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if _, err := revoker.Revoke(ctx, req); err != nil {
+		slog.Warn("manager: resource revoke failed", "run_id", req.Scope.RunID, "reason", req.Reason, "error", err)
+	}
 }
 
 // SteerWorkItem delivers confirmable steering guidance to an active work item at its next turn boundary.

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"agent-workbench/backend/internal/agent"
+	"agent-workbench/backend/internal/contract"
 	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/provider"
 	"agent-workbench/backend/internal/service"
@@ -54,11 +55,16 @@ type Engine struct {
 	onWorkItemHook     func(key string)
 	onWorkerActiveHook func(delta int)
 
-	// Event-driven loop notification and debouncing
+	// Event-driven loop notification and debouncing. Planner and dispatcher
+	// do not share one wake channel: a planner model call must not consume the
+	// signal that a newly submitted direction is ready to claim.
 	notifyChan     chan struct{}
+	dispatchNotify chan struct{}
 	debounce       time.Duration
 	changeCursor   int64
 	lastChangePoll time.Time
+	plannerDirty   atomic.Bool
+	idleDecision   atomic.Bool
 
 	// Global budget tracking across Planner and all Workers
 	budgetMgr         *BudgetManager
@@ -66,15 +72,32 @@ type Engine struct {
 	cancelWorkerCause context.CancelCauseFunc
 	activeWorkerCount atomic.Int32
 	wrapupOnce        sync.Once
+	admission         atomic.Bool
+	dispatcherStarted atomic.Bool
+	dispatcherDone    chan struct{}
+	workerTokens      chan struct{}
+	workers           sync.WaitGroup
+	workerErr         atomic.Value
+	fatalCause        atomic.Value
+	modelLimiter      *ModelLimiter
+	modelLimit        int
+	plannerReserve    int
+	mainReserve       int
+	requestedWorkers  int
+	revoker           contract.ResourceRevoker
+	runtime           contract.RuntimeResolver
+	steer             *ToolBatchSupervisor
+	onModelWaitHook   func(queued int)
 
 	// Live execution control plane (pause barrier, kill worker cancels, safe turn steer)
-	epoch         int
-	deadlineTimer *time.Timer
-	runCancel     context.CancelCauseFunc
-	timerMu       sync.Mutex
-	workerCancels sync.Map // map[uuid.UUID]context.CancelCauseFunc
-	isPaused      atomic.Bool
-	pauseCondMu   sync.Mutex
+	epoch          int
+	deadlineTimer  *time.Timer
+	runCancel      context.CancelCauseFunc
+	timerMu        sync.Mutex
+	workerCancels  sync.Map // map[uuid.UUID]context.CancelCauseFunc
+	activeAttempts sync.Map // map[uuid.UUID]uuid.UUID
+	isPaused       atomic.Bool
+	pauseCondMu    sync.Mutex
 }
 
 func (e *Engine) budgetConfig() model.BudgetConfig {
@@ -99,6 +122,9 @@ func (e *Engine) waitIfPaused(ctx context.Context) error {
 }
 
 func (e *Engine) notifyPlanner() {
+	if e.notifyChan == nil {
+		return
+	}
 	select {
 	case e.notifyChan <- struct{}{}:
 	default:
@@ -116,20 +142,36 @@ func (e *Engine) Pause(ctx context.Context) error {
 
 func (e *Engine) Resume(ctx context.Context) error {
 	e.isPaused.Store(false)
+	e.notifyDispatcher()
 	e.Nudge()
 	return nil
 }
 
 func (e *Engine) KillWorkItem(ctx context.Context, workItemID uuid.UUID, reason string) error {
+	cause := model.TerminationCause("killed_by_operator")
+	if reason == string(model.CauseWorkerKilled) || reason == "worker_killed" {
+		cause = model.CauseWorkerKilled
+	} else if reason != "" && reason != "killed_by_operator" {
+		cause = model.TerminationCause(reason)
+	}
 	if val, ok := e.workerCancels.Load(workItemID); ok {
 		if cancel, isCancel := val.(context.CancelCauseFunc); isCancel {
-			cancel(model.TerminationCause("killed_by_operator"))
+			cancel(cause)
 		}
 	}
 	return nil
 }
 
+// NoteSteer arms the pre-tool replan port. It does not persist a second steer
+// row when the handler has already stored the instruction.
+func (e *Engine) NoteSteer(workItemID uuid.UUID, message string) {
+	if e.steer != nil {
+		e.steer.NoteSteer(workItemID, message)
+	}
+}
+
 func (e *Engine) SteerWorkItem(ctx context.Context, workItemID uuid.UUID, message string) error {
+	e.NoteSteer(workItemID, message)
 	if err := e.runService.SteerWorkItem(ctx, e.runID, workItemID, message, nil); err != nil {
 		return err
 	}
@@ -211,19 +253,34 @@ func NewEngine(
 		}
 	}
 	eng := &Engine{
-		epoch:         epoch,
-		runID:         runID,
-		runService:    runService,
-		provider:      p,
-		initialBudget: initialBudget,
-		budget:        budget,
-		maxWorkers:    maxWorkers,
-		budgetMgr:     NewBudgetManager(budget, time.Now()),
-		notifyChan:    make(chan struct{}, 100),
-		debounce:      50 * time.Millisecond,
+		epoch:            epoch,
+		runID:            runID,
+		runService:       runService,
+		provider:         p,
+		initialBudget:    initialBudget,
+		budget:           budget,
+		maxWorkers:       maxWorkers,
+		requestedWorkers: maxWorkers,
+		budgetMgr:        NewBudgetManager(budget, time.Now()),
+		notifyChan:       make(chan struct{}, 100),
+		dispatchNotify:   make(chan struct{}, 100),
+		debounce:         50 * time.Millisecond,
+		steer:            NewToolBatchSupervisor(),
 	}
 	for _, opt := range opts {
 		opt(eng)
+	}
+	// Publish the limiter before Run starts. Later limit changes go through
+	// SetLimit so a capacity read cannot race a pointer write.
+	if eng.modelLimiter == nil {
+		limit := eng.modelLimit
+		if limit <= 0 {
+			limit = eng.maxWorkers
+		}
+		if limit <= 0 {
+			limit = 1
+		}
+		eng.modelLimiter = newModelLimiter(limit)
 	}
 	return eng
 }
@@ -232,6 +289,59 @@ func WithDebounce(d time.Duration) EngineOption {
 	return func(e *Engine) {
 		e.debounce = d
 	}
+}
+
+func WithResourceRevoker(revoker contract.ResourceRevoker) EngineOption {
+	return func(e *Engine) {
+		e.revoker = revoker
+	}
+}
+
+func WithRuntimeResolver(resolver contract.RuntimeResolver) EngineOption {
+	return func(e *Engine) {
+		e.runtime = resolver
+	}
+}
+
+func WithModelConcurrency(limit int) EngineOption {
+	return func(e *Engine) {
+		e.modelLimit = limit
+	}
+}
+
+func WithModelWaitHook(hook func(queued int)) EngineOption {
+	return func(e *Engine) {
+		e.onModelWaitHook = hook
+	}
+}
+
+func WithPlannerReserve(calls int) EngineOption {
+	return func(e *Engine) {
+		e.plannerReserve = calls
+	}
+}
+
+func (e *Engine) WorkerCapacity() contract.WorkerCapacity {
+	queued := 0
+	if e.workerTokens != nil {
+		queued = e.maxWorkers - len(e.workerTokens) - int(e.activeWorkerCount.Load())
+		if queued < 0 {
+			queued = 0
+		}
+	}
+	return contract.WorkerCapacity{
+		Requested: e.requestedWorkers,
+		Effective: e.maxWorkers,
+		Active:    int(e.activeWorkerCount.Load()),
+		Queued:    queued,
+	}
+}
+
+func (e *Engine) ModelCapacity() contract.ModelCapacity {
+	if e.modelLimiter == nil {
+		return contract.ModelCapacity{}
+	}
+	return e.modelLimiter.Capacity()
 }
 
 func (e *Engine) TryAcquireModelCall() bool {
@@ -336,6 +446,23 @@ func (e *Engine) Run(ctx context.Context) {
 	}
 	e.budgetMgr.restoreUsage(modelCount, toolCount)
 	e.changeCursor, _ = e.runService.LatestExplorationChange(ctx, e.runID, e.epoch)
+	e.configureRuntimeLimits(run.ExecutionInput)
+	e.publishCapacity(ctx)
+
+	workerCtx, cancelWorkerCause := context.WithCancelCause(runCtx)
+	e.cancelWorkerCause = cancelWorkerCause
+	cancelWorkers := func() {
+		if e.executionCtx != nil && e.executionCtx.Err() != nil {
+			cancelWorkerCause(model.ResolveCancelCause(e.executionCtx))
+			return
+		}
+		cancelWorkerCause(model.CauseShutdown)
+	}
+	defer cancelWorkers()
+	// The dispatcher must be running before the planner session. submit_plan
+	// commits during that session, and the following model call must not delay
+	// the claim.
+	e.startDispatcher(workerCtx)
 
 	// 3. Round 1: Planner submits initial plan
 	var roundNum int
@@ -371,6 +498,7 @@ func (e *Engine) Run(ctx context.Context) {
 		var planSubmitted bool
 		planTool := tools.NewSubmitPlanToolWithRound(e.runID, &prRound1.ID, e.runService, func(items []model.WorkItem) {
 			planSubmitted = true
+			e.notifyDispatcher()
 		})
 		plannerRegistry := tools.NewRegistry()
 		tools.RegisterArtifactReaders(plannerRegistry, tools.AdapterContext{RunID: e.runID, Service: e.runService})
@@ -388,11 +516,13 @@ func (e *Engine) Run(ctx context.Context) {
 		plannerRegistry.Register(tools.NewSearchAllWorkerTracesTool(e.runID, nil, e.runService))
 		plannerRegistry.Register(tools.NewContinueWorkItemTool(e.runID, e.runService, func(key string) {
 			planSubmitted = true
-			e.notifyPlanner()
+			e.notifyDispatcher()
+			e.markPlannerDirty()
 		}))
 		plannerRegistry.Register(tools.NewRetryWorkItemTool(e.runID, e.runService, func(key string) {
 			planSubmitted = true
-			e.notifyPlanner()
+			e.notifyDispatcher()
+			e.markPlannerDirty()
 		}))
 		plannerRegistry.Register(tools.NewManagePlannerTodosTool(e.runID, e.runService))
 
@@ -423,8 +553,8 @@ func (e *Engine) Run(ctx context.Context) {
 		}
 
 		srPlanner1 := agent.NewSessionRunner(
-			sess1.ID, e.runID, "planner", e.runService, e.provider, plannerRegistry, e.budgetConfig(),
-			agent.WithModelCallGate(agent.CallGateFunc(e.TryAcquireModelCall)),
+			sess1.ID, e.runID, "planner", e.runService, e.providerFor(runCtx, contract.RolePlanner, ""), plannerRegistry, e.budgetConfig(),
+			agent.WithStructuredCallGate(e.plannerGate()),
 			agent.WithBeforeTurnHook(func(turnCtx context.Context, turn int) ([]provider.ChatMessage, error) {
 				return nil, e.waitIfPaused(turnCtx)
 			}),
@@ -432,11 +562,8 @@ func (e *Engine) Run(ctx context.Context) {
 				return e.waitIfPaused(toolCtx)
 			}),
 			agent.WithSessionModelCallFinishHook(func(round int, err error) {
-				if e.budgetMgr != nil {
-					e.budgetMgr.ReleaseModelCall()
-				}
+				e.releaseModelAdmission()
 			}),
-			agent.WithToolCallGate(agent.CallGateFunc(e.TryAcquireToolCall)),
 		)
 		pRes1, pErr1 := srPlanner1.Run(runCtx, plannerMessages)
 
@@ -460,36 +587,31 @@ func (e *Engine) Run(ctx context.Context) {
 
 	}
 
-	// 4. Worker Execution and Subsequent Planner Rounds Loop
-	workCompletedChan := make(chan struct{}, 100)
-	var activeWorkers sync.WaitGroup
-	workerTokens := make(chan struct{}, e.maxWorkers)
-	for i := 0; i < e.maxWorkers; i++ {
-		workerTokens <- struct{}{}
-	}
-	var workerErr atomic.Value
-
-	workerCtx, cancelWorkerCause := context.WithCancelCause(runCtx)
-	e.cancelWorkerCause = cancelWorkerCause
-	cancelWorkers := func() { cancelWorkerCause(model.CauseInternalError) }
-	defer cancelWorkers()
-
+	// 4. Subsequent planner rounds. Claiming runs on the dispatcher started above.
 	epochRounds := 0
 	for {
-		// 4a. Dispatch workers for any pending work items
-		if err := e.dispatchWorkers(workerCtx, cancelWorkers, workerTokens, workCompletedChan, &activeWorkers, &workerErr); err != nil {
+		if cause, fatal := e.consumeFatal(); fatal {
+			e.coordinateWrapup(workerCtx, cause, nil, cancelWorkers, &e.workers)
+			return
+		}
+		if err := e.waitUntilPlannerNeeded(workerCtx); err != nil {
+			e.coordinateWrapup(workerCtx, model.ResolveCancelCause(workerCtx), nil, cancelWorkers, &e.workers)
+			return
+		}
+		if cause, fatal := e.consumeFatal(); fatal {
+			e.coordinateWrapup(workerCtx, cause, nil, cancelWorkers, &e.workers)
 			return
 		}
 
 		if e.budgetConfig().MaxPlannerRounds > 0 && epochRounds >= e.budgetConfig().MaxPlannerRounds {
 			summary := "Planner round limit reached; current results retained"
-			e.coordinateWrapup(context.Background(), model.CauseNeedsInput, &summary, cancelWorkers, &activeWorkers)
+			e.coordinateWrapup(context.Background(), model.CauseNeedsInput, &summary, cancelWorkers, &e.workers)
 			return
 		}
 		epochRounds++
 		roundChangeSeq, changeErr := e.runService.LatestExplorationChange(runCtx, e.runID, e.epoch)
 		if changeErr != nil {
-			e.coordinateWrapup(runCtx, model.CauseInternalError, nil, cancelWorkers, &activeWorkers)
+			e.coordinateWrapup(runCtx, model.CauseInternalError, nil, cancelWorkers, &e.workers)
 			return
 		}
 		// 4b. Next Planner Round (Evaluation or Follow-up Planning)
@@ -507,7 +629,7 @@ func (e *Engine) Run(ctx context.Context) {
 			slog.Error("engine: failed to create planner round", "run_id", e.runID, "round", roundNum, "error", err)
 			cleanupCtx, cancel := context.WithTimeout(context.Background(), e.cleanupTimeout())
 			defer cancel()
-			e.coordinateWrapup(cleanupCtx, model.TerminationCause("persistence_error"), nil, cancelWorkers, &activeWorkers)
+			e.coordinateWrapup(cleanupCtx, model.TerminationCause("persistence_error"), nil, cancelWorkers, &e.workers)
 			return
 		}
 
@@ -516,7 +638,7 @@ func (e *Engine) Run(ctx context.Context) {
 			slog.Error("engine: failed to create planner session", "run_id", e.runID, "round", roundNum, "error", err)
 			cleanupCtx, cancel := context.WithTimeout(context.Background(), e.cleanupTimeout())
 			defer cancel()
-			e.coordinateWrapup(cleanupCtx, model.TerminationCause("persistence_error"), nil, cancelWorkers, &activeWorkers)
+			e.coordinateWrapup(cleanupCtx, model.TerminationCause("persistence_error"), nil, cancelWorkers, &e.workers)
 			return
 		}
 		_ = e.runService.UpdatePlannerRound(ctx, prRound.ID, "running", nil)
@@ -529,7 +651,7 @@ func (e *Engine) Run(ctx context.Context) {
 		var obsInfo strings.Builder
 		graph, graphErr := e.runService.GraphOverview(runCtx, e.runID)
 		if graphErr != nil {
-			e.coordinateWrapup(runCtx, model.CauseInternalError, nil, cancelWorkers, &activeWorkers)
+			e.coordinateWrapup(runCtx, model.CauseInternalError, nil, cancelWorkers, &e.workers)
 			return
 		}
 		graphBytes, _ := json.Marshal(graph)
@@ -549,7 +671,7 @@ func (e *Engine) Run(ctx context.Context) {
 		}
 		coverage, coverageErr := e.runService.ListAssetCoverage(ctx, e.runID)
 		if coverageErr != nil {
-			e.coordinateWrapup(ctx, model.TerminationCause("persistence_error"), nil, cancelWorkers, &activeWorkers)
+			e.coordinateWrapup(ctx, model.TerminationCause("persistence_error"), nil, cancelWorkers, &e.workers)
 			return
 		}
 		planned, visited := 0, 0
@@ -589,6 +711,7 @@ func (e *Engine) Run(ctx context.Context) {
 		var followUpPlanSubmitted bool
 		followUpPlanTool := tools.NewSubmitPlanToolWithRound(e.runID, &prRound.ID, e.runService, func(newItems []model.WorkItem) {
 			followUpPlanSubmitted = true
+			e.notifyDispatcher()
 		})
 
 		var finalSummaryResult string
@@ -616,11 +739,13 @@ func (e *Engine) Run(ctx context.Context) {
 		evalRegistry.Register(tools.NewSearchAllWorkerTracesTool(e.runID, nil, e.runService))
 		evalRegistry.Register(tools.NewContinueWorkItemTool(e.runID, e.runService, func(key string) {
 			followUpPlanSubmitted = true
-			e.notifyPlanner()
+			e.notifyDispatcher()
+			e.markPlannerDirty()
 		}))
 		evalRegistry.Register(tools.NewRetryWorkItemTool(e.runID, e.runService, func(key string) {
 			followUpPlanSubmitted = true
-			e.notifyPlanner()
+			e.notifyDispatcher()
+			e.markPlannerDirty()
 		}))
 		evalRegistry.Register(tools.NewManagePlannerTodosTool(e.runID, e.runService))
 
@@ -650,8 +775,8 @@ func (e *Engine) Run(ctx context.Context) {
 		}
 
 		srPlanner := agent.NewSessionRunner(
-			sess.ID, e.runID, "planner", e.runService, e.provider, evalRegistry, e.budgetConfig(),
-			agent.WithModelCallGate(agent.CallGateFunc(e.TryAcquireModelCall)),
+			sess.ID, e.runID, "planner", e.runService, e.providerFor(runCtx, contract.RolePlanner, ""), evalRegistry, e.budgetConfig(),
+			agent.WithStructuredCallGate(e.plannerGate()),
 			agent.WithBeforeTurnHook(func(turnCtx context.Context, turn int) ([]provider.ChatMessage, error) {
 				return nil, e.waitIfPaused(turnCtx)
 			}),
@@ -659,11 +784,8 @@ func (e *Engine) Run(ctx context.Context) {
 				return e.waitIfPaused(toolCtx)
 			}),
 			agent.WithSessionModelCallFinishHook(func(round int, err error) {
-				if e.budgetMgr != nil {
-					e.budgetMgr.ReleaseModelCall()
-				}
+				e.releaseModelAdmission()
 			}),
-			agent.WithToolCallGate(agent.CallGateFunc(e.TryAcquireToolCall)),
 		)
 		pRes, pErr := srPlanner.Run(runCtx, evalMessages)
 
@@ -678,7 +800,7 @@ func (e *Engine) Run(ctx context.Context) {
 			defer cancel()
 			_ = e.runService.UpdatePlannerRound(cleanupCtx, prRound.ID, "failed", nil)
 			cause := plannerFailureCause(pRes, pErr)
-			e.coordinateWrapup(cleanupCtx, cause, nil, cancelWorkers, &activeWorkers)
+			e.coordinateWrapup(cleanupCtx, cause, nil, cancelWorkers, &e.workers)
 			return
 		}
 
@@ -698,7 +820,7 @@ func (e *Engine) Run(ctx context.Context) {
 			if causeErr != nil {
 				cause = model.CauseInternalError
 			}
-			e.coordinateWrapup(context.Background(), cause, &finalSummaryResult, cancelWorkers, &activeWorkers)
+			e.coordinateWrapup(context.Background(), cause, &finalSummaryResult, cancelWorkers, &e.workers)
 			return
 		}
 
@@ -721,211 +843,11 @@ func (e *Engine) Run(ctx context.Context) {
 				if causeErr != nil {
 					cause = model.CauseInternalError
 				}
-				e.coordinateWrapup(context.Background(), cause, &summary, cancelWorkers, &activeWorkers)
+				e.coordinateWrapup(context.Background(), cause, &summary, cancelWorkers, &e.workers)
 				return
 			}
 		}
 	}
-}
-
-func (e *Engine) dispatchWorkers(
-	ctx context.Context,
-	cancelWorkers context.CancelFunc,
-	workerTokens chan struct{},
-	workCompletedChan chan struct{},
-	activeWorkers *sync.WaitGroup,
-	workerErr *atomic.Value,
-) error {
-	for {
-		select {
-		case <-ctx.Done():
-			e.coordinateWrapup(ctx, model.ResolveCancelCause(ctx), nil, cancelWorkers, activeWorkers)
-			return ctx.Err()
-		default:
-		}
-
-		if failure := workerErr.Load(); failure != nil {
-			// A genuine worker failure takes precedence over a simultaneously
-			// consumed budget. Stop admission before classifying exhaustion.
-			cause := model.TerminationCause(failure.(string))
-			e.coordinateWrapup(ctx, cause, nil, cancelWorkers, activeWorkers)
-			return cause
-		}
-		// Stop admitting work at the exploration boundary. A worker owns its slot
-		// until its final database writes finish, not merely until the model returns.
-		if e.isPaused.Load() {
-			select {
-			case <-ctx.Done():
-				e.coordinateWrapup(ctx, model.ResolveCancelCause(ctx), nil, cancelWorkers, activeWorkers)
-				return ctx.Err()
-			case <-time.After(100 * time.Millisecond):
-				continue
-			}
-		}
-		if !e.budgetMgr.CanClaimWorkItem(ctx) {
-			if e.activeWorkerCount.Load() > 0 {
-				select {
-				case <-ctx.Done():
-					e.coordinateWrapup(ctx, model.ResolveCancelCause(ctx), nil, cancelWorkers, activeWorkers)
-					return ctx.Err()
-				case <-workCompletedChan:
-				case <-time.After(100 * time.Millisecond):
-				}
-				continue
-			}
-			cause := e.budgetMgr.ExhaustionCause()
-			e.coordinateWrapup(ctx, cause, nil, cancelWorkers, activeWorkers)
-			return cause
-		}
-
-		// Try acquiring worker concurrency token
-		select {
-		case token := <-workerTokens:
-			// Claim next pending work item
-			wi, att, sess, claimErr := e.runService.ClaimNextPendingWorkItem(ctx, e.runID)
-			if claimErr != nil {
-				workerTokens <- token
-				slog.Error("engine: claim work item error", "run_id", e.runID, "error", claimErr)
-				cleanupCtx, cancel := context.WithTimeout(context.Background(), e.cleanupTimeout())
-				defer cancel()
-				e.coordinateWrapup(cleanupCtx, model.TerminationCause("claim_failed"), nil, cancelWorkers, activeWorkers)
-				return claimErr
-			}
-
-			if wi != nil && att != nil && sess != nil {
-				// Successfully claimed! Launch worker goroutine
-				activeWorkers.Add(1)
-				e.activeWorkerCount.Add(1)
-				if e.onWorkItemHook != nil {
-					e.onWorkItemHook(wi.Key)
-				}
-
-				go func(item *model.WorkItem, attempt *model.Attempt, s *model.AgentSession, tok struct{}) {
-					if e.onWorkerActiveHook != nil {
-						e.onWorkerActiveHook(1)
-					}
-					defer func() {
-						if e.onWorkerActiveHook != nil {
-							e.onWorkerActiveHook(-1)
-						}
-						workerTokens <- tok
-						e.activeWorkerCount.Add(-1)
-						activeWorkers.Done()
-						select {
-						case workCompletedChan <- struct{}{}:
-						default:
-						}
-					}()
-
-					e.executeWorkerSession(ctx, item, attempt, s, workerErr)
-				}(wi, att, sess, token)
-
-				continue
-			}
-
-			// Nothing was ready to claim, return token
-			workerTokens <- token
-
-		default:
-			// All worker slots currently busy, wait for a worker to finish
-		}
-
-		// Check status of all items in this Run
-		items, err := e.runService.ListWorkItemsByRun(ctx, e.runID)
-		if err != nil {
-			slog.Error("engine: failed to list work items", "run_id", e.runID, "error", err)
-			cleanupCtx, cancel := context.WithTimeout(context.Background(), e.cleanupTimeout())
-			defer cancel()
-			e.coordinateWrapup(cleanupCtx, model.TerminationCause("persistence_error"), nil, cancelWorkers, activeWorkers)
-			return err
-		}
-
-		hasRunning := false
-		hasExhausted, hasFailed := false, false
-		hasBlocked := false
-		allDone := true
-
-		for _, it := range items {
-			if it.Status == model.WorkItemStatusRunning {
-				hasRunning = true
-				allDone = false
-			} else if it.Status == model.WorkItemStatusPending {
-				allDone = false
-			} else if it.Status == model.WorkItemStatusBlocked {
-				hasBlocked = true
-				allDone = false
-			} else if it.Status == model.WorkItemStatusExhausted {
-				hasExhausted = true
-			} else if it.Status == model.WorkItemStatusFailed {
-				hasFailed = true
-				hasBlocked = true
-				allDone = false
-			}
-		}
-
-		if allDone {
-			// All work items finished
-			break
-		}
-
-		if hasBlocked && !hasRunning && hasExhausted && !hasFailed {
-			// Local exhaustion is a planner decision point, including its blocked
-			// dependents. Never turn it into an automatic replay or an error.
-			break
-		}
-		if hasBlocked && !hasRunning {
-			break
-		} // Planner decides retry/change direction/blocked.
-		if time.Since(e.lastChangePoll) >= 500*time.Millisecond {
-			e.lastChangePoll = time.Now()
-			latest, err := e.runService.LatestExplorationChange(ctx, e.runID, e.epoch)
-			if err != nil {
-				return err
-			}
-			if latest > e.changeCursor {
-				return nil
-			} // Durable changefeed also recovers lost in-memory notifications.
-		}
-
-		// Wait for next work completion notification, new fact event, or cancellation
-		select {
-		case <-ctx.Done():
-			e.coordinateWrapup(ctx, model.ResolveCancelCause(ctx), nil, cancelWorkers, activeWorkers)
-			return ctx.Err()
-		case <-e.notifyChan:
-			// Coalesce burst of events (e.g. rapid facts) with debounce
-			timer := time.NewTimer(e.debounce)
-		drain:
-			for {
-				select {
-				case <-e.notifyChan:
-				case <-timer.C:
-					break drain
-				}
-			}
-			return nil
-		case <-workCompletedChan:
-			// A worker completed, check loop again!
-		case <-time.After(100 * time.Millisecond):
-			// Poll safeguard
-		}
-	}
-
-	if err := waitWithContext(ctx, activeWorkers); err != nil {
-		e.coordinateWrapup(ctx, model.ResolveCancelCause(ctx), nil, cancelWorkers, activeWorkers)
-		return err
-	}
-
-	// Check if any worker reported terminal failure
-	if wErrVal := workerErr.Load(); wErrVal != nil {
-		slog.Error("engine: worker reported fatal failure", "run_id", e.runID, "error", wErrVal)
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), e.cleanupTimeout())
-		defer cancel()
-		e.coordinateWrapup(cleanupCtx, model.TerminationCause(wErrVal.(string)), nil, cancelWorkers, activeWorkers)
-		return fmt.Errorf("worker failed: %v", wErrVal)
-	}
-
-	return nil
 }
 
 func (e *Engine) executeWorkerSession(
@@ -939,9 +861,15 @@ func (e *Engine) executeWorkerSession(
 		finishCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := e.runService.FinishWorkItem(finishCtx, wi.ID, att.ID, sess.ID, success, output, reason); err != nil {
+			if errors.Is(err, service.ErrStaleEpoch) {
+				slog.Info("engine: ignored late attempt completion", "run_id", e.runID, "work_item_id", wi.ID, "attempt_id", att.ID, "error", err)
+				return
+			}
 			workerErr.CompareAndSwap(nil, "persistence_error")
 			slog.Error("engine: failed to persist work completion", "run_id", e.runID, "work_item_id", wi.ID, "error", err)
-		} else if reason == "persistence_error" {
+			return
+		}
+		if reason == "persistence_error" {
 			workerErr.CompareAndSwap(nil, reason)
 		}
 	}
@@ -958,7 +886,7 @@ func (e *Engine) executeWorkerSession(
 	workerRegistry.Register(tools.NewArtifactTool("write_artifact", adapterScope))
 	workerRegistry.Register(tools.NewReportFindingTool(e.runID, e.runService))
 	workerRegistry.Register(tools.NewRecordFactToolWithCallback(e.runID, &wi.ID, e.runService, func() {
-		e.notifyPlanner()
+		e.markPlannerDirty()
 	}))
 	workerRegistry.Register(tools.NewListFactsTool(e.runID, e.runService))
 	workerRegistry.Register(tools.NewNodeDetailTool(e.runID, e.runService))
@@ -1054,9 +982,11 @@ func (e *Engine) executeWorkerSession(
 	defer e.workerCancels.Delete(wi.ID)
 
 	workerGate := NewWorkerBudgetGate(e.budgetMgr, workerBudget)
+	workerGate.UseModelLimiter(e.modelLimiter)
+	workerGate.SetReserves(e.plannerReserve, e.mainReserve)
 
 	sr := agent.NewSessionRunner(
-		sess.ID, e.runID, "worker", e.runService, e.provider, workerRegistry, workerBudget,
+		sess.ID, e.runID, "worker", e.runService, e.providerFor(ctx, contract.RoleWorker, ""), workerRegistry, workerBudget,
 		agent.WithStructuredCallGate(workerGate),
 		agent.WithInitialMessagesPersisted(initialPersisted),
 		agent.WithBeforeTurnMessagesPersisted(true),
@@ -1064,15 +994,20 @@ func (e *Engine) executeWorkerSession(
 			if err := e.waitIfPaused(turnCtx); err != nil {
 				return nil, err
 			}
+			// Steer that arrived before this turn is delivered here. A batch
+			// already chosen by the previous model response is closed by
+			// ToolBatchSupervisor.DecideBeforeTool; SessionRunner must apply
+			// that decision before executing the old calls.
 			return e.runService.ConsumeSteerMessages(turnCtx, e.runID, wi.ID, sess.ID)
 		}),
 		agent.WithBeforeToolHook(func(toolCtx context.Context, toolName string) error {
+			// Pause only. Closing an already chosen tool batch is a SessionRunner
+			// boundary: returning an error here aborts the worker as cancellation.
+			// ToolBatchSupervisor.DecideBeforeTool is the port for that boundary.
 			return e.waitIfPaused(toolCtx)
 		}),
 		agent.WithSessionModelCallFinishHook(func(round int, err error) {
-			if e.budgetMgr != nil {
-				e.budgetMgr.ReleaseModelCall()
-			}
+			e.releaseModelAdmission()
 		}),
 	)
 
@@ -1145,24 +1080,31 @@ func (e *Engine) coordinateWrapup(
 	activeWorkers *sync.WaitGroup,
 ) {
 	e.wrapupOnce.Do(func() {
+		e.admission.Store(false)
+		e.notifyDispatcher()
 		e.budgetMgr.MarkWrapupStarted()
-		// Cancellation is delivered before waiting. Database finalization is bounded
-		// independently of a model/tool that fails to honor its context.
+		// Stop new claims before draining. The dispatcher must leave its loop
+		// before Wait, otherwise Add and Wait race.
 		if e.cancelWorkerCause != nil {
 			e.cancelWorkerCause(cause)
 		}
 		if cancelWorkers != nil {
 			cancelWorkers()
 		}
-		if activeWorkers != nil {
-			// Keep the worker drain grace bounded independently from database
-			// cleanup. A provider that ignores cancellation must not delay the
-			// terminal transaction beyond the established five-second grace.
-			drainCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			if err := waitWithContext(drainCtx, activeWorkers); err != nil {
-				slog.Warn("engine: worker drain grace expired", "run_id", e.runID)
+		if e.dispatcherDone != nil {
+			select {
+			case <-e.dispatcherDone:
+			case <-time.After(2 * time.Second):
+				slog.Warn("engine: dispatcher did not stop before drain", "run_id", e.runID)
 			}
-			cancel()
+		}
+		drainCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := waitWithContext(drainCtx, &e.workers); err != nil {
+			slog.Warn("engine: worker drain grace expired", "run_id", e.runID)
+		}
+		cancel()
+		if activeWorkers != nil && activeWorkers != &e.workers {
+			_ = waitWithContext(context.Background(), activeWorkers)
 		}
 		// Cleanup is database-only and must remain available even when the original
 		// run context is cancelled. It has its own bounded deadline.

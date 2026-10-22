@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 var (
@@ -1073,7 +1074,7 @@ func (s *RunService) ListWorkItemsByRun(ctx context.Context, runID uuid.UUID) ([
 	rows, err := s.pool.Query(ctx,
 		`SELECT id, run_id, key, title, objective, work_type, status, blocked_reason, input_data,
 		        output_data, current_attempt_id, created_by_planner_round_id, created_at, updated_at
-		 FROM work_items WHERE run_id = $1 ORDER BY created_at ASC`, runID)
+		 FROM work_items WHERE run_id = $1 ORDER BY plan_seq ASC, created_at ASC, id ASC`, runID)
 	if err != nil {
 		return nil, fmt.Errorf("list work_items: %w", err)
 	}
@@ -1205,7 +1206,7 @@ func (s *RunService) ClaimNextPendingWorkItem(ctx context.Context, runID uuid.UU
 		     JOIN work_items dep ON wd.depends_on_work_item_id = dep.id
 		     WHERE wd.work_item_id = wi.id AND dep.status != 'completed'
 		   )
-		 ORDER BY wi.created_at ASC
+		 ORDER BY wi.plan_seq ASC, wi.created_at ASC, wi.id ASC
 		 LIMIT 1
 		 FOR UPDATE OF wi SKIP LOCKED`, runID).Scan(
 		&wi.ID, &wi.RunID, &wi.Key, &wi.Title, &wi.Objective, &wi.WorkType, &wi.Status,
@@ -1252,6 +1253,10 @@ func (s *RunService) ClaimNextPendingWorkItem(ctx context.Context, runID uuid.UU
 		&att.ID, &att.WorkItemID, &att.AttemptNumber, &att.SessionID, &att.Status, &att.StartedAt,
 		&att.FinishedAt, &att.FinishReason, &att.CreatedAt)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, nil, nil, fmt.Errorf("%w: %v", ErrAttemptConflict, err)
+		}
 		return nil, nil, nil, fmt.Errorf("create attempt: %w", err)
 	}
 
