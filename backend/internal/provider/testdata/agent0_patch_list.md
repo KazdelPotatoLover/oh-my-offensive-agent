@@ -25,3 +25,5 @@ Pass one shared limiter and an opt-in recovery policy into every `agent.NewSessi
 Read `LLM_MAX_INFLIGHT` and `LLM_MAX_OUTPUT_TOKENS`. Reject values above 8192. Do not default to an unlimited output token budget.
 
 No migration 027. Diagnostics fit `model_calls.error_message` and `request_id`.
+
+Verifier sessions already require a running `finding_retests` row in `lockSessionAdmission`. Do not bypass that check when attaching a role snapshot. `RoleCallPolicyFor(verifier)` is the call policy; it does not admit a verifier session by itself.

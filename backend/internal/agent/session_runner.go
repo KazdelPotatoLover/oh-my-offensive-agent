@@ -108,6 +108,26 @@ func WithBeforeToolHook(hook BeforeToolHook) SessionRunnerOption {
 	}
 }
 
+// WithModelRecovery enables bounded re-requests. The zero value performs one call.
+func WithModelRecovery(policy provider.RecoveryPolicy) SessionRunnerOption {
+	return func(r *SessionRunner) { r.recovery = policy }
+}
+
+// WithRequestLimiter shares the upstream in-flight limit across roles. It is not the worker pool.
+func WithRequestLimiter(limiter *provider.RequestLimiter) SessionRunnerOption {
+	return func(r *SessionRunner) { r.limiter = limiter }
+}
+
+// WithSavedOutcomes restores persisted tool results and does not execute those call IDs again.
+func WithSavedOutcomes(outcomes map[string]provider.SavedToolOutcome) SessionRunnerOption {
+	return func(r *SessionRunner) { r.savedOutcomes = outcomes }
+}
+
+// WithMaxOutputTokens sets an explainable output cap. Zero uses the provider default.
+func WithMaxOutputTokens(tokens int) SessionRunnerOption {
+	return func(r *SessionRunner) { r.maxOutputTokens = tokens }
+}
+
 // SessionRunner executes a single multi-turn conversational tool-calling session.
 type SessionRunner struct {
 	sessionID                   uuid.UUID
@@ -127,6 +147,11 @@ type SessionRunner struct {
 	onModelCallHook             func(round int)
 	onModelCallFinishHook       func(round int, err error)
 	onToolCallHook              func(callID string, toolName string)
+	recovery                    provider.RecoveryPolicy
+	limiter                     *provider.RequestLimiter
+	savedOutcomes               map[string]provider.SavedToolOutcome
+	maxOutputTokens             int
+	modelRoundSeq               int
 }
 
 func NewSessionRunner(
@@ -189,6 +214,11 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 
 	messages := make([]provider.ChatMessage, len(initialMessages))
 	copy(messages, initialMessages)
+	var restoreErr error
+	messages, restoreErr = sr.restoreSavedToolHistory(ctx, messages)
+	if restoreErr != nil {
+		return nil, restoreErr
+	}
 
 	modelCallCount := 0
 	toolCallCount := 0
@@ -248,51 +278,43 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 			sr.insertSessionEvent("context_compacted", map[string]any{"strategy": "extractive_protocol_blocks_v1"})
 		}
 
-		// Check model call budget
-		if sr.structuredGate != nil {
-			gateRes := sr.structuredGate.TryAcquireModel(ctx, inSettlement)
-			if !gateRes.Allowed {
-				if gateRes.Scope == ScopeWorkerLocal && gateRes.IsSettlement && !inSettlement {
-					inSettlement = true
-					settleMsg := provider.ChatMessage{
-						Role:    provider.RoleUser,
-						Content: "【局部探索额度耗尽】本轮工作局部额度已耗尽，已转入有界收尾阶段。请对已获得的发现/观察进行整理和总结，保存有效事实，切勿发起新的探测或请求。",
-					}
-					messages = append(messages, settleMsg)
-					_, _ = persistSessionCall(ctx, func(dbCtx context.Context) (*model.AgentMessage, error) {
-						return sr.runService.InsertAgentMessageWithSession(dbCtx, sr.runID, &sr.sessionID, string(settleMsg.Role), settleMsg.Content, nil, nil)
-					})
-					continue
-				}
-				reason := string(gateRes.Cause)
-				status := "exhausted"
-				if gateRes.Scope == ScopeGlobal && (gateRes.Cause == model.CauseTimeout || gateRes.Cause == model.CauseUserStop) {
+		// Admission, limiter, record, and one Provider.Call. Retries stay in this loop.
+		invocation := sr.invokeModel(ctx, messages, modelCallCount, inSettlement)
+		if invocation.settlement {
+			inSettlement = true
+			settleMsg := provider.ChatMessage{
+				Role:    provider.RoleUser,
+				Content: "【局部探索额度耗尽】本轮工作局部额度已耗尽，已转入有界收尾阶段。请对已获得的发现/观察进行整理和总结，保存有效事实，切勿发起新的探测或请求。",
+			}
+			messages = append(messages, settleMsg)
+			_, _ = persistSessionCall(ctx, func(dbCtx context.Context) (*model.AgentMessage, error) {
+				return sr.runService.InsertAgentMessageWithSession(dbCtx, sr.runID, &sr.sessionID, string(settleMsg.Role), settleMsg.Content, nil, nil)
+			})
+			continue
+		}
+		if invocation.persistErr != nil {
+			return nil, invocation.persistErr
+		}
+		if invocation.stopped {
+			sr.updateSessionTerminal(invocation.stopStatus, invocation.stopReason)
+			return &SessionResult{
+				SessionID:       sr.sessionID,
+				FinishReason:    invocation.stopReason,
+				ModelCallsCount: modelCallCount,
+				ToolCallsCount:  toolCallCount,
+				TotalTokens:     totalTokens,
+			}, invocation.stopErr
+		}
+		if invocation.denied {
+			reason := invocation.denyReason
+			status := "exhausted"
+			if reason == "" {
+				reason = string(invocation.gate.Cause)
+				if invocation.gate.Scope == ScopeGlobal && (invocation.gate.Cause == model.CauseTimeout || invocation.gate.Cause == model.CauseUserStop) {
 					status = "stopped"
 				}
-				sr.updateSessionTerminal(status, reason)
-				return &SessionResult{
-					SessionID:       sr.sessionID,
-					FinishReason:    reason,
-					ModelCallsCount: modelCallCount,
-					ToolCallsCount:  toolCallCount,
-					TotalTokens:     totalTokens,
-				}, nil
 			}
-		} else if sr.modelCallGate != nil {
-			if !sr.modelCallGate.TryAcquire() {
-				reason := "model_calls_exhausted"
-				sr.updateSessionTerminal("exhausted", reason)
-				return &SessionResult{
-					SessionID:       sr.sessionID,
-					FinishReason:    reason,
-					ModelCallsCount: modelCallCount,
-					ToolCallsCount:  toolCallCount,
-					TotalTokens:     totalTokens,
-				}, nil
-			}
-		} else if modelCallCount >= sr.budget.MaxModelCalls {
-			reason := "model_calls_exhausted"
-			sr.updateSessionTerminal("exhausted", reason)
+			sr.updateSessionTerminal(status, reason)
 			return &SessionResult{
 				SessionID:       sr.sessionID,
 				FinishReason:    reason,
@@ -301,48 +323,10 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 				TotalTokens:     totalTokens,
 			}, nil
 		}
-
-		// 1. Record model call start in DB
-		round := modelCallCount + 1
-		modelCallRec, err := persistSessionAdmission(ctx, func(dbCtx context.Context) (*model.ModelCall, error) {
-			return sr.runService.CreateModelCallWithSession(dbCtx, sr.runID, &sr.sessionID, round)
-		})
-		if err != nil {
-			if sr.onModelCallFinishHook != nil {
-				sr.onModelCallFinishHook(round, err)
-			}
-			slog.Error("session runner: failed to create model call", "session_id", sr.sessionID, "error", err)
-			sr.updateSessionTerminal("failed", "persistence_error")
-			return nil, fmt.Errorf("%w: create model call: %v", ErrPersistenceFailure, err)
-		}
-
-		sr.insertSessionEvent("model_call_start", map[string]interface{}{
-			"round":         round,
-			"model_call_id": modelCallRec.ID,
-		})
-
-		if sr.onModelCallHook != nil {
-			sr.onModelCallHook(round)
-		}
-
-		// 2. Invoke model without holding DB locks
-		modelTimeout := time.Duration(sr.budget.ModelTimeoutSeconds) * time.Second
-		if modelTimeout <= 0 {
-			modelTimeout = 30 * time.Second
-		}
-		modelCtx, cancelModel := context.WithTimeout(ctx, modelTimeout)
-		var resp *provider.ModelResponse
-		callErr := modelCtx.Err()
-		if callErr == nil {
-			resp, callErr = sr.provider.Call(modelCtx, messages, sr.registry.Definitions(), provider.ModelOpts{
-				Timeout: modelTimeout,
-			})
-		}
-		cancelModel()
-
-		if sr.onModelCallFinishHook != nil {
-			sr.onModelCallFinishHook(round, callErr)
-		}
+		resp := invocation.resp
+		callErr := invocation.callErr
+		modelCallRec := invocation.rec
+		round := invocation.round
 
 		if callErr != nil {
 			errMsg := callErr.Error()
@@ -566,6 +550,26 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 					TotalTokens:     totalTokens,
 				}, ctx.Err()
 			default:
+			}
+
+			if saved, ok := sr.savedOutcomes[tc.ID]; ok {
+				content := saved.Content
+				if strings.TrimSpace(content) == "" {
+					content = `{"status":"outcome_unknown","recovered_result":true,"instruction":"do not automatically replay the external action"}`
+				}
+				sr.insertSessionEvent("tool_call_recovered", map[string]interface{}{
+					"call_id":  tc.ID,
+					"status":   saved.Status,
+					"replayed": false,
+				})
+				if _, err := persistSessionCall(ctx, func(dbCtx context.Context) (*model.AgentMessage, error) {
+					return sr.runService.InsertAgentMessageWithSession(dbCtx, sr.runID, &sr.sessionID, "tool", content, &tc.ID, nil)
+				}); err != nil {
+					sr.updateSessionTerminal("failed", "persistence_error")
+					return nil, fmt.Errorf("%w: restore tool result: %v", ErrPersistenceFailure, err)
+				}
+				messages = append(messages, provider.ChatMessage{Role: provider.RoleTool, Content: content, ToolCallID: tc.ID})
+				continue
 			}
 
 			// Invoke before tool hook (e.g. pause barrier check before any tool executes)
