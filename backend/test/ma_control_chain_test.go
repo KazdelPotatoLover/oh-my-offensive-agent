@@ -24,17 +24,22 @@ import (
 	"github.com/google/uuid"
 )
 
-const ma5DatabaseURL = "postgres://postgres:postgres@127.0.0.1:25432/agent_workbench_ma5?sslmode=disable"
-
 func requireMA5(t *testing.T) {
 	t.Helper()
-	if got := os.Getenv("TEST_DATABASE_URL"); got != "" && got != ma5DatabaseURL {
-		t.Fatalf("refusing TEST_DATABASE_URL %s", got)
+	raw := os.Getenv("TEST_DATABASE_URL")
+	parsed, err := url.Parse(raw)
+	name := ""
+	if err == nil {
+		name = strings.TrimPrefix(parsed.Path, "/")
 	}
-	t.Setenv("TEST_DATABASE_URL", ma5DatabaseURL)
-	parsed, err := url.Parse(ma5DatabaseURL)
-	if err != nil || parsed.Path != "/agent_workbench_ma5" {
-		t.Fatalf("database guard failed: %v", err)
+	switch name {
+	case "", "agent_workbench", "agent_workbench_test", "oma_artex_test", "oma_phase2_review_4484633",
+		"agent_workbench_ma1", "agent_workbench_ma2", "agent_workbench_ma3", "agent_workbench_ma4",
+		"agent_workbench_ma5", "agent_workbench_ma6", "agent_workbench_ma7":
+		t.Fatalf("refusing TEST_DATABASE_URL %q; control tests truncate and require /agent_workbench_ma_integration", raw)
+	}
+	if name != "agent_workbench_ma_integration" {
+		t.Fatalf("refusing TEST_DATABASE_URL %q; control tests truncate and require /agent_workbench_ma_integration", raw)
 	}
 }
 
@@ -46,7 +51,7 @@ func connectMA5(t *testing.T) *TestEnv {
 	if err := env.pool.QueryRow(context.Background(), `SELECT current_database()`).Scan(&name); err != nil {
 		t.Fatal(err)
 	}
-	if name != "agent_workbench_ma5" {
+	if name != "agent_workbench_ma_integration" {
 		t.Fatalf("connected to %s", name)
 	}
 	return env

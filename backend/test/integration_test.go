@@ -9,13 +9,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"agent-workbench/backend/internal/controlplane"
 	"agent-workbench/backend/internal/db"
 	"agent-workbench/backend/internal/handler"
 	"agent-workbench/backend/internal/model"
+	"agent-workbench/backend/internal/orchestration"
 	"agent-workbench/backend/internal/service"
 	"agent-workbench/backend/internal/worker"
 
@@ -34,6 +37,25 @@ func resolveTestDBURL() (string, error) {
 	return testURL, nil
 }
 
+// controlReq builds an old control request with the required epoch and key.
+// It does not invent a key when the caller supplies one for a replay.
+func controlReq(method, rawURL string, epoch int, key, body string) *http.Request {
+	body = strings.TrimSpace(body)
+	if body == "" {
+		body = fmt.Sprintf(`{"expected_epoch":%d}`, epoch)
+	} else if !strings.Contains(body, "expected_epoch") {
+		trimmed := strings.TrimRight(body, " \t\r\n}")
+		body = trimmed + fmt.Sprintf(`,"expected_epoch":%d}`, epoch)
+	}
+	req := httptest.NewRequest(method, rawURL, strings.NewReader(body))
+	if key == "" {
+		key = uuid.NewString()
+	}
+	req.Header.Set("Idempotency-Key", key)
+	req.Header.Set("Content-Type", "application/json")
+	return req
+}
+
 func getTestDBURL(t *testing.T) string {
 	url, err := resolveTestDBURL()
 	if err != nil {
@@ -48,6 +70,44 @@ type TestEnv struct {
 	runService  *service.RunService
 	manager     *worker.Manager
 	router      *chi.Mux
+	plannerOpts []orchestration.EngineOption
+}
+
+// plannerEngineOptions attaches the shared supervisor and planner control
+// tools. Direct NewEngine calls that exercise continue_work need this; the
+// HTTP start path already applies the same options.
+func (e *TestEnv) plannerEngineOptions() []orchestration.EngineOption {
+	if e == nil || len(e.plannerOpts) == 0 {
+		return nil
+	}
+	out := make([]orchestration.EngineOption, len(e.plannerOpts))
+	copy(out, e.plannerOpts)
+	return out
+}
+
+// promptWorkItemID reads the work item UUID the follow-up planner prompt prints
+// for a key. The shared continue_work tool requires that id.
+func promptWorkItemID(text, key string) string {
+	markers := []string{
+		"WorkItem " + key + " [id: ",
+		"WorkItem: " + key + " [id: ",
+	}
+	for _, marker := range markers {
+		i := strings.Index(text, marker)
+		if i < 0 {
+			continue
+		}
+		rest := text[i+len(marker):]
+		end := strings.IndexAny(rest, "]' \n")
+		if end <= 0 {
+			continue
+		}
+		id := strings.TrimSpace(rest[:end])
+		if _, err := uuid.Parse(id); err == nil {
+			return id
+		}
+	}
+	return ""
 }
 
 func setupTestEnv(t *testing.T, execute ...bool) *TestEnv {
@@ -84,6 +144,14 @@ func setupTestEnv(t *testing.T, execute ...bool) *TestEnv {
 		handlerManager = nil
 	}
 	runHandler := handler.NewRunHandler(runService, taskService, handlerManager)
+	supervisor := orchestration.NewToolBatchSupervisor()
+	runHandler.UseToolBatchSupervisor(supervisor)
+	controller := controlplane.NewController(runService, &controlplane.ManagerLive{Manager: handlerManager}, supervisor, runHandler.RecoverEpoch)
+	supervision := controlplane.NewSupervision(runService, controller)
+	runHandler.UseController(controller)
+	runHandler.UseSupervision(supervision)
+	workbench := controlplane.NewWorkbench(runService, nil)
+	mainAgent := controlplane.NewMainAgent(runService, controller, workbench, nil, nil)
 
 	r := chi.NewRouter()
 	r.Route("/api", func(r chi.Router) {
@@ -141,6 +209,7 @@ func setupTestEnv(t *testing.T, execute ...bool) *TestEnv {
 		r.Get("/runs/{runID}/findings/{findingID}/retests", runHandler.ListFindingRetests)
 		r.Get("/runs/{runID}/finding-report", runHandler.GetFindingReport)
 		r.Get("/checks/catalog", runHandler.GetCheckCatalog)
+		handler.MountControlAPI(r, handler.NewControlAPI(controller, workbench, mainAgent))
 	})
 
 	return &TestEnv{
@@ -149,6 +218,10 @@ func setupTestEnv(t *testing.T, execute ...bool) *TestEnv {
 		runService:  runService,
 		manager:     manager,
 		router:      r,
+		plannerOpts: []orchestration.EngineOption{
+			orchestration.WithToolBatchSupervisor(supervisor),
+			orchestration.WithPlannerControlInstaller(handler.NewPlannerControlInstaller(supervision)),
+		},
 	}
 }
 
@@ -440,7 +513,7 @@ func TestScenario_StopRun(t *testing.T) {
 	<-step1Reached
 
 	// Request stop
-	stopReq := httptest.NewRequest("POST", fmt.Sprintf("/api/runs/%s/stop", run.ID), nil)
+	stopReq := controlReq("POST", fmt.Sprintf("/api/runs/%s/stop", run.ID), 1, "", "")
 	stopW := httptest.NewRecorder()
 	env.router.ServeHTTP(stopW, stopReq)
 

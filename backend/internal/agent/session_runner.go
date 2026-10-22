@@ -144,6 +144,8 @@ type SessionRunner struct {
 	beforeTurnMessagesPersisted bool
 	beforeTurnHook              BeforeTurnHook
 	beforeToolHook              BeforeToolHook
+	workItemID                  uuid.UUID
+	batchDecider                ToolBatchDecider
 	onModelCallHook             func(round int)
 	onModelCallFinishHook       func(round int, err error)
 	onToolCallHook              func(callID string, toolName string)
@@ -536,7 +538,9 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 			}, nil
 		}
 
-		// 6. Execute tool calls serially with strict persistence checks
+		// 6. Execute tool calls serially with strict persistence checks.
+		// executed counts calls in this batch that already have a result.
+		executedInBatch := 0
 		for _, tc := range resp.ToolCalls {
 			select {
 			case <-ctx.Done():
@@ -569,7 +573,45 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 					return nil, fmt.Errorf("%w: restore tool result: %v", ErrPersistenceFailure, err)
 				}
 				messages = append(messages, provider.ChatMessage{Role: provider.RoleTool, Content: content, ToolCallID: tc.ID})
+				executedInBatch++
 				continue
+			}
+
+			if sr.batchDecider != nil && sr.workItemID != uuid.Nil {
+				batch := make([]ClosedToolCall, len(resp.ToolCalls))
+				for i, call := range resp.ToolCalls {
+					batch[i] = ClosedToolCall{ID: call.ID, Name: call.Function.Name}
+				}
+				decision := sr.batchDecider.DecideBeforeTool(sr.workItemID, batch, executedInBatch)
+				if decision.CloseUnexecuted {
+					assistant := provider.ChatMessage{Role: provider.RoleAssistant, Content: resp.Content, ToolCalls: resp.ToolCalls, NativePayload: resp.NativePayload}
+					closed := CloseUnexecutedMessages(assistant, executedInBatch, decision)
+					records := make([]service.ClosedToolRecord, 0, len(resp.ToolCalls)-executedInBatch)
+					for i := executedInBatch; i < len(resp.ToolCalls); i++ {
+						call := resp.ToolCalls[i]
+						result := ""
+						if i-executedInBatch < len(closed) {
+							result = closed[i-executedInBatch].Content
+						}
+						args := json.RawMessage(call.Function.Arguments)
+						if len(args) == 0 {
+							args = json.RawMessage(`{}`)
+						}
+						records = append(records, service.ClosedToolRecord{
+							CallID:      call.ID,
+							Name:        call.Function.Name,
+							Arguments:   args,
+							Result:      result,
+							ModelCallID: modelCallRec.ID,
+						})
+					}
+					if err := sr.runService.PersistClosedToolBatch(ctx, sr.runID, sr.workItemID, sr.sessionID, closed, records); err != nil {
+						sr.updateSessionTerminal("failed", "persistence_error")
+						return nil, fmt.Errorf("%w: close unexecuted tool batch: %v", ErrPersistenceFailure, err)
+					}
+					messages = append(messages, closed...)
+					break
+				}
 			}
 
 			// Invoke before tool hook (e.g. pause barrier check before any tool executes)
@@ -613,6 +655,7 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 							Content:    toolErrOutput,
 							ToolCallID: tc.ID,
 						})
+						executedInBatch++
 						continue
 					}
 					reason := string(gateRes.Cause)
@@ -694,6 +737,7 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 					Content:    toolErrOutput,
 					ToolCallID: tc.ID,
 				})
+				executedInBatch++
 				continue
 			}
 
@@ -786,6 +830,7 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 				Content:    toolMsgContent,
 				ToolCallID: tc.ID,
 			})
+			executedInBatch++
 		}
 	}
 }

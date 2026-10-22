@@ -1,7 +1,6 @@
 package test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -148,7 +147,7 @@ func TestReview3_EpochAPIStartsExecutor(t *testing.T) {
 		toolName, args := "", ""
 		if planner && lastRole != "tool" {
 			if strings.Contains(full, "Available for Continuation") || strings.Contains(full, "is exhausted") {
-				toolName, args = "continue_work_item", `{"work_item_key":"resume_me","reason":"Continue from saved progress"}`
+				toolName, args = "continue_work", fmt.Sprintf(`{"work_item_id":%q,"instruction":"Continue from saved progress"}`, promptWorkItemID(full, "resume_me"))
 			} else {
 				toolName, args = "suggest_completion", `{"final_summary":"Resumed work completed","conclusion":"complete"}`
 			}
@@ -189,7 +188,7 @@ func TestReview3_EpochAPIStartsExecutor(t *testing.T) {
 	// A long stopped interval must not consume the next epoch's execution time.
 	_, err = e.pool.Exec(ctx, `UPDATE runs SET started_at=now()-interval '1 hour',finished_at=now()-interval '3598 seconds' WHERE id=$1`, run.ID)
 	require.NoError(t, err)
-	req := httptest.NewRequest(http.MethodPost, "/api/runs/"+run.ID.String()+"/epochs/new", bytes.NewBufferString(`{"reason":"operator approved continuation"}`))
+	req := controlReq(http.MethodPost, "/api/runs/"+run.ID.String()+"/epochs/new", 1, "", `{"reason":"operator approved continuation"}`)
 	w := httptest.NewRecorder()
 	e.router.ServeHTTP(w, req)
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
@@ -225,7 +224,7 @@ func TestReview3_EpochStartFailureLeavesTerminalRun(t *testing.T) {
 	require.NoError(t, e.runService.FinalizeRunWrapup(ctx, run.ID, model.CauseToolBudgetExhausted, &previousSummary))
 	e.manager.Close()
 	w := httptest.NewRecorder()
-	e.router.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/api/runs/"+run.ID.String()+"/epochs/new", bytes.NewBufferString(`{"reason":"resume after grant"}`)))
+	e.router.ServeHTTP(w, controlReq(http.MethodPost, "/api/runs/"+run.ID.String()+"/epochs/new", 1, "", `{"reason":"resume after grant"}`))
 	require.Equal(t, http.StatusServiceUnavailable, w.Code, w.Body.String())
 	after, err := e.runService.Get(ctx, run.ID)
 	require.NoError(t, err)

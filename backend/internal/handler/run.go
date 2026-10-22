@@ -17,6 +17,7 @@ import (
 	"agent-workbench/backend/internal/agent"
 	"agent-workbench/backend/internal/checker"
 	"agent-workbench/backend/internal/contract"
+	"agent-workbench/backend/internal/controlplane"
 	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/orchestration"
 	"agent-workbench/backend/internal/provider"
@@ -34,6 +35,9 @@ type RunHandler struct {
 	taskService     *service.TaskService
 	manager         *worker.Manager
 	resourceRevoker contract.ResourceRevoker
+	controller      contract.ExecutionController
+	supervision     *controlplane.Supervision
+	sharedSteer     *orchestration.ToolBatchSupervisor
 }
 
 // UseResourceRevoker attaches the capture revoker used by new engines. It does
@@ -43,6 +47,30 @@ func (h *RunHandler) UseResourceRevoker(revoker contract.ResourceRevoker) {
 		return
 	}
 	h.resourceRevoker = revoker
+}
+
+// UseController attaches the one execution controller. It does not change NewRunHandler.
+func (h *RunHandler) UseController(controller contract.ExecutionController) {
+	if h == nil {
+		return
+	}
+	h.controller = controller
+}
+
+// UseSupervision shares the planner tool factory with the controller.
+func (h *RunHandler) UseSupervision(supervision *controlplane.Supervision) {
+	if h == nil {
+		return
+	}
+	h.supervision = supervision
+}
+
+// UseToolBatchSupervisor shares the pre-tool replan port with every new engine.
+func (h *RunHandler) UseToolBatchSupervisor(supervisor *orchestration.ToolBatchSupervisor) {
+	if h == nil {
+		return
+	}
+	h.sharedSteer = supervisor
 }
 
 func NewRunHandler(runService *service.RunService, taskService *service.TaskService, manager *worker.Manager) *RunHandler {
@@ -261,6 +289,12 @@ func (h *RunHandler) startRunExecutor(run *model.Run) error {
 			if h.resourceRevoker != nil {
 				opts = append(opts, orchestration.WithResourceRevoker(h.resourceRevoker))
 			}
+			if h.sharedSteer != nil {
+				opts = append(opts, orchestration.WithToolBatchSupervisor(h.sharedSteer))
+			}
+			if h.supervision != nil {
+				opts = append(opts, orchestration.WithPlannerControlInstaller(supervisionInstaller{supervision: h.supervision}))
+			}
 			engine := orchestration.NewEngine(run.ID, h.runService, p, budget, opts...)
 			startErr = h.manager.StartExecutor(run.ID, engine)
 		}
@@ -315,35 +349,47 @@ func (h *RunHandler) Stop(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "invalid run ID")
 		return
 	}
-
-	run, err := h.runService.Stop(r.Context(), runID)
+	body, err := h.readLegacyControl(r)
 	if err != nil {
-		if errors.Is(err, service.ErrNotFound) {
-			respondError(w, http.StatusNotFound, "run not found")
-			return
-		}
-		if errors.Is(err, service.ErrTerminalState) {
-			respondError(w, http.StatusConflict, err.Error())
-			return
-		}
-		if errors.Is(err, service.ErrInvalidTransition) {
-			respondError(w, http.StatusConflict, err.Error())
-			return
-		}
-		respondError(w, http.StatusInternalServerError, "failed to stop run")
+		respondError(w, http.StatusBadRequest, "invalid JSON payload")
 		return
 	}
-
-	// Signal worker to stop
-	if err := h.manager.StopAndFinalizeIfIdle(r.Context(), runID); err != nil {
-		respondError(w, http.StatusInternalServerError, "failed to finalize run stop")
+	if _, ok := h.applyLegacy(w, r, runID, nil, contract.CmdStopRun, body, nil); !ok {
 		return
 	}
-	if latest, getErr := h.runService.Get(r.Context(), runID); getErr == nil {
-		run = latest
-	}
+	h.legacyRun(w, r, runID)
+}
 
-	respondJSON(w, http.StatusOK, run)
+// RecoverEpoch is the single epoch handoff used by the execution controller.
+// It quiesces, starts the epoch, revokes the old epoch, and starts one executor.
+func (h *RunHandler) RecoverEpoch(ctx context.Context, runID uuid.UUID, reason, summary string, expected int, key string) (int, bool, error) {
+	if h == nil || h.manager == nil {
+		return 0, false, &contract.Error{Code: contract.CodeExecutionUnavailable, Scope: contract.ScopeRun, Message: "executor manager unavailable", SuggestedAction: contract.ActionWait}
+	}
+	h.epochMu.Lock()
+	defer h.epochMu.Unlock()
+	drainCtx, cancelDrain := context.WithTimeout(ctx, 15*time.Second)
+	err := h.manager.QuiesceEpoch(drainCtx, runID)
+	cancelDrain()
+	if err != nil {
+		return 0, false, &contract.Error{Code: contract.CodeInvalidState, Scope: contract.ScopeEpoch, Message: "previous executor has not drained: " + err.Error(), SuggestedAction: contract.ActionWait}
+	}
+	epoch, err := h.runService.StartNewEpoch(ctx, runID, reason, summary, service.EpochStartOptions{ExpectedEpoch: expected, IdempotencyKey: key})
+	if err != nil {
+		return 0, false, err
+	}
+	h.manager.RevokeEpoch(runID, epoch-1)
+	run, err := h.runService.Get(ctx, runID)
+	if err != nil {
+		return epoch, false, err
+	}
+	if err := h.startRunExecutor(run); err != nil {
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = h.runService.FinalizeRunWrapupWithEpoch(cleanupCtx, runID, model.CauseInternalError, nil, epoch)
+		return epoch, false, &contract.Error{Code: contract.CodeExecutionUnavailable, Scope: contract.ScopeEpoch, Message: "new epoch executor could not start: " + err.Error(), SuggestedAction: contract.ActionWait}
+	}
+	return epoch, true, nil
 }
 
 func (h *RunHandler) GetEvents(w http.ResponseWriter, r *http.Request) {
@@ -721,41 +767,15 @@ func (h *RunHandler) ContinueWorkItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req struct {
-		ExpectedAttemptID string `json:"expected_attempt_id"`
-		Reason            string `json:"reason"`
-	}
-	_ = json.NewDecoder(r.Body).Decode(&req)
-
-	var expectedAttemptID uuid.UUID
-	if req.ExpectedAttemptID != "" {
-		expectedAttemptID, err = uuid.Parse(req.ExpectedAttemptID)
-		if err != nil {
-			respondError(w, http.StatusBadRequest, "invalid expected_attempt_id")
-			return
-		}
-	}
-
-	wi, err := h.runService.ContinueWorkItem(r.Context(), runID, workItemID, expectedAttemptID, req.Reason)
+	body, err := h.readLegacyControl(r)
 	if err != nil {
-		if errors.Is(err, service.ErrAttemptConflict) || errors.Is(err, service.ErrInvalidWorkItemState) {
-			respondError(w, http.StatusConflict, err.Error())
-			return
-		}
-		if errors.Is(err, service.ErrRunNotRunning) {
-			respondError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondError(w, http.StatusBadRequest, "invalid JSON payload")
 		return
 	}
-	if h.manager != nil {
-		h.manager.Nudge(runID)
+	if _, ok := h.applyLegacy(w, r, runID, &workItemID, contract.CmdContinueWork, body, textPayload("instruction", body.Reason)); !ok {
+		return
 	}
-
-	respondJSON(w, http.StatusOK, map[string]interface{}{
-		"work_item": wi,
-	})
+	h.legacyWorkItem(w, r, workItemID)
 }
 
 func (h *RunHandler) RetryWorkItem(w http.ResponseWriter, r *http.Request) {
@@ -770,41 +790,15 @@ func (h *RunHandler) RetryWorkItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req struct {
-		ExpectedAttemptID string `json:"expected_attempt_id"`
-		Reason            string `json:"reason"`
-	}
-	_ = json.NewDecoder(r.Body).Decode(&req)
-
-	var expectedAttemptID uuid.UUID
-	if req.ExpectedAttemptID != "" {
-		expectedAttemptID, err = uuid.Parse(req.ExpectedAttemptID)
-		if err != nil {
-			respondError(w, http.StatusBadRequest, "invalid expected_attempt_id")
-			return
-		}
-	}
-
-	wi, err := h.runService.RetryWorkItem(r.Context(), runID, workItemID, expectedAttemptID, req.Reason)
+	body, err := h.readLegacyControl(r)
 	if err != nil {
-		if errors.Is(err, service.ErrAttemptConflict) || errors.Is(err, service.ErrInvalidWorkItemState) {
-			respondError(w, http.StatusConflict, err.Error())
-			return
-		}
-		if errors.Is(err, service.ErrRunNotRunning) {
-			respondError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondError(w, http.StatusBadRequest, "invalid JSON payload")
 		return
 	}
-	if h.manager != nil {
-		h.manager.Nudge(runID)
+	if _, ok := h.applyLegacy(w, r, runID, &workItemID, contract.CmdRetryWork, body, textPayload("instruction", body.Reason)); !ok {
+		return
 	}
-
-	respondJSON(w, http.StatusOK, map[string]interface{}{
-		"work_item": wi,
-	})
+	h.legacyWorkItem(w, r, workItemID)
 }
 
 func (h *RunHandler) ListPlannerTodos(w http.ResponseWriter, r *http.Request) {
@@ -1193,20 +1187,13 @@ func (h *RunHandler) PauseRun(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "invalid run ID")
 		return
 	}
-	if err := h.runService.PauseRun(r.Context(), runID); err != nil {
-		if errors.Is(err, service.ErrNotFound) {
-			respondError(w, http.StatusNotFound, "run not found")
-			return
-		}
-		if errors.Is(err, service.ErrInvalidState) {
-			respondError(w, http.StatusConflict, err.Error())
-			return
-		}
-		respondError(w, http.StatusInternalServerError, err.Error())
+	body, err := h.readLegacyControl(r)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid JSON payload")
 		return
 	}
-	if h.manager != nil {
-		_ = h.manager.Pause(runID)
+	if _, ok := h.applyLegacy(w, r, runID, nil, contract.CmdPauseRun, body, nil); !ok {
+		return
 	}
 	respondJSON(w, http.StatusOK, map[string]string{"status": "paused"})
 }
@@ -1217,20 +1204,13 @@ func (h *RunHandler) ResumeRun(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "invalid run ID")
 		return
 	}
-	if err := h.runService.ResumeRun(r.Context(), runID); err != nil {
-		if errors.Is(err, service.ErrNotFound) {
-			respondError(w, http.StatusNotFound, "run not found")
-			return
-		}
-		if errors.Is(err, service.ErrInvalidState) {
-			respondError(w, http.StatusConflict, err.Error())
-			return
-		}
-		respondError(w, http.StatusInternalServerError, err.Error())
+	body, err := h.readLegacyControl(r)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid JSON payload")
 		return
 	}
-	if h.manager != nil {
-		_ = h.manager.Resume(runID)
+	if _, ok := h.applyLegacy(w, r, runID, nil, contract.CmdResumeRun, body, nil); !ok {
+		return
 	}
 	respondJSON(w, http.StatusOK, map[string]string{"status": "running"})
 }
@@ -1247,34 +1227,16 @@ func (h *RunHandler) SteerWorkItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req struct {
-		Instructions      string          `json:"instructions"`
-		InputDataOverride json.RawMessage `json:"input_data_override"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	body, err := h.readLegacyControl(r)
+	if err != nil {
 		respondError(w, http.StatusBadRequest, "invalid JSON payload")
 		return
 	}
-
-	if err := h.runService.SteerWorkItem(r.Context(), runID, workItemID, req.Instructions, req.InputDataOverride, r.Header.Get("Idempotency-Key")); err != nil {
-		if errors.Is(err, service.ErrNotFound) {
-			respondError(w, http.StatusNotFound, "work item not found")
-			return
-		}
-		if errors.Is(err, service.ErrCrossRunBoundary) {
-			respondError(w, http.StatusForbidden, err.Error())
-			return
-		}
-		if errors.Is(err, service.ErrInvalidState) {
-			respondError(w, http.StatusConflict, err.Error())
-			return
-		}
-		respondError(w, http.StatusInternalServerError, err.Error())
+	if rejectSteerOverride(w, body.InputDataOverride) {
 		return
 	}
-	if h.manager != nil {
-		h.manager.NoteSteer(runID, workItemID, req.Instructions)
-		h.manager.Nudge(runID)
+	if _, ok := h.applyLegacy(w, r, runID, &workItemID, contract.CmdSteerWork, body, textPayload("instruction", body.Instructions)); !ok {
+		return
 	}
 	respondJSON(w, http.StatusOK, map[string]string{"status": "steered"})
 }
@@ -1291,27 +1253,17 @@ func (h *RunHandler) KillWorkItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req struct {
-		Reason string `json:"reason"`
-	}
-	if r.Body != nil && r.ContentLength != 0 {
-		_ = json.NewDecoder(r.Body).Decode(&req)
-	}
-
-	if err := h.runService.KillWorkItem(r.Context(), runID, workItemID, req.Reason); err != nil {
-		if errors.Is(err, service.ErrNotFound) {
-			respondError(w, http.StatusNotFound, "work item not found")
-			return
-		}
-		if errors.Is(err, service.ErrCrossRunBoundary) {
-			respondError(w, http.StatusForbidden, err.Error())
-			return
-		}
-		respondError(w, http.StatusInternalServerError, err.Error())
+	body, err := h.readLegacyControl(r)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid JSON payload")
 		return
 	}
-	if h.manager != nil {
-		_ = h.manager.KillWorkItem(runID, workItemID, req.Reason)
+	payload := textPayload("reason", body.Reason)
+	if strings.TrimSpace(body.Reason) == "" {
+		payload = nil
+	}
+	if _, ok := h.applyLegacy(w, r, runID, &workItemID, contract.CmdKillWork, body, payload); !ok {
+		return
 	}
 	respondJSON(w, http.StatusOK, map[string]string{"status": "cancelled"})
 }
@@ -1323,35 +1275,16 @@ func (h *RunHandler) GrantBudget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req struct {
-		AdditionalModelCalls int     `json:"additional_model_calls"`
-		AdditionalToolCalls  int     `json:"additional_tool_calls"`
-		AdditionalSeconds    int     `json:"additional_seconds"`
-		Reason               string  `json:"reason"`
-		IdempotencyKey       *string `json:"idempotency_key"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	body, err := h.readLegacyControl(r)
+	if err != nil {
 		respondError(w, http.StatusBadRequest, "invalid JSON payload")
 		return
 	}
-
-	grant, err := h.runService.GrantBudget(r.Context(), runID, req.AdditionalModelCalls, req.AdditionalToolCalls, req.AdditionalSeconds, req.Reason, req.IdempotencyKey)
-	if err != nil {
-		if errors.Is(err, service.ErrNotFound) {
-			respondError(w, http.StatusNotFound, "run not found")
-			return
-		}
-		if errors.Is(err, service.ErrConflict) {
-			respondError(w, http.StatusConflict, err.Error())
-			return
-		}
-		respondError(w, http.StatusBadRequest, err.Error())
+	result, ok := h.applyLegacy(w, r, runID, nil, contract.CmdGrantBudget, body, grantPayload(body))
+	if !ok {
 		return
 	}
-	if h.manager != nil {
-		_ = h.manager.RefreshBudget(r.Context(), runID)
-	}
-	respondJSON(w, http.StatusCreated, grant)
+	h.legacyGrant(w, r, runID, result)
 }
 
 func (h *RunHandler) ListBudgetGrants(w http.ResponseWriter, r *http.Request) {
@@ -1395,75 +1328,18 @@ func (h *RunHandler) StartNewEpoch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req struct {
-		Reason        string `json:"reason"`
-		ExpectedEpoch int    `json:"expected_epoch"`
-		Summary       string `json:"summary"`
-	}
-	if r.Body != nil && r.ContentLength != 0 {
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			respondError(w, http.StatusBadRequest, "invalid JSON")
-			return
-		}
-	}
-
-	if h.manager == nil {
-		respondError(w, http.StatusServiceUnavailable, "executor manager unavailable")
-		return
-	}
-	h.epochMu.Lock()
-	defer h.epochMu.Unlock()
-	opt := service.EpochStartOptions{ExpectedEpoch: req.ExpectedEpoch, IdempotencyKey: r.Header.Get("Idempotency-Key")}
-	if epoch, found, err := h.runService.LookupEpochCommand(r.Context(), runID, req.Reason, req.Summary, opt); err != nil {
-		resourceError(w, err)
-		return
-	} else if found {
-		respondJSON(w, http.StatusOK, map[string]int{"epoch_number": epoch})
-		return
-	}
-	// Validate before touching a running executor, including malformed/empty commands.
-	before, err := h.runService.Get(r.Context(), runID)
+	body, err := h.readLegacyControl(r)
 	if err != nil {
-		respondError(w, http.StatusNotFound, "run not found")
+		respondError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
-	if strings.TrimSpace(req.Reason) == "" || before.Status == model.RunStatusCompleted || before.Status == model.RunStatusStopping || (req.ExpectedEpoch > 0 && req.ExpectedEpoch != before.CurrentEpoch) {
-		respondError(w, http.StatusConflict, "a reason and a resumable run are required")
+	result, ok := h.applyLegacy(w, r, runID, nil, contract.CmdStartEpoch, body, epochPayload(body))
+	if !ok {
 		return
 	}
-	drainCtx, cancelDrain := context.WithTimeout(r.Context(), 15*time.Second)
-	err = h.manager.QuiesceEpoch(drainCtx, runID)
-	cancelDrain()
-	if err != nil {
-		respondError(w, http.StatusConflict, "previous executor has not drained: "+err.Error())
-		return
-	}
-	epoch, err := h.runService.StartNewEpoch(r.Context(), runID, req.Reason, req.Summary, opt)
-	if err != nil {
-		if errors.Is(err, service.ErrInvalidState) || errors.Is(err, service.ErrStaleEpoch) || errors.Is(err, service.ErrConflict) {
-			respondError(w, http.StatusConflict, err.Error())
-			return
-		}
-		if errors.Is(err, service.ErrNotFound) {
-			respondError(w, http.StatusNotFound, "run not found")
-			return
-		}
-		respondError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	if h.manager != nil {
-		h.manager.RevokeEpoch(runID, epoch-1)
-	}
-	run, startErr := h.runService.Get(r.Context(), runID)
-	if startErr == nil {
-		startErr = h.startRunExecutor(run)
-	}
-	if startErr != nil {
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = h.runService.FinalizeRunWrapupWithEpoch(cleanupCtx, runID, model.CauseInternalError, nil, epoch)
-		respondError(w, http.StatusServiceUnavailable, "new epoch executor could not start: "+startErr.Error())
-		return
+	epoch := body.ExpectedEpoch
+	if result != nil && result.EpochNumber > 0 {
+		epoch = result.EpochNumber
 	}
 	respondJSON(w, http.StatusCreated, map[string]int{"epoch_number": epoch})
 }

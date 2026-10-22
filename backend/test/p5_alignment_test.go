@@ -1,7 +1,6 @@
 package test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -33,7 +32,7 @@ func TestP5_PauseAndResumeRun(t *testing.T) {
 	require.NoError(t, err)
 
 	// 1. Pause run via REST API
-	req := httptest.NewRequest(http.MethodPost, "/api/runs/"+run.ID.String()+"/pause", nil)
+	req := controlReq(http.MethodPost, "/api/runs/"+run.ID.String()+"/pause", 1, "", "")
 	w := httptest.NewRecorder()
 	env.router.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -51,7 +50,7 @@ func TestP5_PauseAndResumeRun(t *testing.T) {
 	require.Equal(t, model.RunStatusPaused, rRecord.Status)
 
 	// Pausing again returns conflict
-	req = httptest.NewRequest(http.MethodPost, "/api/runs/"+run.ID.String()+"/pause", nil)
+	req = controlReq(http.MethodPost, "/api/runs/"+run.ID.String()+"/pause", 1, "", "")
 	w = httptest.NewRecorder()
 	env.router.ServeHTTP(w, req)
 	require.Equal(t, http.StatusConflict, w.Code)
@@ -64,7 +63,7 @@ func TestP5_PauseAndResumeRun(t *testing.T) {
 	require.Nil(t, sess)
 
 	// 2. Resume run via REST API
-	req = httptest.NewRequest(http.MethodPost, "/api/runs/"+run.ID.String()+"/resume", nil)
+	req = controlReq(http.MethodPost, "/api/runs/"+run.ID.String()+"/resume", 1, "", "")
 	w = httptest.NewRecorder()
 	env.router.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
@@ -129,7 +128,7 @@ func TestP5_SteerAndKillWorkItem(t *testing.T) {
 	steerBody, _ := json.Marshal(map[string]any{
 		"instructions": "Skip port 80, focus directly on admin login path /wp-admin",
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/runs/"+run.ID.String()+"/work_items/"+claimedWi.ID.String()+"/steer", bytes.NewReader(steerBody))
+	req := controlReq(http.MethodPost, "/api/runs/"+run.ID.String()+"/work_items/"+claimedWi.ID.String()+"/steer", 1, "", string(steerBody))
 	w := httptest.NewRecorder()
 	env.router.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
@@ -150,7 +149,7 @@ func TestP5_SteerAndKillWorkItem(t *testing.T) {
 	killBody, _ := json.Marshal(map[string]string{
 		"reason": "abandoned_subpath",
 	})
-	req = httptest.NewRequest(http.MethodPost, "/api/runs/"+run.ID.String()+"/work_items/"+items[1].ID.String()+"/kill", bytes.NewReader(killBody))
+	req = controlReq(http.MethodPost, "/api/runs/"+run.ID.String()+"/work_items/"+items[1].ID.String()+"/kill", 1, "", string(killBody))
 	w = httptest.NewRecorder()
 	env.router.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
@@ -222,7 +221,7 @@ func TestP5_BudgetGrantLedgerAndEffectiveBudget(t *testing.T) {
 		"reason":                 "Deepening reconnaissance authorized by operator",
 		"idempotency_key":        idempotencyKey,
 	})
-	req = httptest.NewRequest(http.MethodPost, "/api/runs/"+run.ID.String()+"/grant_budget", bytes.NewReader(grantBody))
+	req = controlReq(http.MethodPost, "/api/runs/"+run.ID.String()+"/grant_budget", 1, idempotencyKey, string(grantBody))
 	w = httptest.NewRecorder()
 	env.router.ServeHTTP(w, req)
 	require.Equal(t, http.StatusCreated, w.Code)
@@ -236,7 +235,7 @@ func TestP5_BudgetGrantLedgerAndEffectiveBudget(t *testing.T) {
 	require.Equal(t, 1, grant.EpochNumber)
 
 	// 3. Repeat grant with same idempotencyKey - should not duplicate amounts
-	req = httptest.NewRequest(http.MethodPost, "/api/runs/"+run.ID.String()+"/grant_budget", bytes.NewReader(grantBody))
+	req = controlReq(http.MethodPost, "/api/runs/"+run.ID.String()+"/grant_budget", 1, idempotencyKey, string(grantBody))
 	w = httptest.NewRecorder()
 	env.router.ServeHTTP(w, req)
 	require.Equal(t, http.StatusCreated, w.Code)

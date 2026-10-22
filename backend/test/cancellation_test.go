@@ -74,7 +74,7 @@ func TestCancellation_DeadlineAndUserStopCloseRunAndChildren(t *testing.T) {
 			}
 			if tc.userStop {
 				w := httptest.NewRecorder()
-				env.router.ServeHTTP(w, httptest.NewRequest("POST", "/api/runs/"+run.ID.String()+"/stop", nil))
+				env.router.ServeHTTP(w, controlReq("POST", "/api/runs/"+run.ID.String()+"/stop", 1, "", ""))
 				if w.Code != 200 {
 					t.Fatalf("stop: %d %s", w.Code, w.Body.String())
 				}
@@ -177,7 +177,7 @@ func TestCancellation_StopWithoutExecutorAndLateWorkerResult(t *testing.T) {
 		t.Fatal(err)
 	}
 	w := httptest.NewRecorder()
-	env.router.ServeHTTP(w, httptest.NewRequest("POST", "/api/runs/"+run.ID.String()+"/stop", nil))
+	env.router.ServeHTTP(w, controlReq("POST", "/api/runs/"+run.ID.String()+"/stop", 1, "", ""))
 	if w.Code != 200 {
 		t.Fatalf("stop orphan: %d %s", w.Code, w.Body.String())
 	}
@@ -271,7 +271,7 @@ func TestCancellation_StopRacingWithExecutorExit(t *testing.T) {
 		done := make(chan int, 1)
 		go func() {
 			w := httptest.NewRecorder()
-			env.router.ServeHTTP(w, httptest.NewRequest("POST", "/api/runs/"+run.ID.String()+"/stop", nil))
+			env.router.ServeHTTP(w, controlReq("POST", "/api/runs/"+run.ID.String()+"/stop", 1, "", ""))
 			done <- w.Code
 		}()
 		close(release)

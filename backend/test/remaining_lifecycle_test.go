@@ -102,8 +102,7 @@ func TestRemaining_SteerIsDurableIdempotentAndCannotChangeInputs(t *testing.T) {
 	url := "/api/runs/" + runID.String() + "/work_items/" + wi.ID.String() + "/steer"
 	for i := 0; i < 2; i++ {
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, url, bytes.NewBufferString(`{"instructions":"Inspect saved evidence before sending requests"}`))
-		r.Header.Set("Idempotency-Key", "same-guidance-command")
+		r := controlReq(http.MethodPost, url, 1, "same-guidance-command", `{"instructions":"Inspect saved evidence before sending requests"}`)
 		e.router.ServeHTTP(w, r)
 		require.Equal(t, 200, w.Code, w.Body.String())
 	}

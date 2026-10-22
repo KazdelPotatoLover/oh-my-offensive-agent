@@ -113,12 +113,12 @@ func TestReview2_Exhaustion_PlannerContinues_SecondAttemptExecutes(t *testing.T)
 			// Round 2 or later
 			if strings.Contains(lastMsg.Content, "scan_target") && strings.Contains(lastMsg.Content, "exhausted") {
 				contArgs, _ := json.Marshal(map[string]any{
-					"work_item_key": "scan_target",
-					"reason":        "granting second attempt",
+					"work_item_id": promptWorkItemID(lastMsg.Content, "scan_target"),
+					"instruction":  "granting second attempt",
 				})
 				return &provider.ModelResponse{
 					ToolCalls: []provider.ToolCall{
-						{ID: genToolCallID("c_cont"), Type: "function", Function: provider.FunctionCall{Name: "continue_work_item", Arguments: string(contArgs)}},
+						{ID: genToolCallID("c_cont"), Type: "function", Function: provider.FunctionCall{Name: "continue_work", Arguments: string(contArgs)}},
 					},
 					FinishReason: "tool_calls",
 				}, nil
@@ -164,7 +164,7 @@ func TestReview2_Exhaustion_PlannerContinues_SecondAttemptExecutes(t *testing.T)
 		}, nil
 	}
 
-	engine := orchestration.NewEngine(run.ID, env.runService, prov, *runReq.Budget)
+	engine := orchestration.NewEngine(run.ID, env.runService, prov, *runReq.Budget, env.plannerEngineOptions()...)
 	if err := env.manager.StartExecutor(run.ID, engine); err != nil {
 		t.Fatalf("start engine: %v", err)
 	}
@@ -310,7 +310,7 @@ func TestReview2_PauseBarrier_BlocksToolsAndTurns(t *testing.T) {
 			// Trigger pause via API in background right as tool call is returned
 			go func() {
 				time.Sleep(10 * time.Millisecond)
-				pauseReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/runs/%s/pause", run.ID), nil)
+				pauseReq := controlReq(http.MethodPost, fmt.Sprintf("/api/runs/%s/pause", run.ID), 1, "", "")
 				rr := httptest.NewRecorder()
 				env.router.ServeHTTP(rr, pauseReq)
 				if rr.Code == http.StatusOK {
@@ -360,7 +360,7 @@ func TestReview2_PauseBarrier_BlocksToolsAndTurns(t *testing.T) {
 
 	// Resume run
 	isPausedState.Store(false)
-	resumeReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/runs/%s/resume", run.ID), nil)
+	resumeReq := controlReq(http.MethodPost, fmt.Sprintf("/api/runs/%s/resume", run.ID), 1, "", "")
 	rrResume := httptest.NewRecorder()
 	env.router.ServeHTTP(rrResume, resumeReq)
 	if rrResume.Code != http.StatusOK {
@@ -516,7 +516,7 @@ func TestReview2_ConcurrentWorkers_KillTargetWorkerOnly(t *testing.T) {
 
 	// Kill Worker A via API
 	killBody, _ := json.Marshal(map[string]string{"reason": "operator terminated worker a"})
-	killReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/runs/%s/work_items/%s/kill", run.ID, itemA.ID), bytes.NewReader(killBody))
+	killReq := controlReq(http.MethodPost, fmt.Sprintf("/api/runs/%s/work_items/%s/kill", run.ID, itemA.ID), 1, "", string(killBody))
 	rrKill := httptest.NewRecorder()
 	env.router.ServeHTTP(rrKill, killReq)
 	if rrKill.Code != http.StatusOK {
@@ -651,7 +651,7 @@ func TestReview2_SteerGuidanceInjectedInNextTurn(t *testing.T) {
 			// Trigger tool call and pause in background so steer can be dispatched before turn 2
 			go func() {
 				time.Sleep(10 * time.Millisecond)
-				pauseReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/runs/%s/pause", run.ID), nil)
+				pauseReq := controlReq(http.MethodPost, fmt.Sprintf("/api/runs/%s/pause", run.ID), 1, "", "")
 				rr := httptest.NewRecorder()
 				env.router.ServeHTTP(rr, pauseReq)
 			}()
@@ -696,7 +696,7 @@ func TestReview2_SteerGuidanceInjectedInNextTurn(t *testing.T) {
 
 	// Dispatch Steer via API while paused
 	steerBody, _ := json.Marshal(map[string]string{"instructions": steerMessage})
-	steerReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/runs/%s/work_items/%s/steer", run.ID, wi.ID), bytes.NewReader(steerBody))
+	steerReq := controlReq(http.MethodPost, fmt.Sprintf("/api/runs/%s/work_items/%s/steer", run.ID, wi.ID), 1, "", string(steerBody))
 	rrSteer := httptest.NewRecorder()
 	env.router.ServeHTTP(rrSteer, steerReq)
 	if rrSteer.Code != http.StatusOK {
@@ -704,7 +704,7 @@ func TestReview2_SteerGuidanceInjectedInNextTurn(t *testing.T) {
 	}
 
 	// Resume run so tool executes and turn 2 starts with steer injected
-	resumeReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/runs/%s/resume", run.ID), nil)
+	resumeReq := controlReq(http.MethodPost, fmt.Sprintf("/api/runs/%s/resume", run.ID), 1, "", "")
 	rrResume := httptest.NewRecorder()
 	env.router.ServeHTTP(rrResume, resumeReq)
 	if rrResume.Code != http.StatusOK {
@@ -879,7 +879,7 @@ func TestReview2_GrantBudgetRefreshesActiveEngineAndExtendsDeadline(t *testing.T
 		"additional_seconds":     15,
 		"reason":                 "operator extended budget for deep analysis",
 	})
-	grantReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/runs/%s/grant_budget", run.ID), bytes.NewReader(grantBody))
+	grantReq := controlReq(http.MethodPost, fmt.Sprintf("/api/runs/%s/grant_budget", run.ID), 1, "", string(grantBody))
 	rrGrant := httptest.NewRecorder()
 	env.router.ServeHTTP(rrGrant, grantReq)
 	if rrGrant.Code != http.StatusCreated {

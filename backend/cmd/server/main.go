@@ -13,8 +13,10 @@ import (
 
 	"agent-workbench/backend/internal/config"
 	"agent-workbench/backend/internal/contract"
+	"agent-workbench/backend/internal/controlplane"
 	"agent-workbench/backend/internal/db"
 	"agent-workbench/backend/internal/handler"
+	"agent-workbench/backend/internal/orchestration"
 	"agent-workbench/backend/internal/provider"
 	"agent-workbench/backend/internal/service"
 	"agent-workbench/backend/internal/worker"
@@ -80,12 +82,35 @@ func main() {
 	if capture.jobs != nil {
 		ports = append(ports, capture.jobs)
 	}
-	manager.UseResourceRevoker(contract.FanoutRevoker{Ports: ports})
+	fanout := contract.FanoutRevoker{Ports: ports}
+	manager.UseResourceRevoker(fanout)
+
+	// One controller, one replan port, and one engine factory. Main chat does
+	// not receive a provider here, so it cannot call a paid model by default.
+	supervisor := orchestration.NewToolBatchSupervisor()
+	runHandler := handler.NewRunHandler(runService, taskService, manager)
+	runHandler.UseResourceRevoker(capture.gateway)
+	runHandler.UseToolBatchSupervisor(supervisor)
+	controller := controlplane.NewController(runService, &controlplane.ManagerLive{Manager: manager}, supervisor, runHandler.RecoverEpoch)
+	supervision := controlplane.NewSupervision(runService, controller)
+	runHandler.UseController(controller)
+	runHandler.UseSupervision(supervision)
+	workbench := controlplane.NewWorkbench(runService, nil)
+	mainAgent := controlplane.NewMainAgent(runService, controller, workbench, nil, nil)
+	composed := contract.ExecutionPorts{
+		Controller: controller,
+		Tools:      supervision,
+		Workbench:  workbench,
+		Capture:    capture.gateway,
+		Revoker:    fanout,
+	}
+	if jobs, ok := capture.jobs.(contract.JobExecutor); ok {
+		composed.Jobs = jobs
+	}
+	slog.Info("execution ports composed", "production_ready_not_called", true, "jobs_wired", composed.Jobs != nil)
 
 	// Initialize handlers
 	taskHandler := handler.NewTaskHandler(taskService)
-	runHandler := handler.NewRunHandler(runService, taskService, manager)
-	runHandler.UseResourceRevoker(capture.gateway)
 	assetHandler := handler.NewAssetHandler(runService)
 
 	// Set up router
@@ -98,7 +123,7 @@ func main() {
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   strings.Split(cfg.CORSOrigins, ","),
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Content-Type", "Idempotency-Key"},
+		AllowedHeaders:   []string{"Content-Type", "Idempotency-Key", "X-Actor-Id"},
 		AllowCredentials: false,
 		MaxAge:           300,
 	}))
@@ -179,6 +204,7 @@ func main() {
 		r.Get("/runs/{runID}/findings/{findingID}/retests", runHandler.ListFindingRetests)
 		r.Get("/runs/{runID}/finding-report", runHandler.GetFindingReport)
 		r.Get("/checks/catalog", runHandler.GetCheckCatalog)
+		handler.MountControlAPI(r, handler.NewControlAPI(controller, workbench, mainAgent))
 	})
 
 	// Health check

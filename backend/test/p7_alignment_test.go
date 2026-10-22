@@ -350,7 +350,7 @@ func TestP7_EndToEndAlignmentLifecycle(t *testing.T) {
 	require.Equal(t, "verified", empiricalFinding.VerificationState)
 
 	// 4. Operator Pauses Run
-	req := httptest.NewRequest(http.MethodPost, "/api/runs/"+run.ID.String()+"/pause", nil)
+	req := controlReq(http.MethodPost, "/api/runs/"+run.ID.String()+"/pause", 1, "", "")
 	w := httptest.NewRecorder()
 	env.router.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
@@ -366,13 +366,13 @@ func TestP7_EndToEndAlignmentLifecycle(t *testing.T) {
 		"additional_seconds":     120,
 		"reason":                 "Operator approved phase 2 investigation",
 	})
-	req = httptest.NewRequest(http.MethodPost, "/api/runs/"+run.ID.String()+"/grant_budget", bytes.NewReader(grantBody))
+	req = controlReq(http.MethodPost, "/api/runs/"+run.ID.String()+"/grant_budget", 1, "", string(grantBody))
 	w = httptest.NewRecorder()
 	env.router.ServeHTTP(w, req)
 	require.Equal(t, http.StatusCreated, w.Code)
 
 	// 6. Operator Resumes Run
-	req = httptest.NewRequest(http.MethodPost, "/api/runs/"+run.ID.String()+"/resume", nil)
+	req = controlReq(http.MethodPost, "/api/runs/"+run.ID.String()+"/resume", 1, "", "")
 	w = httptest.NewRecorder()
 	env.router.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)

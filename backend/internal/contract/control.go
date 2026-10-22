@@ -119,6 +119,8 @@ type GrantBudgetPayload struct {
 
 // CommandResult is returned for a new or replayed idempotent command.
 // Delivered is separate from Status: accepted does not mean the worker has read it.
+// Replayed is set only on the response copy of an existing command. It is not
+// stored, so the persisted result remains the original apply.
 type CommandResult struct {
 	CommandID   uuid.UUID       `json:"command_id"`
 	Status      CommandStatus   `json:"status"`
@@ -127,6 +129,7 @@ type CommandResult struct {
 	WorkItemID  *uuid.UUID      `json:"work_item_id,omitempty"`
 	AttemptID   *uuid.UUID      `json:"attempt_id,omitempty"`
 	Delivered   bool            `json:"delivered"`
+	Replayed    bool            `json:"replayed,omitempty"`
 	Result      json.RawMessage `json:"result,omitempty"`
 	Error       *ErrorBody      `json:"error,omitempty"`
 }

@@ -90,6 +90,7 @@ type Engine struct {
 	revoker           contract.ResourceRevoker
 	runtime           contract.RuntimeResolver
 	steer             *ToolBatchSupervisor
+	controlInstaller  PlannerControlInstaller
 	onModelWaitHook   func(queued int)
 
 	// Live execution control plane (pause barrier, kill worker cancels, safe turn steer)
@@ -601,16 +602,13 @@ func (e *Engine) Run(ctx context.Context) {
 		plannerRegistry.Register(tools.NewListWorkerTracesTool(e.runID, e.runService))
 		plannerRegistry.Register(tools.NewGetWorkerTraceTool(e.runID, e.runService))
 		plannerRegistry.Register(tools.NewSearchAllWorkerTracesTool(e.runID, nil, e.runService))
-		plannerRegistry.Register(tools.NewContinueWorkItemTool(e.runID, e.runService, func(key string) {
-			planSubmitted = true
-			e.notifyDispatcher()
-			e.markPlannerDirty()
-		}))
-		plannerRegistry.Register(tools.NewRetryWorkItemTool(e.runID, e.runService, func(key string) {
-			planSubmitted = true
-			e.notifyDispatcher()
-			e.markPlannerDirty()
-		}))
+		e.installPlannerControl(plannerRegistry, sess1.ID, func(name string) {
+			if name == "continue_work" || name == "retry_work" || name == "add_intent" {
+				planSubmitted = true
+				e.notifyDispatcher()
+				e.markPlannerDirty()
+			}
+		})
 		plannerRegistry.Register(tools.NewManagePlannerTodosTool(e.runID, e.runService))
 
 		assets, _ = e.runService.ListAssetsByRun(ctx, e.runID)
@@ -826,16 +824,13 @@ func (e *Engine) Run(ctx context.Context) {
 		evalRegistry.Register(tools.NewListWorkerTracesTool(e.runID, e.runService))
 		evalRegistry.Register(tools.NewGetWorkerTraceTool(e.runID, e.runService))
 		evalRegistry.Register(tools.NewSearchAllWorkerTracesTool(e.runID, nil, e.runService))
-		evalRegistry.Register(tools.NewContinueWorkItemTool(e.runID, e.runService, func(key string) {
-			followUpPlanSubmitted = true
-			e.notifyDispatcher()
-			e.markPlannerDirty()
-		}))
-		evalRegistry.Register(tools.NewRetryWorkItemTool(e.runID, e.runService, func(key string) {
-			followUpPlanSubmitted = true
-			e.notifyDispatcher()
-			e.markPlannerDirty()
-		}))
+		e.installPlannerControl(evalRegistry, sess.ID, func(name string) {
+			if name == "continue_work" || name == "retry_work" || name == "add_intent" {
+				followUpPlanSubmitted = true
+				e.notifyDispatcher()
+				e.markPlannerDirty()
+			}
+		})
 		evalRegistry.Register(tools.NewManagePlannerTodosTool(e.runID, e.runService))
 
 		evalTodos, _ := e.runService.ListPlannerTodos(ctx, e.runID)
@@ -850,13 +845,13 @@ func (e *Engine) Run(ctx context.Context) {
 			obsInfo.WriteString("\nExhausted Work Items (Available for Continuation):\n")
 			for _, it := range items {
 				if it.Status == model.WorkItemStatusExhausted {
-					obsInfo.WriteString(fmt.Sprintf("- WorkItem %s [id: %s] is exhausted. You can inspect its trace or call continue_work_item(work_item_key='%s', reason='...') to resume exploration.\n", it.Key, it.ID.String(), it.Key))
+					obsInfo.WriteString(fmt.Sprintf("- WorkItem %s [id: %s] is exhausted. You can inspect its trace or call continue_work(work_item_id='%s', instruction='...') to resume exploration.\n", it.Key, it.ID.String(), it.ID.String()))
 				}
 			}
 		}
 
 		evalPrompt := fmt.Sprintf(
-			"Review current execution progress and observations. You can either call submit_plan to schedule additional follow-up work items, continue_work_item to resume an exhausted worker, or call suggest_completion to finish the run.\n%s",
+			"Review current execution progress and observations. You can either call submit_plan to schedule additional follow-up work items, continue_work to resume an exhausted worker, or call suggest_completion to finish the run.\n%s",
 			obsInfo.String())
 		evalMessages := []provider.ChatMessage{
 			{Role: provider.RoleSystem, Content: plannerContract + fmt.Sprintf("\nObjective: %s\nScope: %s\nRun budget: %+v; budget snapshot=%+v. Work item statuses and asset coverage are current snapshots, not proof of full coverage. Budget must include the model turn after tool calls. An exhausted worker has not completed its work; decide any bounded follow-up from existing evidence, never automatically replay external operations.", objective, scopeBytes, e.budgetConfig(), e.budgetSummary())},
@@ -1082,6 +1077,7 @@ func (e *Engine) executeWorkerSession(
 			agent.WithStructuredCallGate(workerGate),
 			agent.WithInitialMessagesPersisted(initialPersisted),
 			agent.WithBeforeTurnMessagesPersisted(true),
+			agent.WithToolBatchDecider(wi.ID, supervisorDecider{supervisor: e.steer}),
 			agent.WithBeforeTurnHook(func(turnCtx context.Context, turn int) ([]provider.ChatMessage, error) {
 				if err := e.waitIfPaused(turnCtx); err != nil {
 					return nil, err

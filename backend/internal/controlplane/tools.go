@@ -285,7 +285,13 @@ func defaultToolKey(scope contract.ExecutionScope, cmd contract.Command) string 
 		target = cmd.WorkItemID.String()
 	}
 	sum := sha256.Sum256(cmd.Payload)
+	// A planner round is a new session. Retrying the same call inside that
+	// session stays idempotent. A later round must hit the state machine
+	// again; replaying an old applied result is not a new plan.
 	base := scope.RunID.String()
+	if scope.SessionID != nil {
+		base = scope.SessionID.String()
+	}
 	if scope.SourceToolCallID != nil {
 		base = scope.SourceToolCallID.String()
 	}

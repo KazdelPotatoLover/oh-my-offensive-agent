@@ -94,7 +94,7 @@ func (c *Controller) Apply(ctx context.Context, principal contract.Principal, sc
 		if existing.Hash != hash {
 			return nil, idempotencyConflict("idempotency key was already used with different content")
 		}
-		return existing.Result, nil
+		return replayedResult(existing.Result), nil
 	}
 
 	run, err := c.Runs.Get(ctx, scope.RunID)
@@ -147,11 +147,20 @@ func (c *Controller) Apply(ctx context.Context, principal contract.Principal, sc
 			if existing.Hash != hash {
 				return nil, idempotencyConflict("idempotency key was already used with different content")
 			}
-			return existing.Result, nil
+			return replayedResult(existing.Result), nil
 		}
 		return nil, err
 	}
 	return result, nil
+}
+
+func replayedResult(result *contract.CommandResult) *contract.CommandResult {
+	if result == nil {
+		return nil
+	}
+	copy := *result
+	copy.Replayed = true
+	return &copy
 }
 
 func (c *Controller) applyStartEpoch(ctx context.Context, principal contract.Principal, scope contract.ExecutionScope, key, hash string, cmd contract.Command, reason, summary string) (*contract.CommandResult, error) {
@@ -180,7 +189,7 @@ func (c *Controller) applyStartEpoch(ctx context.Context, principal contract.Pri
 		if existing.Hash != hash {
 			return nil, idempotencyConflict("idempotency key was already used with different content")
 		}
-		return existing.Result, nil
+		return replayedResult(existing.Result), nil
 	}
 	if callErr != nil {
 		return nil, mapServiceErr(callErr)
@@ -196,7 +205,7 @@ func (c *Controller) applyStartEpoch(ctx context.Context, principal contract.Pri
 	}
 	if err := c.insert(ctx, principal, scope, key, hash, cmd, result); err != nil {
 		if existing, loadErr := c.load(ctx, scope.RunID, key); loadErr == nil && existing != nil && existing.Hash == hash {
-			return existing.Result, nil
+			return replayedResult(existing.Result), nil
 		}
 		return nil, err
 	}
