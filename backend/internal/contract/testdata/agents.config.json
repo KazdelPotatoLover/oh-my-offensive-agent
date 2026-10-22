@@ -1,0 +1,8 @@
+{
+  "agents": {
+    "mainagent": {"runtime_profile": "default", "model": "configured-model"},
+    "planner": {"runtime_profile": "default", "model": "configured-model"},
+    "worker": {"runtime_profile": "default", "model": "configured-model"},
+    "verifier": {"runtime_profile": "default", "model": "configured-model"}
+  }
+}

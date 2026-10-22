@@ -1,0 +1,25 @@
+{
+  "schema_version": "workbench.v1",
+  "snapshot_at": "2026-10-22T00:00:00Z",
+  "run": {"id": "11111111-1111-4111-8111-111111111111", "status": "running", "epoch_number": 2},
+  "worker_capacity": {"requested": 4, "effective": 4, "active": 2, "queued": 3},
+  "model_capacity": {"limit": 2, "in_flight": 2, "queued": 1},
+  "budget": {},
+  "goals": [],
+  "planner": {"status": "waiting", "reason": "等待当前方向写回", "session_id": "44444444-4444-4444-8444-444444444444"},
+  "directions": [
+    {
+      "work_item_id": "22222222-2222-4222-8222-222222222222",
+      "objective": "读取授权入口并保存响应",
+      "status": "running",
+      "attempt_id": "33333333-3333-4333-8333-333333333333",
+      "session_id": "44444444-4444-4444-8444-444444444444",
+      "latest_step": "http_request",
+      "allowed_actions": ["steer_work", "kill_work"]
+    }
+  ],
+  "main_conversation": {"last_seq": 12, "active_turn_id": null},
+  "events": [],
+  "last_event_seq": 123,
+  "has_more_events": false
+}

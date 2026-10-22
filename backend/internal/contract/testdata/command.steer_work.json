@@ -1,0 +1,7 @@
+{
+  "type": "steer_work",
+  "expected_epoch": 2,
+  "work_item_id": "22222222-2222-4222-8222-222222222222",
+  "expected_attempt_id": "33333333-3333-4333-8333-333333333333",
+  "payload": {"instruction": "先查看已保存的响应，停止重复读取同一页面"}
+}

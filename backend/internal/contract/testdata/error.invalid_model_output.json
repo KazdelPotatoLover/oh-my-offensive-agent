@@ -1,0 +1,10 @@
+{
+  "error": {
+    "code": "invalid_model_output",
+    "scope": "session",
+    "message": "模型返回不完整工具参数，本轮未执行这些调用",
+    "retryable": true,
+    "source_id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+    "suggested_action": "retry_direction"
+  }
+}

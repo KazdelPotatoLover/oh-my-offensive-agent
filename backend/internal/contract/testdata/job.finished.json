@@ -1,0 +1,9 @@
+{
+  "job_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "state": "finished",
+  "exit_code": 0,
+  "stdout_artifact_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "stderr_artifact_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "traffic_refs": ["66666666-6666-4666-8666-666666666666"],
+  "execution_receipt_id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+}
