@@ -2,10 +2,8 @@ package netcap
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
 
 	"agent-workbench/backend/internal/contract"
 
@@ -43,62 +41,12 @@ func ReplayUnsafe(replaySafe bool, method, captureMode, outcome, credentialRef, 
 // VerifyToolReceipt loads a gateway-minted receipt bound to this tool call.
 // Model JSON, command stdout, and a receipt from another asset or epoch fail.
 func VerifyToolReceipt(ctx context.Context, tx pgx.Tx, runID, assetID, callID uuid.UUID, epoch int, output string) (int, map[string]string, string, error) {
-	var cited struct {
-		ReceiptID uuid.UUID `json:"receipt_id"`
-		Receipt   struct {
-			ReceiptID uuid.UUID `json:"receipt_id"`
-		} `json:"receipt"`
-	}
-	_ = json.Unmarshal([]byte(output), &cited)
-	receiptID := cited.ReceiptID
-	if receiptID == uuid.Nil {
-		receiptID = cited.Receipt.ReceiptID
-	}
-	if receiptID == uuid.Nil {
-		return 0, nil, "", ErrNotEmpirical
-	}
-	var mode, outcome, minted, reqHash, respHash, method string
-	var status int
-	var truncated bool
-	var storedAsset *uuid.UUID
-	var storedRun uuid.UUID
-	var storedEpoch int
-	var source *uuid.UUID
-	var respArt *uuid.UUID
-	err := tx.QueryRow(ctx, `SELECT capture_mode,outcome,minted_by,request_hash,response_hash,method,status_code,truncated,asset_id,run_id,epoch_number,source_tool_call_id,response_artifact_id
-		FROM http_receipts WHERE id=$1`, receiptID).Scan(&mode, &outcome, &minted, &reqHash, &respHash, &method, &status, &truncated, &storedAsset, &storedRun, &storedEpoch, &source, &respArt)
+	e, err := ReadToolExchange(ctx, tx, runID, callID, epoch, true)
 	if err != nil {
+		return 0, nil, "", err
+	}
+	if e.AssetID != assetID {
 		return 0, nil, "", ErrNotEmpirical
 	}
-	if minted != "gateway" || source == nil || *source != callID || storedRun != runID || storedEpoch != epoch {
-		return 0, nil, "", ErrNotEmpirical
-	}
-	if storedAsset == nil || *storedAsset != assetID {
-		return 0, nil, "", ErrNotEmpirical
-	}
-	if mode != contract.CaptureDirect && mode != contract.CaptureTLSIntercept {
-		return 0, nil, "", ErrNotEmpirical
-	}
-	if outcome != "completed" || truncated || status < 100 || status > 599 || respArt == nil {
-		return 0, nil, "", ErrNotEmpirical
-	}
-	var rawHeaders []byte
-	var body []byte
-	var storedSum string
-	if err := tx.QueryRow(ctx, `SELECT headers,content,sha256 FROM http_capture_artifacts WHERE id=$1 AND run_id=$2 AND epoch_number=$3`, *respArt, runID, epoch).Scan(&rawHeaders, &body, &storedSum); err != nil {
-		return 0, nil, "", ErrNotEmpirical
-	}
-	if sha256Hex(body) != storedSum {
-		return 0, nil, "", ErrNotEmpirical
-	}
-	header := http.Header{}
-	_ = json.Unmarshal(rawHeaders, &header)
-	if hashParts(status, header, body, "", "") != respHash {
-		return 0, nil, "", ErrNotEmpirical
-	}
-	flat := map[string]string{}
-	for key, values := range header {
-		flat[key] = strings.Join(values, ", ")
-	}
-	return status, flat, string(body), nil
+	return e.Status, e.Headers, e.Body, nil
 }

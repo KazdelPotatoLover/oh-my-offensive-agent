@@ -60,7 +60,7 @@ func prepareIntent(ctx context.Context, tx pgx.Tx, runID uuid.UUID, item *PlanIt
 }
 
 func linkPlannedIntent(ctx context.Context, tx pgx.Tx, runID, workID uuid.UUID, item PlanItemSpec) error {
-	payload, _ := json.Marshal(map[string]any{"text": item.Objective, "profile": item.InputData["profile"], "profile_hash": item.InputData["profile_hash"], "key": item.Key, "source_fact_ids": item.SourceFactIDs})
+	payload, _ := json.Marshal(map[string]any{"summary": item.Objective, "text": item.Objective, "profile": item.InputData["profile"], "profile_hash": item.InputData["profile_hash"], "key": item.Key, "source_fact_ids": item.SourceFactIDs})
 	var nodeID uuid.UUID
 	err := tx.QueryRow(ctx, `INSERT INTO exploration_nodes(run_id,kind,payload,state,work_item_id,epoch_number) VALUES($1,'intent',$2,'open',$3,(SELECT current_epoch FROM runs WHERE id=$1)) RETURNING id`, runID, payload, workID).Scan(&nodeID)
 	if err != nil {

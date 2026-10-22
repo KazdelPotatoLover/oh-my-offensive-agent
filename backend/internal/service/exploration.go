@@ -1022,7 +1022,7 @@ func (s *RunService) GraphOverview(ctx context.Context, runID uuid.UUID) (map[st
 			_ = json.Unmarshal(payload, &p)
 			item := map[string]any{
 				"id":           iid,
-				"summary":      p["summary"],
+				"summary":      intentSummary(p),
 				"priority":     prio,
 				"state":        state,
 				"work_item_id": wiID,
@@ -1133,4 +1133,14 @@ func (s *RunService) ListAssetRelations(ctx context.Context, assetID uuid.UUID) 
 		list = []model.AssetRelation{}
 	}
 	return list, nil
+}
+
+// intentSummary accepts both planned-intent text and historical summary payloads.
+func intentSummary(p map[string]any) string {
+	for _, k := range []string{"summary", "text"} {
+		if v, ok := p[k].(string); ok && strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
 }

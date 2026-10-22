@@ -1,7 +1,9 @@
 package service
 
 import (
+	"agent-workbench/backend/internal/netcap"
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -39,5 +41,45 @@ func (s *RunService) ListAssetCoverage(ctx context.Context, runID uuid.UUID) ([]
 		}
 		result = append(result, a)
 	}
-	return result, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close()
+	calls, err := s.pool.Query(ctx, `SELECT tc.id,tc.epoch_number FROM agent_tool_calls tc JOIN runs r ON r.id=tc.run_id WHERE tc.run_id=$1 AND tc.epoch_number BETWEEN 1 AND r.current_epoch AND tc.status='success' AND tc.tool_name='http_request' ORDER BY tc.created_at`, runID)
+	if err != nil {
+		return nil, err
+	}
+	type ref struct {
+		id    uuid.UUID
+		epoch int
+	}
+	var refs []ref
+	for calls.Next() {
+		var r ref
+		if err := calls.Scan(&r.id, &r.epoch); err != nil {
+			calls.Close()
+			return nil, err
+		}
+		refs = append(refs, r)
+	}
+	err = calls.Err()
+	calls.Close()
+	if err != nil {
+		return nil, err
+	}
+	visited := map[uuid.UUID]bool{}
+	for _, r := range refs {
+		e, err := netcap.ReadToolExchange(ctx, s.pool, runID, r.id, r.epoch, false)
+		if errors.Is(err, netcap.ErrNotEmpirical) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		visited[e.AssetID] = true
+	}
+	for i := range result {
+		result[i].Visited = result[i].Visited || visited[result[i].AssetID]
+	}
+	return result, nil
 }

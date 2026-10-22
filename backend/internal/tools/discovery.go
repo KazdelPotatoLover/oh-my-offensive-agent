@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"agent-workbench/backend/internal/model"
+	"agent-workbench/backend/internal/netcap"
 	"agent-workbench/backend/internal/service"
 
 	"github.com/google/uuid"
@@ -38,7 +39,7 @@ func (t *ExtractEndpointLinksTool) Name() string {
 }
 
 func (t *ExtractEndpointLinksTool) Description() string {
-	return "Extract and register verified HTTP endpoint links from an existing successful get_endpoint tool call HTML response."
+	return "Extract and register verified HTTP endpoint links from an existing successful get_endpoint or trusted http_request HTML response."
 }
 
 func (t *ExtractEndpointLinksTool) Parameters() json.RawMessage {
@@ -47,7 +48,7 @@ func (t *ExtractEndpointLinksTool) Parameters() json.RawMessage {
 		"properties": {
 			"source_tool_call_id": {
 				"type": "string",
-				"description": "Copy _execution.source_tool_call_id from a successful get_endpoint result, not asset_id. The exact original call_id is also accepted. Parses the stored HTML evidence, including when the model preview was shortened."
+				"description": "Copy _execution.source_tool_call_id from a successful get_endpoint or http_request result, not asset_id. The exact original call_id is also accepted. Parses the stored HTML evidence, including when the model preview was shortened."
 			}
 		},
 		"required": ["source_tool_call_id"]
@@ -96,98 +97,20 @@ func (t *ExtractEndpointLinksTool) Execute(ctx context.Context, argsBytes []byte
 
 	pool := t.runService.Pool()
 
-	// 1. Retrieve and validate source tool call
-	var tcID uuid.UUID
-	var sessionID *uuid.UUID
-	var toolName, tcStatus, output string
-	var argsJSON []byte
-
-	err := pool.QueryRow(ctx,
-		`SELECT id, session_id, tool_name, status, output, arguments
-		 FROM agent_tool_calls
-		 WHERE run_id = $1 AND (id::text = $2 OR call_id = $2)`,
-		t.runID, strings.TrimSpace(args.SourceToolCallID)).Scan(
-		&tcID, &sessionID, &toolName, &tcStatus, &output, &argsJSON)
+	source, err := t.runService.HTTPDiscoverySource(ctx, t.runID, t.sessionID, t.workItemID, args.SourceToolCallID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return "", fmt.Errorf("source tool call '%s' not found in run %s", args.SourceToolCallID, t.runID)
-		}
-		return "", fmt.Errorf("query source tool call: %w", err)
+		return "", err
 	}
-
-	// 2. Validate session association: must belong to current session
-	if sessionID == nil || *sessionID != t.sessionID {
-		return "", fmt.Errorf("source tool call belongs to a different session; cross-session discovery rejected")
-	}
-	if toolName != "get_endpoint" {
-		return "", fmt.Errorf("source tool call is '%s', but extract_endpoint_links requires 'get_endpoint'", toolName)
-	}
-	if tcStatus != "success" {
-		return "", fmt.Errorf("source tool call status is '%s', must be 'success'", tcStatus)
-	}
-
-	// 3. Parse structured tool call evidence
-	var tcData struct {
-		Request struct {
-			Method  string `json:"method"`
-			URL     string `json:"url"`
-			AssetID string `json:"asset_id"`
-		} `json:"request"`
-		Response *struct {
-			StatusCode int               `json:"status_code"`
-			Headers    map[string]string `json:"headers"`
-			Body       string            `json:"body"`
-		} `json:"response"`
-		Integrity struct {
-			SavedBytes  int    `json:"saved_bytes"`
-			IsTruncated bool   `json:"is_truncated"`
-			Note        string `json:"note"`
-		} `json:"integrity"`
-		Error *struct {
-			Type    string `json:"type"`
-			Message string `json:"message"`
-		} `json:"error"`
-	}
-	if err := json.Unmarshal([]byte(output), &tcData); err != nil {
-		return "", fmt.Errorf("source tool call output is not valid structured evidence: %w", err)
-	}
-	if tcData.Error != nil {
-		return "", fmt.Errorf("source tool call recorded error (%s: %s)", tcData.Error.Type, tcData.Error.Message)
-	}
-	if tcData.Response == nil {
-		return "", errors.New("source tool call output contains no response")
-	}
-	if tcData.Integrity.IsTruncated {
-		return "", errors.New("cannot extract links from truncated response body")
-	}
-
-	// 4. Verify Content-Type is text/html
+	tcID, sourceAssetUUID := source.CallID, source.AssetID
 	var isHTML bool
-	for k, v := range tcData.Response.Headers {
+	for k, v := range source.Headers {
 		if strings.EqualFold(k, "Content-Type") && strings.Contains(strings.ToLower(v), "text/html") {
 			isHTML = true
-			break
 		}
 	}
 	if !isHTML {
-		return "", errors.New("source tool call response is not text/html")
+		return "", errors.New("source response is not text/html")
 	}
-
-	// 5. Verify source asset belongs to current work item
-	sourceAssetUUID, err := uuid.Parse(tcData.Request.AssetID)
-	if err != nil {
-		return "", fmt.Errorf("invalid source asset ID: %w", err)
-	}
-	if t.workItemID != uuid.Nil {
-		var inWIScope bool
-		err = pool.QueryRow(ctx,
-			`SELECT EXISTS (SELECT 1 FROM work_item_assets WHERE work_item_id = $1 AND asset_id = $2)`,
-			t.workItemID, sourceAssetUUID).Scan(&inWIScope)
-		if err != nil || !inWIScope {
-			return "", fmt.Errorf("source asset %s is not associated with work item: %w", sourceAssetUUID, service.ErrAssetOutOfScope)
-		}
-	}
-
 	// 6. Check Run state and retrieve discovery policy
 	var runStatus model.RunStatus
 	var executionInputJSON []byte
@@ -217,6 +140,9 @@ func (t *ExtractEndpointLinksTool) Execute(ctx context.Context, argsBytes []byte
 		}
 	}
 	if discPolicy == nil {
+		if source.ReceiptID != uuid.Nil {
+			return "", errors.New("explicit discovery_policy required for captured HTTP link registration")
+		}
 		fixturePort := os.Getenv("FIXTURE_PORT")
 		if fixturePort == "" {
 			fixturePort = "29090"
@@ -242,12 +168,16 @@ func (t *ExtractEndpointLinksTool) Execute(ctx context.Context, argsBytes []byte
 	}
 
 	allowedPathMap := make(map[string]bool)
+	networkPolicy, networkErr := netcap.PolicyFromExecutionInput(executionInputJSON)
+	if source.ReceiptID != uuid.Nil && networkErr != nil {
+		return "", networkErr
+	}
 	for _, p := range discPolicy.AllowedPaths {
 		allowedPathMap[p] = true
 	}
 
 	// 7. Parse HTML for <a href>
-	doc, err := html.Parse(strings.NewReader(tcData.Response.Body))
+	doc, err := html.Parse(strings.NewReader(source.Body))
 	if err != nil {
 		return "", fmt.Errorf("parse response html: %w", err)
 	}
@@ -272,7 +202,7 @@ func (t *ExtractEndpointLinksTool) Execute(ctx context.Context, argsBytes []byte
 	}
 	walk(doc)
 
-	sourceReqURL, err := url.Parse(tcData.Request.URL)
+	sourceReqURL, err := url.Parse(source.FinalURL)
 	if err != nil {
 		return "", fmt.Errorf("invalid source request URL: %w", err)
 	}
@@ -331,7 +261,7 @@ func (t *ExtractEndpointLinksTool) Execute(ctx context.Context, argsBytes []byte
 
 		resolved := sourceReqURL.ResolveReference(parsedHref)
 
-		if resolved.Scheme != "http" {
+		if (resolved.Scheme != "http" && resolved.Scheme != "https") || resolved.Scheme != policyURL.Scheme {
 			rejected = append(rejected, RejectedItem{
 				RawHref: trimmedHref,
 				Reason:  fmt.Sprintf("unsupported scheme '%s'", resolved.Scheme),
@@ -361,6 +291,13 @@ func (t *ExtractEndpointLinksTool) Execute(ctx context.Context, argsBytes []byte
 				Reason:  fmt.Sprintf("origin '%s' does not match policy origin '%s'", resolved.Host, policyURL.Host),
 			})
 			continue
+		}
+		if source.ReceiptID != uuid.Nil {
+			_, matchErr := networkPolicy.Match(resolved)
+			if matchErr != nil || networkPolicy.AllowsMethod("GET") != nil {
+				rejected = append(rejected, RejectedItem{RawHref: trimmedHref, Reason: "outside frozen HTTP request policy"})
+				continue
+			}
 		}
 
 		lowerPath := strings.ToLower(resolved.Path)
@@ -407,11 +344,15 @@ func (t *ExtractEndpointLinksTool) Execute(ctx context.Context, argsBytes []byte
 
 	// Acquire row lock on runs to enforce consistency with stopping
 	var currentRunStatus model.RunStatus
-	err = tx.QueryRow(ctx, `SELECT status FROM runs WHERE id = $1 FOR UPDATE`, t.runID).Scan(&currentRunStatus)
+	var currentEpoch int
+	err = tx.QueryRow(ctx, `SELECT status,current_epoch FROM runs WHERE id = $1 FOR UPDATE`, t.runID).Scan(&currentRunStatus, &currentEpoch)
 	if err != nil {
 		return "", fmt.Errorf("lock run for discovery: %w", err)
 	}
-	if currentRunStatus.IsTerminal() || currentRunStatus == model.RunStatusStopping {
+	if currentEpoch != source.Epoch {
+		return "", service.ErrStaleEpoch
+	}
+	if currentRunStatus.IsTerminal() || currentRunStatus == model.RunStatusStopping || currentRunStatus == model.RunStatusPaused {
 		return "", fmt.Errorf("run transitioned to status '%s': discovery registration aborted", currentRunStatus)
 	}
 

@@ -782,7 +782,7 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 				status = "success"
 				storedOutStr = string(out)
 				toolMsgContent = storedOutStr
-				if tc.Function.Name == "get_endpoint" || tc.Function.Name == "read_sample" {
+				if tc.Function.Name == "get_endpoint" || tc.Function.Name == "read_sample" || tc.Function.Name == "http_request" {
 					toolMsgContent = evidenceToolMessage(storedOutStr, tcRec.ID.String(), tc.ID, sr.budget.MaxToolOutputBytes)
 				} else if len(toolMsgContent) > sr.budget.MaxToolOutputBytes {
 					toolMsgContent = truncateUTF8(toolMsgContent, sr.budget.MaxToolOutputBytes) + "\n...[truncated: output exceeded model context budget limit]"
