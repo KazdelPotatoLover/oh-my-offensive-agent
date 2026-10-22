@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 
 	"agent-workbench/backend/internal/provider"
@@ -60,6 +61,7 @@ func (r *Registry) Definitions() []provider.ToolDefinition {
 			Parameters:  tool.Parameters(),
 		})
 	}
+	sort.Slice(defs, func(i, j int) bool { return defs[i].Name < defs[j].Name })
 	return defs
 }
 

@@ -38,6 +38,7 @@ func WithOnStepHook(hook func(step int)) WorkerOption {
 }
 
 type Manager struct {
+	modelRuntime    *provider.ProcessRuntime
 	pool            *pgxpool.Pool
 	runService      *service.RunService
 	mu              sync.Mutex
@@ -66,6 +67,7 @@ func (m *Manager) UseResourceRevoker(revoker contract.ResourceRevoker) {
 
 func NewManager(pool *pgxpool.Pool, runService *service.RunService) *Manager {
 	return &Manager{
+		modelRuntime:   &provider.ProcessRuntime{},
 		pool:           pool,
 		runService:     runService,
 		cancels:        make(map[uuid.UUID]context.CancelCauseFunc),
@@ -76,6 +78,8 @@ func NewManager(pool *pgxpool.Pool, runService *service.RunService) *Manager {
 		pendingCancel:  make(map[uuid.UUID]bool),
 	}
 }
+
+func (m *Manager) ModelRuntime() *provider.ProcessRuntime { return m.modelRuntime }
 
 // SetDefaultWorkerOptions configures default options applied to all workers started by this manager.
 func (m *Manager) SetDefaultWorkerOptions(opts ...WorkerOption) {
@@ -532,7 +536,7 @@ func (m *Manager) StartRetest(runID, findingID, retestID uuid.UUID, p provider.P
 		m.mu.Unlock()
 		return fmt.Errorf("retest already in progress for retest_id %s", retestID)
 	}
-	limiter, tokens, recovery, settingsErr := provider.SessionAdmissionFromEnv()
+	limiter, tokens, recovery, settingsErr := m.modelRuntime.Admission()
 	if settingsErr != nil {
 		m.mu.Unlock()
 		return settingsErr

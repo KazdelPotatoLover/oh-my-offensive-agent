@@ -23,7 +23,7 @@ func (e *Engine) configureRuntimeLimits(raw json.RawMessage) {
 		e.modelLimit = limits.ModelConcurrency
 	}
 	if e.modelLimit <= 0 {
-		e.modelLimit = e.maxWorkers
+		e.modelLimit = e.maxWorkers + 1
 	}
 	if e.modelLimit <= 0 {
 		e.modelLimit = 1

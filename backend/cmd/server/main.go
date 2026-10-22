@@ -85,8 +85,7 @@ func main() {
 	fanout := contract.FanoutRevoker{Ports: ports}
 	manager.UseResourceRevoker(fanout)
 
-	// One controller, one replan port, and one engine factory. Main chat does
-	// not receive a provider here, so it cannot call a paid model by default.
+	// Main and task sessions use the same configured upstream admission pool.
 	supervisor := orchestration.NewToolBatchSupervisor()
 	runHandler := handler.NewRunHandler(runService, taskService, manager)
 	runHandler.UseResourceRevoker(capture.gateway)
@@ -95,8 +94,9 @@ func main() {
 	supervision := controlplane.NewSupervision(runService, controller)
 	runHandler.UseController(controller)
 	runHandler.UseSupervision(supervision)
-	workbench := controlplane.NewWorkbench(runService, nil)
+	workbench := controlplane.NewWorkbench(runService, runHandler.ModelRuntime())
 	mainAgent := controlplane.NewMainAgent(runService, controller, workbench, nil, nil)
+	mainAgent.Runtime = runHandler.ModelRuntime()
 	composed := contract.ExecutionPorts{
 		Controller: controller,
 		Tools:      supervision,

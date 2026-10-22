@@ -132,6 +132,7 @@ func (e *Engine) runClaimedWorker(ctx context.Context, wi *model.WorkItem, att *
 		remaining := e.activeWorkerCount.Add(-1)
 		e.workers.Done()
 		e.notifyDispatcher()
+		e.markPlannerDirty()
 		if remaining == 0 {
 			e.markIdleDecision()
 		}
@@ -157,6 +158,9 @@ func (e *Engine) plannerShouldEvaluate(ctx context.Context) bool {
 		return true
 	}
 	if e.plannerDirty.Load() || e.idleDecision.Load() {
+		return true
+	}
+	if !e.lastPlannerAt.IsZero() && time.Since(e.lastPlannerAt) >= e.plannerHeartbeat {
 		return true
 	}
 	if e.activeWorkerCount.Load() > 0 {

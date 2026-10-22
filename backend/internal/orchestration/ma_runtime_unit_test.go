@@ -36,6 +36,23 @@ func TestMARuntime_WorkersFromSnapshot_MissingStaysOne(t *testing.T) {
 	}
 }
 
+func TestMARuntimeHeartbeatReviewsHeldWorkers(t *testing.T) {
+	e := &Engine{plannerHeartbeat: time.Second, lastPlannerAt: time.Now(), notifyChan: make(chan struct{}, 1)}
+	e.activeWorkerCount.Store(2)
+	if e.plannerShouldEvaluate(context.Background()) {
+		t.Fatal("busy workers must not cause a planning loop")
+	}
+	e.lastPlannerAt = time.Now().Add(-2 * time.Second)
+	if !e.plannerShouldEvaluate(context.Background()) {
+		t.Fatal("heartbeat did not wake supervision")
+	}
+	e.lastPlannerAt = time.Now()
+	e.Nudge()
+	if !e.plannerShouldEvaluate(context.Background()) {
+		t.Fatal("explicit event did not wake supervision")
+	}
+}
+
 func TestMARuntime_ModelLimiter_WaitAndCancelWakes(t *testing.T) {
 	lim := newModelLimiter(2)
 	ctx := context.Background()

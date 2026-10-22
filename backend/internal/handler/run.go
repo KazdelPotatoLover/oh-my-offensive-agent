@@ -38,7 +38,10 @@ type RunHandler struct {
 	controller      contract.ExecutionController
 	supervision     *controlplane.Supervision
 	sharedSteer     *orchestration.ToolBatchSupervisor
+	modelRuntime    *provider.ProcessRuntime
 }
+
+func (h *RunHandler) ModelRuntime() *provider.ProcessRuntime { return h.modelRuntime }
 
 // UseResourceRevoker attaches the capture revoker used by new engines. It does
 // not change NewRunHandler and does not replace the job revoker owned by the manager.
@@ -74,10 +77,15 @@ func (h *RunHandler) UseToolBatchSupervisor(supervisor *orchestration.ToolBatchS
 }
 
 func NewRunHandler(runService *service.RunService, taskService *service.TaskService, manager *worker.Manager) *RunHandler {
+	runtime := &provider.ProcessRuntime{}
+	if manager != nil {
+		runtime = manager.ModelRuntime()
+	}
 	return &RunHandler{
-		runService:  runService,
-		taskService: taskService,
-		manager:     manager,
+		runService:   runService,
+		taskService:  taskService,
+		manager:      manager,
+		modelRuntime: runtime,
 	}
 }
 
@@ -275,7 +283,7 @@ func (h *RunHandler) startRunExecutor(run *model.Run) error {
 			return workerErr
 		}
 		budget.MaxParallelWorkers = workers
-		limiter, tokens, recovery, modelErr := provider.SessionAdmissionFromEnv()
+		limiter, tokens, recovery, modelErr := h.modelRuntime.Admission()
 		if modelErr != nil {
 			return modelErr
 		}

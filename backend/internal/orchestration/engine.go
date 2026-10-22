@@ -58,13 +58,15 @@ type Engine struct {
 	// Event-driven loop notification and debouncing. Planner and dispatcher
 	// do not share one wake channel: a planner model call must not consume the
 	// signal that a newly submitted direction is ready to claim.
-	notifyChan     chan struct{}
-	dispatchNotify chan struct{}
-	debounce       time.Duration
-	changeCursor   int64
-	lastChangePoll time.Time
-	plannerDirty   atomic.Bool
-	idleDecision   atomic.Bool
+	notifyChan       chan struct{}
+	dispatchNotify   chan struct{}
+	debounce         time.Duration
+	changeCursor     int64
+	lastChangePoll   time.Time
+	plannerHeartbeat time.Duration
+	lastPlannerAt    time.Time
+	plannerDirty     atomic.Bool
+	idleDecision     atomic.Bool
 
 	// Global budget tracking across Planner and all Workers
 	budgetMgr         *BudgetManager
@@ -136,7 +138,7 @@ func (e *Engine) notifyPlanner() {
 }
 
 func (e *Engine) Nudge() {
-	e.notifyPlanner()
+	e.markPlannerDirty()
 }
 
 func (e *Engine) Pause(ctx context.Context) error {
@@ -283,6 +285,7 @@ func NewEngine(
 		notifyChan:       make(chan struct{}, 100),
 		dispatchNotify:   make(chan struct{}, 100),
 		debounce:         50 * time.Millisecond,
+		plannerHeartbeat: 10 * time.Minute,
 		steer:            NewToolBatchSupervisor(),
 	}
 	for _, opt := range opts {
@@ -293,7 +296,7 @@ func NewEngine(
 	if eng.modelLimiter == nil {
 		limit := eng.modelLimit
 		if limit <= 0 {
-			limit = eng.maxWorkers
+			limit = eng.maxWorkers + 1
 		}
 		if limit <= 0 {
 			limit = 1
@@ -312,6 +315,16 @@ func WithDebounce(d time.Duration) EngineOption {
 func WithResourceRevoker(revoker contract.ResourceRevoker) EngineOption {
 	return func(e *Engine) {
 		e.revoker = revoker
+	}
+}
+
+// WithPlannerHeartbeat changes idle supervision timing. Production uses the
+// ARTEX ten-minute default; tests can shorten it without changing the policy.
+func WithPlannerHeartbeat(d time.Duration) EngineOption {
+	return func(e *Engine) {
+		if d > 0 {
+			e.plannerHeartbeat = d
+		}
 	}
 }
 
@@ -667,7 +680,8 @@ func (e *Engine) Run(ctx context.Context) {
 			e.coordinateWrapup(cleanupCtx, cause, nil, nil, nil)
 			return
 		}
-		e.changeCursor, _ = e.runService.LatestExplorationChange(ctx, e.runID, e.epoch)
+		// Worker changes during the initial turn have not been reviewed yet.
+		// Keep the cursor captured before that turn so they wake the planner.
 		_ = e.runService.AckPlannerChanges(ctx, e.runID, e.epoch, e.changeCursor)
 		planSummary := "Initial plan submitted"
 		_ = e.runService.UpdatePlannerRound(context.Background(), prRound1.ID, "completed", &planSummary)
@@ -675,6 +689,7 @@ func (e *Engine) Run(ctx context.Context) {
 	}
 
 	// 4. Subsequent planner rounds. Claiming runs on the dispatcher started above.
+	e.lastPlannerAt = time.Now()
 	epochRounds := 0
 	for {
 		if cause, fatal := e.consumeFatal(); fatal {
@@ -891,6 +906,7 @@ func (e *Engine) Run(ctx context.Context) {
 		}
 
 		e.changeCursor = roundChangeSeq
+		e.lastPlannerAt = time.Now()
 		_ = e.runService.AckPlannerChanges(runCtx, e.runID, e.epoch, e.changeCursor)
 		if completionSuggested {
 			_ = e.runService.UpdatePlannerRound(context.Background(), prRound.ID, "completed", &finalSummaryResult)

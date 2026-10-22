@@ -126,7 +126,9 @@ func RegisterArtifactReaders(reg *Registry, c AdapterContext) {
 	for _, name := range []string{"list_artifacts", "read_artifact", "get_worker_output"} {
 		reg.Register(NewArtifactTool(name, c))
 	}
-	reg.Register(&ListCapabilityProfilesTool{scope: c})
+	if c.WorkItemID == uuid.Nil {
+		reg.Register(&ListCapabilityProfilesTool{scope: c})
+	}
 }
 
 type ListCapabilityProfilesTool struct{ scope AdapterContext }

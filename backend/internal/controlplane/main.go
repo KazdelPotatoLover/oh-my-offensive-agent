@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 	"sync"
+	"time"
 
 	"agent-workbench/backend/internal/contract"
 	"agent-workbench/backend/internal/provider"
@@ -25,6 +26,7 @@ type MainAgent struct {
 	Workbench   contract.WorkbenchQuery
 	Provider    provider.Provider
 	Resolver    contract.RuntimeResolver
+	Runtime     *provider.ProcessRuntime
 	Supervision *Supervision
 	SyncDrain   bool
 	locks       sync.Map
@@ -151,7 +153,7 @@ func (m *MainAgent) process(ctx context.Context, runID uuid.UUID, turn *turnRow)
 		}
 	}
 
-	if m.Provider == nil {
+	if m.Provider == nil && m.Runtime == nil {
 		return executionUnavailable("main agent provider is not configured")
 	}
 	mutations := ExplicitControlRequested(turn.Text)
@@ -170,8 +172,15 @@ func (m *MainAgent) process(ctx context.Context, runID uuid.UUID, turn *turnRow)
 	}
 	messages := []provider.ChatMessage{
 		{Role: provider.RoleSystem, Content: mainSystemPrompt(BudgetChangeRequested(turn.Text))},
-		{Role: provider.RoleUser, Content: turn.Text},
 	}
+	// Restore completed human/assistant exchanges as text. Tool protocol state
+	// belongs to its original turn and is never replayed as a new command.
+	history, err := m.history(ctx, runID, turn.ID)
+	if err != nil {
+		return err
+	}
+	messages = append(messages, history...)
+	messages = append(messages, provider.ChatMessage{Role: provider.RoleUser, Content: turn.Text})
 	calls := 0
 	for used < reserve {
 		resp, callID, err := m.callModel(ctx, turn, scope.EpochNumber, messages, reg)
@@ -214,15 +223,61 @@ func (m *MainAgent) process(ctx context.Context, runID uuid.UUID, turn *turnRow)
 	return m.completeTurn(ctx, turn.ID, calls)
 }
 
+func (m *MainAgent) history(ctx context.Context, runID, currentTurn uuid.UUID) ([]provider.ChatMessage, error) {
+	rows, err := m.Runs.Pool().Query(ctx, `SELECT role,text FROM (
+		SELECT mm.seq,mm.role,mm.text FROM main_messages mm
+		JOIN main_turns mt ON mt.id=mm.turn_id
+		WHERE mm.run_id=$1 AND mm.turn_id<>$2 AND mt.status='completed'
+		AND mm.role IN ('user','assistant') AND mm.text<>''
+		ORDER BY mm.seq DESC LIMIT 40) history ORDER BY seq`, runID, currentTurn)
+	if err != nil {
+		return nil, persistence("failed to load main conversation")
+	}
+	defer rows.Close()
+	var history []provider.ChatMessage
+	for rows.Next() {
+		var role, text string
+		if err := rows.Scan(&role, &text); err != nil {
+			return nil, err
+		}
+		history = append(history, provider.ChatMessage{Role: provider.ChatRole(role), Content: text})
+	}
+	return history, rows.Err()
+}
+
 func (m *MainAgent) callModel(ctx context.Context, turn *turnRow, epoch int, messages []provider.ChatMessage, reg *tools.Registry) (*provider.ModelResponse, uuid.UUID, error) {
+	caller := m.Provider
+	opts := provider.ModelOpts{Timeout: 30 * time.Second}
+	callCtx, cancel := context.WithTimeout(ctx, opts.Timeout)
+	defer cancel()
+	if m.Runtime != nil {
+		run, loadErr := m.Runs.Get(ctx, turn.RunID)
+		if loadErr != nil {
+			return nil, uuid.Nil, loadErr
+		}
+		var resolveErr error
+		caller, resolveErr = provider.ProviderFromInput(run.ExecutionInput, provider.ScenarioNormal)
+		if resolveErr != nil {
+			return nil, uuid.Nil, resolveErr
+		}
+		limiter, tokens, _, admissionErr := m.Runtime.Admission()
+		if admissionErr != nil {
+			return nil, uuid.Nil, admissionErr
+		}
+		opts.MaxOutputTokens = tokens
+		if waitErr := limiter.Acquire(callCtx); waitErr != nil {
+			return nil, uuid.Nil, waitErr
+		}
+		defer limiter.Release()
+	}
 	callID := uuid.New()
-	_, err := m.Runs.Pool().Exec(ctx, `
+	_, err := m.Runs.Pool().Exec(callCtx, `
 		INSERT INTO main_model_calls (id, run_id, turn_id, session_id, epoch_number, status)
 		VALUES ($1,$2,$3,$4,$5,'started')`, callID, turnIDRun(turn), turn.ID, turn.SessionID, epoch)
 	if err != nil {
 		return nil, uuid.Nil, persistence("failed to record main model call")
 	}
-	resp, callErr := m.Provider.Call(ctx, messages, reg.Definitions(), provider.ModelOpts{})
+	resp, callErr := caller.Call(callCtx, messages, reg.Definitions(), opts)
 	status := "completed"
 	finish := ""
 	var prompt, completion, total int
@@ -239,7 +294,9 @@ func (m *MainAgent) callModel(ctx context.Context, turn *turnRow, epoch int, mes
 			total = resp.Usage.TotalTokens
 		}
 	}
-	if _, updateErr := m.Runs.Pool().Exec(ctx, `
+	finishCtx, finishCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer finishCancel()
+	if _, updateErr := m.Runs.Pool().Exec(finishCtx, `
 		UPDATE main_model_calls
 		SET status=$2, finish_reason=$3, prompt_tokens=$4, completion_tokens=$5, total_tokens=$6, error_message=$7, finished_at=now()
 		WHERE id=$1`, callID, status, finish, prompt, completion, total, errText); updateErr != nil {
