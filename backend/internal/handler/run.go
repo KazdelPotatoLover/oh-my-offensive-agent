@@ -139,6 +139,11 @@ func (h *RunHandler) Create(w http.ResponseWriter, r *http.Request) {
 			respondError(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		var coded *contract.Error
+		if errors.As(err, &coded) {
+			respondJSON(w, coded.Status(), map[string]string{"error": coded.Message, "code": string(coded.Code)})
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "failed to create run: "+err.Error())
 		return
 	}
@@ -232,13 +237,17 @@ func (h *RunHandler) startRunExecutor(run *model.Run) error {
 			return workerErr
 		}
 		budget.MaxParallelWorkers = workers
+		limiter, tokens, recovery, modelErr := provider.SessionAdmissionFromEnv()
+		if modelErr != nil {
+			return modelErr
+		}
 		if executorType == "agent" {
-			runner := agent.NewAgentRunner(run.ID, h.runService, p, tools.DefaultRegistry(), budget)
+			runner := agent.NewAgentRunner(run.ID, h.runService, p, tools.DefaultRegistry(), budget, agent.WithProcessAdmission(limiter, tokens, recovery))
 			startErr = h.manager.StartExecutor(run.ID, runner)
 		} else {
 			// Discovery uses the same pool size as the accepted request.
 			// Origin pacing is not a reason to force a serial pool.
-			engine := orchestration.NewEngine(run.ID, h.runService, p, budget)
+			engine := orchestration.NewEngine(run.ID, h.runService, p, budget, orchestration.EngineOptionsFromAdmission(limiter, tokens, recovery)...)
 			startErr = h.manager.StartExecutor(run.ID, engine)
 		}
 	} else {

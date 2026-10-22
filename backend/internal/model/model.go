@@ -243,6 +243,10 @@ type BudgetConfig struct {
 	WorkerMaxToolCalls             int `json:"worker_max_tool_calls"`
 	WorkerTimeoutSeconds           int `json:"worker_timeout_seconds"`
 	WorkerSettlementTimeoutSeconds int `json:"worker_settlement_timeout_seconds"`
+	// Optional fields stay absent when zero so older snapshots keep their meaning.
+	MaxParallelModelCalls     int `json:"max_parallel_model_calls,omitempty"`
+	PlannerReservedModelCalls int `json:"planner_reserved_model_calls,omitempty"`
+	MainReservedModelCalls    int `json:"main_reserved_model_calls,omitempty"`
 }
 
 // BudgetSummary is the planner/report-facing snapshot. It keeps model rounds
@@ -273,6 +277,72 @@ func DefaultBudgetConfig() BudgetConfig {
 		WorkerTimeoutSeconds:           60,
 		WorkerSettlementTimeoutSeconds: 15,
 	}
+}
+
+// WithOverrides copies positive request fields onto a base budget. Zero means
+// the field was omitted and must not wipe a task-config or default value.
+func (b BudgetConfig) WithOverrides(override *BudgetConfig) BudgetConfig {
+	if override == nil {
+		return b
+	}
+	if override.MaxModelCalls > 0 {
+		b.MaxModelCalls = override.MaxModelCalls
+	}
+	if override.MaxToolCalls > 0 {
+		b.MaxToolCalls = override.MaxToolCalls
+	}
+	if override.RunTimeoutSeconds > 0 {
+		b.RunTimeoutSeconds = override.RunTimeoutSeconds
+	}
+	if override.ModelTimeoutSeconds > 0 {
+		b.ModelTimeoutSeconds = override.ModelTimeoutSeconds
+	}
+	if override.ToolTimeoutSeconds > 0 {
+		b.ToolTimeoutSeconds = override.ToolTimeoutSeconds
+	}
+	if override.SummaryTimeoutSeconds > 0 {
+		b.SummaryTimeoutSeconds = override.SummaryTimeoutSeconds
+	}
+	if override.CleanupTimeoutSeconds > 0 {
+		b.CleanupTimeoutSeconds = override.CleanupTimeoutSeconds
+	}
+	if override.ContextWindowBytes > 0 {
+		b.ContextWindowBytes = override.ContextWindowBytes
+	}
+	if override.MaxToolOutputBytes > 0 {
+		b.MaxToolOutputBytes = override.MaxToolOutputBytes
+	}
+	if override.MaxPlannerRounds > 0 {
+		b.MaxPlannerRounds = override.MaxPlannerRounds
+	}
+	if override.MaxWorkItems > 0 {
+		b.MaxWorkItems = override.MaxWorkItems
+	}
+	if override.MaxParallelWorkers > 0 {
+		b.MaxParallelWorkers = override.MaxParallelWorkers
+	}
+	if override.WorkerMaxModelCalls > 0 {
+		b.WorkerMaxModelCalls = override.WorkerMaxModelCalls
+	}
+	if override.WorkerMaxToolCalls > 0 {
+		b.WorkerMaxToolCalls = override.WorkerMaxToolCalls
+	}
+	if override.WorkerTimeoutSeconds > 0 {
+		b.WorkerTimeoutSeconds = override.WorkerTimeoutSeconds
+	}
+	if override.WorkerSettlementTimeoutSeconds > 0 {
+		b.WorkerSettlementTimeoutSeconds = override.WorkerSettlementTimeoutSeconds
+	}
+	if override.MaxParallelModelCalls > 0 {
+		b.MaxParallelModelCalls = override.MaxParallelModelCalls
+	}
+	if override.PlannerReservedModelCalls > 0 {
+		b.PlannerReservedModelCalls = override.PlannerReservedModelCalls
+	}
+	if override.MainReservedModelCalls > 0 {
+		b.MainReservedModelCalls = override.MainReservedModelCalls
+	}
+	return b
 }
 
 // --- ARTEX Alignment Core Models (Epochs, Grants, Dual Graph, Planner Todos) ---

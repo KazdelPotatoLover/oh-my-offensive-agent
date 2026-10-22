@@ -23,6 +23,14 @@ func NewRequestLimiter(limit int) *RequestLimiter {
 	return limiter
 }
 
+// Limit is the configured upstream cap. A non-positive value means unlimited.
+func (l *RequestLimiter) Limit() int {
+	if l == nil {
+		return 0
+	}
+	return l.limit
+}
+
 func (l *RequestLimiter) Acquire(ctx context.Context) error {
 	if l == nil {
 		return nil

@@ -165,44 +165,7 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 	if req.MockScenario != nil && *req.MockScenario != "" {
 		mockScenario = *req.MockScenario
 	}
-	if req.Budget != nil {
-		if req.Budget.MaxModelCalls > 0 {
-			budget.MaxModelCalls = req.Budget.MaxModelCalls
-		}
-		if req.Budget.MaxToolCalls > 0 {
-			budget.MaxToolCalls = req.Budget.MaxToolCalls
-		}
-		if req.Budget.RunTimeoutSeconds > 0 {
-			budget.RunTimeoutSeconds = req.Budget.RunTimeoutSeconds
-		}
-		if req.Budget.ModelTimeoutSeconds > 0 {
-			budget.ModelTimeoutSeconds = req.Budget.ModelTimeoutSeconds
-		}
-		if req.Budget.ToolTimeoutSeconds > 0 {
-			budget.ToolTimeoutSeconds = req.Budget.ToolTimeoutSeconds
-		}
-		if req.Budget.SummaryTimeoutSeconds > 0 {
-			budget.SummaryTimeoutSeconds = req.Budget.SummaryTimeoutSeconds
-		}
-		if req.Budget.CleanupTimeoutSeconds > 0 {
-			budget.CleanupTimeoutSeconds = req.Budget.CleanupTimeoutSeconds
-		}
-		if req.Budget.ContextWindowBytes > 0 {
-			budget.ContextWindowBytes = req.Budget.ContextWindowBytes
-		}
-		if req.Budget.MaxToolOutputBytes > 0 {
-			budget.MaxToolOutputBytes = req.Budget.MaxToolOutputBytes
-		}
-		if req.Budget.MaxPlannerRounds > 0 {
-			budget.MaxPlannerRounds = req.Budget.MaxPlannerRounds
-		}
-		if req.Budget.MaxWorkItems > 0 {
-			budget.MaxWorkItems = req.Budget.MaxWorkItems
-		}
-		if req.Budget.MaxParallelWorkers > 0 {
-			budget.MaxParallelWorkers = req.Budget.MaxParallelWorkers
-		}
-	}
+	budget = budget.WithOverrides(req.Budget)
 
 	var modelConfig provider.Config
 	if executor == "agent" || executor == "orchestrator" || executor == "orchestration" {
@@ -403,6 +366,17 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 		executionInputMap["budget"] = budget
 	}
 	executionInputMap["budget"] = budget
+	historical := provider.ModelAlias{Alias: "historical", Model: "mock", Protocol: provider.FormatChatCompletions, ProviderAlias: "historical"}
+	if providerType != "mock" && modelConfig.Model != "" {
+		historical.Alias = modelConfig.Model
+		historical.Model = modelConfig.Model
+		if modelConfig.APIFormat != "" {
+			historical.Protocol = modelConfig.APIFormat
+		}
+	}
+	if err := provider.AttachAgentsSnapshot(executionInputMap, taskConfig, historical); err != nil {
+		return nil, false, err
+	}
 
 	profileInput, _ := json.Marshal(executionInputMap)
 	profiles, profileErr := model.ProfilesFromInput(profileInput)

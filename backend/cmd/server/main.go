@@ -14,6 +14,7 @@ import (
 	"agent-workbench/backend/internal/config"
 	"agent-workbench/backend/internal/db"
 	"agent-workbench/backend/internal/handler"
+	"agent-workbench/backend/internal/provider"
 	"agent-workbench/backend/internal/service"
 	"agent-workbench/backend/internal/worker"
 
@@ -27,6 +28,10 @@ func main() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
 
 	cfg := config.Load()
+	if _, err := provider.LoadProcessModelSettings(); err != nil {
+		slog.Error("invalid model process settings", "error", err)
+		os.Exit(1)
+	}
 
 	if cfg.DatabaseURL == "" {
 		slog.Error("DATABASE_URL is required")

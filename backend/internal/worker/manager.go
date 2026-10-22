@@ -438,6 +438,11 @@ func (m *Manager) StartRetest(runID, findingID, retestID uuid.UUID, p provider.P
 		m.mu.Unlock()
 		return fmt.Errorf("retest already in progress for retest_id %s", retestID)
 	}
+	limiter, tokens, recovery, settingsErr := provider.SessionAdmissionFromEnv()
+	if settingsErr != nil {
+		m.mu.Unlock()
+		return settingsErr
+	}
 	ctx, cancel := context.WithCancelCause(context.Background())
 	m.retestCancels[retestID] = cancel
 	m.wg.Add(1)
@@ -456,6 +461,7 @@ func (m *Manager) StartRetest(runID, findingID, retestID uuid.UUID, p provider.P
 		defer retestCancel()
 
 		retestExec := orchestration.NewRetestExecutor(m.runService, p, reg)
+		retestExec.ApplyProcessSettings(limiter, tokens, recovery)
 		_, err := retestExec.ExecuteFindingRetest(retestCtx, runID, findingID, retestID)
 		if err != nil {
 			slog.Error("retest execution failed", "retest_id", retestID, "run_id", runID, "error", err)

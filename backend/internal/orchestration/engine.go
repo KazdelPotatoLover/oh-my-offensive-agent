@@ -80,6 +80,9 @@ type Engine struct {
 	workerErr         atomic.Value
 	fatalCause        atomic.Value
 	modelLimiter      *ModelLimiter
+	requestLimiter    *provider.RequestLimiter
+	maxOutputTokens   int
+	recovery          provider.RecoveryPolicy
 	modelLimit        int
 	plannerReserve    int
 	mainReserve       int
@@ -307,6 +310,76 @@ func WithModelConcurrency(limit int) EngineOption {
 	return func(e *Engine) {
 		e.modelLimit = limit
 	}
+}
+
+// WithSharedRequestLimiter attaches the process-wide upstream cap. It is
+// independent of the worker pool. A nil limiter leaves calls uncapped here.
+func WithSharedRequestLimiter(limiter *provider.RequestLimiter) EngineOption {
+	return func(e *Engine) {
+		e.requestLimiter = limiter
+	}
+}
+
+// WithOutputTokenLimit sets the explicit output cap passed to every session.
+// Zero keeps the provider default, which is bounded and not unlimited.
+func WithOutputTokenLimit(tokens int) EngineOption {
+	return func(e *Engine) {
+		e.maxOutputTokens = tokens
+	}
+}
+
+// WithModelRecovery enables bounded session retries. The zero policy performs
+// one Provider.Call. Provider implementations do not apply this policy.
+func WithModelRecovery(policy provider.RecoveryPolicy) EngineOption {
+	return func(e *Engine) {
+		e.recovery = policy
+	}
+}
+
+func (e *Engine) sessionOptions(opts ...agent.SessionRunnerOption) []agent.SessionRunnerOption {
+	return modelSessionOptions(e.requestLimiter, e.maxOutputTokens, e.recovery, opts...)
+}
+
+// ModelProcessOptions reads the process model cap. An invalid value fails
+// closed. A non-positive in-flight limit stays unlimited and still shares one
+// limiter across the sessions of this start.
+func ModelProcessOptions() ([]EngineOption, error) {
+	limiter, tokens, recovery, err := provider.SessionAdmissionFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	return EngineOptionsFromAdmission(limiter, tokens, recovery), nil
+}
+
+// EngineOptionsFromAdmission applies one already loaded admission policy.
+// The caller owns the limiter so a legacy runner and an engine started from
+// the same handler share that reading of the environment.
+func EngineOptionsFromAdmission(limiter *provider.RequestLimiter, tokens int, recovery provider.RecoveryPolicy) []EngineOption {
+	opts := []EngineOption{
+		WithSharedRequestLimiter(limiter),
+		WithModelRecovery(recovery),
+	}
+	if limiter != nil && limiter.Limit() > 0 {
+		opts = append(opts, WithModelConcurrency(limiter.Limit()))
+	}
+	if tokens > 0 {
+		opts = append(opts, WithOutputTokenLimit(tokens))
+	}
+	return opts
+}
+
+func modelSessionOptions(limiter *provider.RequestLimiter, tokens int, recovery provider.RecoveryPolicy, opts ...agent.SessionRunnerOption) []agent.SessionRunnerOption {
+	shared := make([]agent.SessionRunnerOption, 0, len(opts)+3)
+	if limiter != nil {
+		shared = append(shared, agent.WithRequestLimiter(limiter))
+	}
+	if tokens > 0 {
+		shared = append(shared, agent.WithMaxOutputTokens(tokens))
+	}
+	if recovery.Attempts() > 1 {
+		shared = append(shared, agent.WithModelRecovery(recovery))
+	}
+	return append(shared, opts...)
 }
 
 func WithModelWaitHook(hook func(queued int)) EngineOption {
@@ -554,16 +627,18 @@ func (e *Engine) Run(ctx context.Context) {
 
 		srPlanner1 := agent.NewSessionRunner(
 			sess1.ID, e.runID, "planner", e.runService, e.providerFor(runCtx, contract.RolePlanner, ""), plannerRegistry, e.budgetConfig(),
-			agent.WithStructuredCallGate(e.plannerGate()),
-			agent.WithBeforeTurnHook(func(turnCtx context.Context, turn int) ([]provider.ChatMessage, error) {
-				return nil, e.waitIfPaused(turnCtx)
-			}),
-			agent.WithBeforeToolHook(func(toolCtx context.Context, toolName string) error {
-				return e.waitIfPaused(toolCtx)
-			}),
-			agent.WithSessionModelCallFinishHook(func(round int, err error) {
-				e.releaseModelAdmission()
-			}),
+			e.sessionOptions(
+				agent.WithStructuredCallGate(e.plannerGate()),
+				agent.WithBeforeTurnHook(func(turnCtx context.Context, turn int) ([]provider.ChatMessage, error) {
+					return nil, e.waitIfPaused(turnCtx)
+				}),
+				agent.WithBeforeToolHook(func(toolCtx context.Context, toolName string) error {
+					return e.waitIfPaused(toolCtx)
+				}),
+				agent.WithSessionModelCallFinishHook(func(round int, err error) {
+					e.releaseModelAdmission()
+				}),
+			)...,
 		)
 		pRes1, pErr1 := srPlanner1.Run(runCtx, plannerMessages)
 
@@ -776,16 +851,18 @@ func (e *Engine) Run(ctx context.Context) {
 
 		srPlanner := agent.NewSessionRunner(
 			sess.ID, e.runID, "planner", e.runService, e.providerFor(runCtx, contract.RolePlanner, ""), evalRegistry, e.budgetConfig(),
-			agent.WithStructuredCallGate(e.plannerGate()),
-			agent.WithBeforeTurnHook(func(turnCtx context.Context, turn int) ([]provider.ChatMessage, error) {
-				return nil, e.waitIfPaused(turnCtx)
-			}),
-			agent.WithBeforeToolHook(func(toolCtx context.Context, toolName string) error {
-				return e.waitIfPaused(toolCtx)
-			}),
-			agent.WithSessionModelCallFinishHook(func(round int, err error) {
-				e.releaseModelAdmission()
-			}),
+			e.sessionOptions(
+				agent.WithStructuredCallGate(e.plannerGate()),
+				agent.WithBeforeTurnHook(func(turnCtx context.Context, turn int) ([]provider.ChatMessage, error) {
+					return nil, e.waitIfPaused(turnCtx)
+				}),
+				agent.WithBeforeToolHook(func(toolCtx context.Context, toolName string) error {
+					return e.waitIfPaused(toolCtx)
+				}),
+				agent.WithSessionModelCallFinishHook(func(round int, err error) {
+					e.releaseModelAdmission()
+				}),
+			)...,
 		)
 		pRes, pErr := srPlanner.Run(runCtx, evalMessages)
 
@@ -987,28 +1064,30 @@ func (e *Engine) executeWorkerSession(
 
 	sr := agent.NewSessionRunner(
 		sess.ID, e.runID, "worker", e.runService, e.providerFor(ctx, contract.RoleWorker, ""), workerRegistry, workerBudget,
-		agent.WithStructuredCallGate(workerGate),
-		agent.WithInitialMessagesPersisted(initialPersisted),
-		agent.WithBeforeTurnMessagesPersisted(true),
-		agent.WithBeforeTurnHook(func(turnCtx context.Context, turn int) ([]provider.ChatMessage, error) {
-			if err := e.waitIfPaused(turnCtx); err != nil {
-				return nil, err
-			}
-			// Steer that arrived before this turn is delivered here. A batch
-			// already chosen by the previous model response is closed by
-			// ToolBatchSupervisor.DecideBeforeTool; SessionRunner must apply
-			// that decision before executing the old calls.
-			return e.runService.ConsumeSteerMessages(turnCtx, e.runID, wi.ID, sess.ID)
-		}),
-		agent.WithBeforeToolHook(func(toolCtx context.Context, toolName string) error {
-			// Pause only. Closing an already chosen tool batch is a SessionRunner
-			// boundary: returning an error here aborts the worker as cancellation.
-			// ToolBatchSupervisor.DecideBeforeTool is the port for that boundary.
-			return e.waitIfPaused(toolCtx)
-		}),
-		agent.WithSessionModelCallFinishHook(func(round int, err error) {
-			e.releaseModelAdmission()
-		}),
+		e.sessionOptions(
+			agent.WithStructuredCallGate(workerGate),
+			agent.WithInitialMessagesPersisted(initialPersisted),
+			agent.WithBeforeTurnMessagesPersisted(true),
+			agent.WithBeforeTurnHook(func(turnCtx context.Context, turn int) ([]provider.ChatMessage, error) {
+				if err := e.waitIfPaused(turnCtx); err != nil {
+					return nil, err
+				}
+				// Steer that arrived before this turn is delivered here. A batch
+				// already chosen by the previous model response is closed by
+				// ToolBatchSupervisor.DecideBeforeTool; SessionRunner must apply
+				// that decision before executing the old calls.
+				return e.runService.ConsumeSteerMessages(turnCtx, e.runID, wi.ID, sess.ID)
+			}),
+			agent.WithBeforeToolHook(func(toolCtx context.Context, toolName string) error {
+				// Pause only. Closing an already chosen tool batch is a SessionRunner
+				// boundary: returning an error here aborts the worker as cancellation.
+				// ToolBatchSupervisor.DecideBeforeTool is the port for that boundary.
+				return e.waitIfPaused(toolCtx)
+			}),
+			agent.WithSessionModelCallFinishHook(func(round int, err error) {
+				e.releaseModelAdmission()
+			}),
+		)...,
 	)
 
 	res, err := sr.Run(workerCtx, workerMessages)

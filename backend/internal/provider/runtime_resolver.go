@@ -162,6 +162,67 @@ func (r *StaticRuntimeResolver) snapshotAgents(binding ModelAlias) contract.Agen
 	return contract.AgentsConfig{MainAgent: role, Planner: role, Worker: role, Verifier: role}
 }
 
+// AttachAgentsSnapshot copies a validated agents object into execution input
+// and stores a secret-free snapshot on agent_config. A missing agents field
+// keeps the historical single agent_config. Present but invalid agents are
+// rejected. Unknown aliases do not fall back to another model.
+func AttachAgentsSnapshot(executionInput map[string]any, taskConfig json.RawMessage, historical ModelAlias) error {
+	cfg, present, err := contract.ParseAgentsConfig(taskConfig)
+	if err != nil || !present {
+		return err
+	}
+	resolver := &StaticRuntimeResolver{
+		Historical: historical,
+		Aliases:    map[string]ModelAlias{},
+		Agents:     &cfg,
+		Version:    1,
+		Epoch:      1,
+	}
+	if historical.Alias != "" {
+		resolver.Aliases[historical.Alias] = historical
+	}
+	if historical.Model != "" {
+		resolver.Aliases[historical.Model] = historical
+	}
+	if err := resolver.validateConfiguredRoles(); err != nil {
+		return err
+	}
+	policy, err := RoleCallPolicyFor(contract.RolePlanner)
+	if err != nil {
+		return err
+	}
+	revision := contract.RuntimeConfigRevision{
+		Version:       1,
+		EpochNumber:   1,
+		Agents:        cfg,
+		ProviderAlias: historical.ProviderAlias,
+		Protocol:      historical.Protocol,
+	}
+	snapshot, err := nonSensitiveSnapshot(revision, policy)
+	if err != nil {
+		return err
+	}
+	executionInput["agents"] = cfg
+	if agentConfig, ok := executionInput["agent_config"].(map[string]any); ok {
+		agentConfig["runtime_snapshot"] = json.RawMessage(snapshot)
+		return nil
+	}
+	executionInput["runtime_snapshot"] = json.RawMessage(snapshot)
+	return nil
+}
+
+func (r *StaticRuntimeResolver) validateConfiguredRoles() error {
+	if r == nil || r.Agents == nil {
+		return nil
+	}
+	for _, role := range []contract.Role{contract.RoleMainAgent, contract.RolePlanner, contract.RoleWorker, contract.RoleVerifier} {
+		if _, err := r.binding(role, ""); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func nonSensitiveSnapshot(revision contract.RuntimeConfigRevision, policy RoleCallPolicy) (json.RawMessage, error) {
 	payload := struct {
 		contract.RuntimeConfigRevision

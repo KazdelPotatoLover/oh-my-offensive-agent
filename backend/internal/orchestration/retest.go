@@ -18,9 +18,12 @@ import (
 
 // RetestExecutor executes independent verification sessions for reported findings.
 type RetestExecutor struct {
-	runService *service.RunService
-	provider   provider.Provider
-	registry   *tools.Registry
+	runService      *service.RunService
+	provider        provider.Provider
+	registry        *tools.Registry
+	requestLimiter  *provider.RequestLimiter
+	maxOutputTokens int
+	recovery        provider.RecoveryPolicy
 }
 
 func NewRetestExecutor(runService *service.RunService, p provider.Provider, reg *tools.Registry) *RetestExecutor {
@@ -29,6 +32,21 @@ func NewRetestExecutor(runService *service.RunService, p provider.Provider, reg 
 		provider:   p,
 		registry:   reg,
 	}
+}
+
+// ApplyProcessSettings attaches the same upstream cap and recovery policy used
+// by planner and worker sessions. A nil limiter does not invent a serial fallback.
+func (e *RetestExecutor) ApplyProcessSettings(limiter *provider.RequestLimiter, tokens int, recovery provider.RecoveryPolicy) {
+	if e == nil {
+		return
+	}
+	e.requestLimiter = limiter
+	e.maxOutputTokens = tokens
+	e.recovery = recovery
+}
+
+func (e *RetestExecutor) sessionOptions(opts ...agent.SessionRunnerOption) []agent.SessionRunnerOption {
+	return modelSessionOptions(e.requestLimiter, e.maxOutputTokens, e.recovery, opts...)
 }
 
 // ExecuteFindingRetest independently reproduces or verifies fixes for a finding.
@@ -105,7 +123,7 @@ func (e *RetestExecutor) ExecuteFindingRetest(
 			MaxModelCalls: 5,
 			MaxToolCalls:  10,
 		}
-		sr := agent.NewSessionRunner(sessID, runID, "verifier", e.runService, e.provider, reg, budget)
+		sr := agent.NewSessionRunner(sessID, runID, "verifier", e.runService, e.provider, reg, budget, e.sessionOptions()...)
 		res, runErr := sr.Run(ctx, verifierMessages)
 
 		if runErr == nil && res != nil {

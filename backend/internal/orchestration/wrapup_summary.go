@@ -46,9 +46,11 @@ func (e *Engine) summarizeWithReservedCall(cleanupCtx context.Context, cause mod
 	budget.ModelTimeoutSeconds = int((limit + time.Second - 1) / time.Second)
 	budget.MaxToolCalls = 0
 	runner := agent.NewSessionRunner(session.ID, e.runID, "planner", e.runService, e.provider, tools.NewRegistry(), budget,
-		agent.WithModelCallGate(agent.CallGateFunc(func() bool { return e.budgetMgr.AcquireModelCall(ctx, true) == nil })),
-		agent.WithSessionModelCallFinishHook(func(_ int, _ error) { e.budgetMgr.ReleaseModelCall() }),
-		agent.WithToolCallGate(agent.CallGateFunc(func() bool { return false })),
+		e.sessionOptions(
+			agent.WithModelCallGate(agent.CallGateFunc(func() bool { return e.budgetMgr.AcquireModelCall(ctx, true) == nil })),
+			agent.WithSessionModelCallFinishHook(func(_ int, _ error) { e.budgetMgr.ReleaseModelCall() }),
+			agent.WithToolCallGate(agent.CallGateFunc(func() bool { return false })),
+		)...,
 	)
 	messages := []provider.ChatMessage{
 		{Role: provider.RoleSystem, Content: "Execution has stopped. Summarize only the persisted evidence inventory below. State unfinished coverage and the termination cause. Do not claim unobserved findings or request tools."},

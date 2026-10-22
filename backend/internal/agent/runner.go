@@ -38,6 +38,19 @@ type AgentRunner struct {
 	budget          model.BudgetConfig
 	onModelCallHook func(round int)
 	onToolCallHook  func(callID string, toolName string)
+	requestLimiter  *provider.RequestLimiter
+	maxOutputTokens int
+	recovery        provider.RecoveryPolicy
+}
+
+// WithProcessAdmission attaches the same upstream cap used by planner and worker
+// sessions. A nil limiter leaves this legacy runner uncapped.
+func WithProcessAdmission(limiter *provider.RequestLimiter, tokens int, recovery provider.RecoveryPolicy) AgentRunnerOption {
+	return func(r *AgentRunner) {
+		r.requestLimiter = limiter
+		r.maxOutputTokens = tokens
+		r.recovery = recovery
+	}
 }
 
 func NewAgentRunner(
@@ -137,6 +150,15 @@ func (r *AgentRunner) Run(ctx context.Context) {
 	defer cancelRun()
 
 	var srOpts []SessionRunnerOption
+	if r.requestLimiter != nil {
+		srOpts = append(srOpts, WithRequestLimiter(r.requestLimiter))
+	}
+	if r.maxOutputTokens > 0 {
+		srOpts = append(srOpts, WithMaxOutputTokens(r.maxOutputTokens))
+	}
+	if r.recovery.Attempts() > 1 {
+		srOpts = append(srOpts, WithModelRecovery(r.recovery))
+	}
 	if r.onModelCallHook != nil {
 		srOpts = append(srOpts, WithSessionModelCallHook(r.onModelCallHook))
 	}
