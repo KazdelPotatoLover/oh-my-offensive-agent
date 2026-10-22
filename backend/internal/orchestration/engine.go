@@ -602,7 +602,7 @@ func (e *Engine) Run(ctx context.Context) {
 			e.notifyDispatcher()
 		})
 		plannerRegistry := tools.NewRegistry()
-		tools.RegisterArtifactReaders(plannerRegistry, tools.AdapterContext{RunID: e.runID, Service: e.runService})
+		tools.RegisterArtifactReaders(plannerRegistry, tools.AdapterContext{RunID: e.runID, SessionID: sess1.ID, Service: e.runService})
 		plannerRegistry.Register(planTool)
 		plannerRegistry.Register(tools.NewListRunAssetsTool(e.runID, e.runService))
 		plannerRegistry.Register(tools.NewSetGoalsTool(e.runID, e.runService))
@@ -826,7 +826,7 @@ func (e *Engine) Run(ctx context.Context) {
 		})
 
 		evalRegistry := tools.NewRegistry()
-		tools.RegisterArtifactReaders(evalRegistry, tools.AdapterContext{RunID: e.runID, Service: e.runService})
+		tools.RegisterArtifactReaders(evalRegistry, tools.AdapterContext{RunID: e.runID, SessionID: sess.ID, Service: e.runService})
 		evalRegistry.Register(followUpPlanTool)
 		evalRegistry.Register(suggestTool)
 		evalRegistry.Register(tools.NewListRunAssetsTool(e.runID, e.runService))

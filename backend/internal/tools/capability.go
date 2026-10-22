@@ -49,6 +49,8 @@ func init() {
 		{Name: "register_asset", Version: "1", Factory: func(c AdapterContext) Tool { return &TypedAssetTool{scope: c} }},
 		{Name: "get_endpoint", Version: "1", Factory: func(c AdapterContext) Tool { return NewGetEndpointTool(c.RunID, c.WorkItemID, c.Service) }},
 		HTTPRequestAdapter(),
+		{Name: "search_http_traffic", Version: "1", Factory: func(c AdapterContext) Tool { return &TrafficTool{name: "search_http_traffic", scope: c} }},
+		{Name: "get_http_exchange", Version: "1", Factory: func(c AdapterContext) Tool { return &TrafficTool{name: "get_http_exchange", scope: c} }},
 		{Name: "read_sample", Version: "1", Factory: func(c AdapterContext) Tool {
 			return NewReadSampleToolWithScope(c.RunID, func(ctx context.Context, key string) (bool, error) {
 				return c.Service.IsSampleInRunScope(ctx, c.RunID, key)
@@ -123,6 +125,7 @@ func CapabilityCatalog(c AdapterContext) []map[string]any {
 }
 
 func RegisterArtifactReaders(reg *Registry, c AdapterContext) {
+	RegisterTrafficReaders(reg, c)
 	for _, name := range []string{"list_artifacts", "read_artifact", "get_worker_output"} {
 		reg.Register(NewArtifactTool(name, c))
 	}

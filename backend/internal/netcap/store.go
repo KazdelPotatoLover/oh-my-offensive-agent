@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"agent-workbench/backend/internal/contract"
 
@@ -515,12 +516,15 @@ func (s *Store) LookupScoped(ctx context.Context, scope contract.ExecutionScope,
 }
 
 type artifactView struct {
-	MediaType string
-	Headers   map[string][]string
-	Body      []byte
-	Binary    bool
-	Sensitive bool
-	SHA256    string
+	MediaType      string
+	Headers        map[string][]string
+	Body           []byte
+	Binary         bool
+	Sensitive      bool
+	SHA256         string
+	SourceBytes    int
+	Truncated      bool
+	DisplayLimited bool
 }
 
 func (s *Store) ReadArtifact(ctx context.Context, scope contract.ExecutionScope, artifactID uuid.UUID, authorized bool) (artifactView, error) {
@@ -528,8 +532,8 @@ func (s *Store) ReadArtifact(ctx context.Context, scope contract.ExecutionScope,
 	var rawHeaders []byte
 	var runID uuid.UUID
 	var epoch int
-	err := s.pool.QueryRow(ctx, `SELECT run_id,epoch_number,media_type,headers,content,is_binary,sensitive,sha256 FROM http_capture_artifacts WHERE id=$1`, artifactID).Scan(
-		&runID, &epoch, &view.MediaType, &rawHeaders, &view.Body, &view.Binary, &view.Sensitive, &view.SHA256)
+	err := s.pool.QueryRow(ctx, `SELECT run_id,epoch_number,media_type,headers,content,is_binary,sensitive,sha256,truncated FROM http_capture_artifacts WHERE id=$1`, artifactID).Scan(
+		&runID, &epoch, &view.MediaType, &rawHeaders, &view.Body, &view.Binary, &view.Sensitive, &view.SHA256, &view.Truncated)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return artifactView{}, contractError(contract.CodeNotFound, "capture artifact not found")
 	}
@@ -539,16 +543,39 @@ func (s *Store) ReadArtifact(ctx context.Context, scope contract.ExecutionScope,
 	if runID != scope.RunID || epoch != scope.EpochNumber {
 		return artifactView{}, contractError(contract.CodeScopeDenied, "artifact belongs to another run or epoch")
 	}
+	if sha256Hex(view.Body) != view.SHA256 {
+		return artifactView{}, ErrNotEmpirical
+	}
+	view.SourceBytes = len(view.Body)
+	view.DisplayLimited = !authorized && (view.Sensitive || view.Binary)
 	_ = json.Unmarshal(rawHeaders, &view.Headers)
+	if !authorized {
+		view.Headers = redactHeaderMap(view.Headers)
+		if view.Binary {
+			view.Body = []byte("[binary body; unavailable in text reader]")
+		} else {
+			view.Body = []byte(redactSensitiveText(string(view.Body)))
+		}
+	}
 	if view.Sensitive && !authorized {
 		view.Body = []byte(redactBodyPreview(view.Body, view.Binary))
 		view.Headers = redactHeaderMap(view.Headers)
 	}
 	if len(view.Body) > hardMaxBody {
-		view.Body = view.Body[:hardMaxBody]
+		end := hardMaxBody
+		if !authorized {
+			for end > 0 && !utf8.RuneStart(view.Body[end]) {
+				end--
+			}
+		}
+		view.Body = view.Body[:end]
+		view.DisplayLimited = true
 	}
 	return view, nil
 }
+
+// RedactedHeaders is the common display policy; callers cannot opt in to secrets.
+func RedactedHeaders(in map[string][]string) map[string][]string { return redactHeaderMap(in) }
 
 func redactHeaderMap(in map[string][]string) map[string][]string {
 	out := make(map[string][]string, len(in))

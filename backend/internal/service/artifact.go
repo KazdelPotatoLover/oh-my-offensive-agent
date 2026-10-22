@@ -201,6 +201,7 @@ func (s *RunService) ReadArtifact(ctx context.Context, runID, artifactID uuid.UU
 	var content, hash, name string
 	var owner uuid.UUID
 	var sourceID *uuid.UUID
+	metadata := map[string]any{}
 	err := s.pool.QueryRow(ctx, `SELECT run_id,content,sha256,name,source_tool_call_id FROM artifacts WHERE id=$1`, artifactID).Scan(&owner, &content, &hash, &name, &sourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		var epoch int
@@ -210,11 +211,32 @@ func (s *RunService) ReadArtifact(ctx context.Context, runID, artifactID uuid.UU
 		if owner != runID {
 			return nil, ErrCrossRunBoundary
 		}
+		policy, current, policyErr := s.trafficPolicy(ctx, runID)
+		if policyErr != nil {
+			return nil, policyErr
+		}
+		if epoch < 1 || epoch > current {
+			return nil, ErrStaleEpoch
+		}
+		var method, rawURL string
+		if err := s.pool.QueryRow(ctx, `SELECT method,url,source_tool_call_id FROM http_receipts WHERE run_id=$1 AND epoch_number=$2 AND (request_artifact_id=$3 OR response_artifact_id=$3) AND minted_by='gateway' LIMIT 1`, runID, epoch, artifactID).Scan(&method, &rawURL, &sourceID); err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			return nil, ErrInvalidEvidence
+		}
+		if !trafficAllowed(policy, method, rawURL) {
+			return nil, ErrAssetOutOfScope
+		}
 		view, readErr := netcap.NewStore(s.pool).ReadArtifact(ctx, contract.ExecutionScope{RunID: runID, EpochNumber: epoch}, artifactID, false)
 		if readErr != nil {
 			return nil, readErr
 		}
 		content, hash, name = string(view.Body), view.SHA256, "http-capture"
+		metadata["redacted"], metadata["display_limited"] = true, view.DisplayLimited
+		metadata["source_bytes"], metadata["capture_truncated"] = view.SourceBytes, view.Truncated
+		metadata["source_sha256"], metadata["source_integrity_verified"] = view.SHA256, true
+		metadata["hash_scope"] = "original_captured_body; display may be redacted"
 	} else if err != nil {
 		return nil, err
 	}
@@ -231,7 +253,9 @@ func (s *RunService) ReadArtifact(ctx context.Context, runID, artifactID uuid.UU
 	if end == offset && offset < len(content) {
 		return nil, fmt.Errorf("limit cannot hold a UTF-8 character")
 	}
-	return map[string]any{"artifact_id": artifactID, "name": name, "sha256": hash, "source_tool_call_id": sourceID, "offset": offset, "next_offset": end, "total_bytes": len(content), "has_more": end < len(content), "content": content[offset:end]}, nil
+	metadata["artifact_id"], metadata["name"], metadata["sha256"], metadata["source_tool_call_id"] = artifactID, name, hash, sourceID
+	metadata["offset"], metadata["next_offset"], metadata["total_bytes"], metadata["has_more"], metadata["content"] = offset, end, len(content), end < len(content), content[offset:end]
+	return metadata, nil
 }
 
 func (s *RunService) GetWorkerOutput(ctx context.Context, runID, workID, stepID uuid.UUID, offset, limit int) (map[string]any, error) {

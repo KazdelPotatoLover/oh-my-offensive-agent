@@ -48,6 +48,11 @@ func (s *Supervision) Registry(scope contract.ExecutionScope, principal contract
 		return nil, persistence("supervision tools are not configured")
 	}
 	reg := tools.NewRegistry()
+	readerScope := tools.AdapterContext{RunID: scope.RunID, Service: s.Runs}
+	if scope.SessionID != nil {
+		readerScope.SessionID = *scope.SessionID
+	}
+	tools.RegisterArtifactReaders(reg, readerScope)
 	reg.Register(tools.NewGraphOverviewTool(scope.RunID, s.Runs))
 	reg.Register(tools.NewNodeDetailTool(scope.RunID, s.Runs))
 	reg.Register(tools.NewListFactsTool(scope.RunID, s.Runs))
@@ -67,7 +72,7 @@ func (s *Supervision) Registry(scope contract.ExecutionScope, principal contract
 }
 
 func profileNames(profile contract.ToolProfile) ([]string, contract.Role, error) {
-	read := []string{"graph_overview", "node_detail", "list_facts", "get_worker_trace", "list_worker_traces"}
+	read := []string{"graph_overview", "node_detail", "list_facts", "get_worker_trace", "list_worker_traces", "search_http_traffic", "get_http_exchange", "list_artifacts", "read_artifact", "get_worker_output", "list_capability_profiles"}
 	switch profile {
 	case contract.ProfilePlannerInitial, contract.ProfilePlannerFollowup:
 		names := append(append([]string{}, contract.PlannerControlTools...), read...)
