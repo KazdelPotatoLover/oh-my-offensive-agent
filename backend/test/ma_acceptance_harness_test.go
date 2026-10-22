@@ -152,6 +152,8 @@ func configureLocalModel(t *testing.T, double *modeldouble.Server, format string
 	t.Setenv("LLM_API_KEY", "local-ma7-fixture")
 	t.Setenv("LLM_BASE_URL", double.BaseURL())
 	t.Setenv("LLM_MODEL", "local-ma7-model")
+	t.Setenv("LLM_MAX_INFLIGHT", "0")
+	t.Setenv("LLM_MODEL_RECOVERY_ATTEMPTS", "1")
 	if format == "" {
 		format = "chat_completions"
 	}
@@ -346,7 +348,17 @@ func snapshotWorkerCount(t *testing.T, env *TestEnv, runID uuid.UUID) int {
 
 func stopRun(t *testing.T, env *TestEnv, runID uuid.UUID) {
 	t.Helper()
-	_ = acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/stop", runID), map[string]any{}, nil)
+	run, err := env.runService.Get(context.Background(), runID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.Status.IsTerminal() {
+		return
+	}
+	resp := acceptanceJSON(t, env, http.MethodPost, fmt.Sprintf("/api/runs/%s/stop", runID), map[string]any{"expected_epoch": run.CurrentEpoch}, map[string]string{"Idempotency-Key": uuid.NewString()})
+	if resp.Code >= 400 {
+		t.Fatalf("stop rejected: %d %s", resp.Code, resp.Body.String())
+	}
 	deadline := time.Now().Add(4 * time.Second)
 	for time.Now().Before(deadline) {
 		run, err := env.runService.Get(context.Background(), runID)
@@ -354,5 +366,15 @@ func stopRun(t *testing.T, env *TestEnv, runID uuid.UUID) {
 			return
 		}
 		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+// Supervision is event-driven. Tests send a real fact rather than requiring a
+// ten-minute production heartbeat to fire in a few seconds.
+func wakeSupervision(t *testing.T, env *TestEnv, runID uuid.UUID) {
+	t.Helper()
+	resp := acceptanceJSON(t, env, "POST", fmt.Sprintf("/api/runs/%s/facts", runID), map[string]any{"summary": "Review in-flight directions", "detail": "new local observation", "confidence": "observed"}, nil)
+	if resp.Code >= 400 {
+		t.Fatalf("wake fact: %d %s", resp.Code, resp.Body.String())
 	}
 }

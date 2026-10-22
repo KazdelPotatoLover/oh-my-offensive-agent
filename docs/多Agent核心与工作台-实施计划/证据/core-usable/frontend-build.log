@@ -1,0 +1,39 @@
+
+> agent-workbench-frontend@0.1.0 build
+> next build
+
+  ▲ Next.js 14.2.15
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/7) ...
+   Generating static pages (1/7) 
+   Generating static pages (3/7) 
+   Generating static pages (5/7) 
+ ✓ Generating static pages (7/7)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                                   Size     First Load JS
+┌ ○ /                                                         137 B          87.3 kB
+├ ○ /_not-found                                               875 B          88.1 kB
+├ ○ /assets                                                   3.72 kB        97.7 kB
+├ ƒ /assets/[assetId]                                         5.78 kB        99.8 kB
+├ ○ /tasks                                                    8.19 kB         102 kB
+├ ƒ /tasks/[taskId]                                           7.56 kB         102 kB
+├ ƒ /tasks/[taskId]/runs/[runId]                              14.4 kB         120 kB
+├ ƒ /workbench                                                141 B           120 kB
+├ ƒ /workbench/tasks/[taskId]                                 140 B           120 kB
+├ ƒ /workbench/tasks/[taskId]/runs/[runId]                    141 B           120 kB
+└ ƒ /workbench/tasks/[taskId]/runs/[runId]/work/[workItemId]  141 B           120 kB
++ First Load JS shared by all                                 87.2 kB
+  ├ chunks/117-8c6096ec62d9a05d.js                            31.6 kB
+  ├ chunks/fd9d1056-928f34a4ce0061cc.js                       53.7 kB
+  └ other shared chunks (total)                               1.94 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

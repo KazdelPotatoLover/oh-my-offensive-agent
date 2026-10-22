@@ -1,0 +1,9 @@
+
+Running 2 tests using 1 worker
+
+(node:3432222) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/ma-acceptance/core-workflow.spec.ts:5:5 › create through workbench with server defaults, observe a real worker, and stop (3.4s)
+  ✓  2 tests/ma-acceptance/core-workflow.spec.ts:34:5 › real run directions and results survive refresh (1.9s)
+
+  2 passed (5.9s)

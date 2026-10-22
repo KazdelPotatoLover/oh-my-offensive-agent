@@ -1,0 +1,6 @@
+ok  	agent-workbench/backend/internal/provider	1.410s
+ok  	agent-workbench/backend/internal/controlplane	1.023s
+ok  	agent-workbench/backend/internal/contract	1.027s
+ok  	agent-workbench/backend/internal/orchestration	1.072s
+ok  	agent-workbench/backend/internal/model	1.014s
+ok  	agent-workbench/backend/internal/service	1.015s

@@ -170,10 +170,16 @@ func TestMA_A02_ClaimOverlapAndDispatchDuringPlannerCall(t *testing.T) {
 		if !double.Barrier("workers").WaitArrived(2, 3*time.Second) {
 			report.fail(round, "initial claim", fmt.Sprintf("workers arrived=%d", double.Barrier("workers").Arrived()))
 		}
+		wakeSupervision(t, env, runID)
 		if !double.Barrier("planner").WaitArrived(1, 3*time.Second) {
 			report.fail(round, "planner follow-up", "follow-up planner call did not start while workers were held")
 		}
-		time.Sleep(400 * time.Millisecond)
+		// Free worker slots while keeping the planner's upstream call held.
+		double.Barrier("workers").Release()
+		claimDeadline := time.Now().Add(3 * time.Second)
+		for len(listAttempts(t, env, runID)) < 3 && time.Now().Before(claimDeadline) {
+			time.Sleep(20 * time.Millisecond)
+		}
 		attempts := listAttempts(t, env, runID)
 		seen := map[string]int{}
 		running := 0
@@ -472,6 +478,7 @@ func TestMA_A05_BadResponsesDoNotExecuteOrReplayForever(t *testing.T) {
 			t.Fatal(err)
 		}
 		configureLocalModel(t, double, "responses")
+		t.Setenv("LLM_MODEL_RECOVERY_ATTEMPTS", "3")
 		var plannerCalls, workerCalls, followCalls int
 		double.SetDynamic(func(body []byte) (modeldouble.Step, bool) {
 			switch classifyModelBody(body) {
@@ -508,7 +515,14 @@ func TestMA_A05_BadResponsesDoNotExecuteOrReplayForever(t *testing.T) {
 			env.teardown()
 			continue
 		}
-		time.Sleep(1500 * time.Millisecond)
+		deadline := time.Now().Add(8 * time.Second)
+		for time.Now().Before(deadline) {
+			r, err := env.runService.Get(t.Context(), runID)
+			if err == nil && r.Status.IsTerminal() {
+				break
+			}
+			time.Sleep(30 * time.Millisecond)
+		}
 		var badSuccess int
 		_ = env.pool.QueryRow(t.Context(), `SELECT count(*) FROM agent_tool_calls WHERE run_id=$1 AND status='success' AND call_id='call_same'`, runID).Scan(&badSuccess)
 		if badSuccess != 0 {
@@ -582,6 +596,7 @@ func TestMA_A06_SharedModelLimitQueuesAndCancel(t *testing.T) {
 			t.Fatal(err)
 		}
 		configureLocalModel(t, double, "chat_completions")
+		t.Setenv("LLM_MAX_INFLIGHT", "2")
 		double.SetDynamic(func(body []byte) (modeldouble.Step, bool) {
 			switch classifyModelBody(body) {
 			case "worker":
@@ -600,12 +615,13 @@ func TestMA_A06_SharedModelLimitQueuesAndCancel(t *testing.T) {
 			env.teardown()
 			continue
 		}
-		_ = double.Barrier("workers").WaitArrived(4, 3*time.Second)
+		_ = double.Barrier("workers").WaitArrived(2, 3*time.Second)
 		if double.Peak() > 2 {
 			report.fail(round, "shared limit 2", fmt.Sprintf("peak in-flight model requests=%d while N=4", double.Peak()))
 		}
-		if double.Barrier("workers").Arrived() < 4 {
-			report.fail(round, "workers remained active", fmt.Sprintf("arrived=%d", double.Barrier("workers").Arrived()))
+		active, _, _ := runningChildCounts(t, env, runID)
+		if active != 4 {
+			report.fail(round, "workers remained active", fmt.Sprintf("active attempts=%d", active))
 		}
 		stopRun(t, env, runID)
 		deadline := time.Now().Add(2 * time.Second)
@@ -651,6 +667,9 @@ func TestMA_A07_PlannerSteerAndKillAreRealCommands(t *testing.T) {
 				return planStep(body, namedPlan([]string{"dir-steer", "dir-kill", "dir-keep"}), modeldouble.KindChatTool), true
 			case "planner_followup":
 				n := followups.Add(1)
+				if n > 2 {
+					return modeldouble.Step{Kind: modeldouble.KindText, Text: "Supervision complete."}, true
+				}
 				if n == 1 {
 					id := promptWorkItemID(text, "dir-kill")
 					if id == "" {
@@ -677,15 +696,21 @@ func TestMA_A07_PlannerSteerAndKillAreRealCommands(t *testing.T) {
 			env.teardown()
 			continue
 		}
-		_ = double.Barrier("workers").WaitArrived(1, 3*time.Second)
+		_ = double.Barrier("workers").WaitArrived(3, 3*time.Second)
+		wakeSupervision(t, env, runID)
 		var historyHeld int
 		_ = env.pool.QueryRow(t.Context(), `SELECT count(*) FROM agent_messages m JOIN agent_sessions s ON s.id=m.session_id JOIN work_items w ON w.id=s.work_item_id WHERE w.run_id=$1 AND w.key='dir-kill'`, runID).Scan(&historyHeld)
 		deadline := time.Now().Add(4 * time.Second)
-		for time.Now().Before(deadline) && followups.Load() < 2 {
+		for time.Now().Before(deadline) {
+			var persistedSteers int
+			_ = env.pool.QueryRow(t.Context(), `SELECT count(*) FROM work_control_messages m JOIN work_items w ON w.id=m.work_item_id WHERE w.run_id=$1 AND w.key='dir-steer'`, runID).Scan(&persistedSteers)
+			if persistedSteers > 0 {
+				break
+			}
 			var killedNow string
 			_ = env.pool.QueryRow(t.Context(), `SELECT status FROM work_items WHERE run_id=$1 AND key='dir-kill'`, runID).Scan(&killedNow)
 			if killedNow == "cancelled" || killedNow == "stopped" || killedNow == "failed" {
-				if followups.Load() >= 2 || time.Now().Add(1500*time.Millisecond).After(deadline) {
+				if time.Now().After(deadline) {
 					break
 				}
 			}

@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-22",
+  "database": "agent_workbench_codex_smoke",
+  "model_configuration": "existing local .env; no credentials copied into evidence",
+  "task_id": "eb610e20-0505-40da-95ea-dd24306a676b",
+  "run_id": "17b10f43-bc85-45df-a41b-c3f9186dc5c4",
+  "target": "local fixture on 29190",
+  "requested_workers": 2,
+  "observed_active_workers_peak": 2,
+  "final_status": "completed",
+  "finish_reason": "completed",
+  "completed_directions": 2,
+  "verified_facts": 2,
+  "met_goals": 2,
+  "planner_model_calls": 10,
+  "worker_model_calls": 10,
+  "main_turn_status": "completed",
+  "running_sessions_after_finish": 0,
+  "unfinished_model_calls_after_finish": 0,
+  "additional_execution_smoke": {
+    "run_id": "4f5bc632-fec7-44f2-8154-6d0332225029",
+    "job_state": "finished",
+    "exit_code": 0,
+    "command": "python3 -c print(2+2)",
+    "run_final_status": "stopped",
+    "run_finish_reason": "model_calls_exhausted",
+    "note": "earlier diagnostic run; command success is separate from run success"
+  }
+}
