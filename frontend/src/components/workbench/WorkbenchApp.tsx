@@ -18,6 +18,7 @@ import { ExplorationResources } from '@/components/ExplorationResources';
 import { api, newRequestID } from '@/lib/api';
 import type { Run, Task } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { runNotice } from '@/lib/workbench/run-notice';
 import { executionGaps } from '@/lib/workbench/budget';
 import {
   WorkbenchRequestError,
@@ -280,7 +281,8 @@ function WorkbenchSession() {
   const canPause = canCommand && (runStatus === 'running' || runStatus === 'queued');
   const canStop = canCommand && ['running', 'queued', 'paused', 'stopping'].includes(runStatus);
   const canResume = canCommand && runStatus === 'paused';
-  const canEpoch = canCommand && ['stopped', 'completed', 'failed', 'interrupted'].includes(runStatus);
+  const canEpoch = canCommand && ['stopped', 'failed', 'interrupted'].includes(runStatus);
+  const terminationNotice = runNotice(runRecord.data);
 
   const { graphNodes, graphEdges } = useMemo(() => {
     const nodes: CanvasNodeData[] = [];
@@ -598,6 +600,13 @@ function WorkbenchSession() {
           </div>
         </div>
 
+        {terminationNotice && (
+          <div role="status" data-testid="run-termination-notice" className="mt-2 rounded border border-amber-800/60 bg-amber-950/30 p-2 text-xs text-amber-100">
+            <p className="font-medium">{terminationNotice.title}</p>
+            <p className="mt-1 whitespace-pre-wrap break-words">{terminationNotice.detail}</p>
+          </div>
+        )}
+
         {/* Structured Advanced Controls Tray */}
         <div className="mt-2.5 flex flex-wrap items-center gap-3 rounded-lg border border-gray-800/80 bg-gray-900/60 p-2 text-xs">
             <div className="flex flex-wrap items-center gap-1.5 border-r border-gray-800 pr-3">
@@ -630,7 +639,7 @@ function WorkbenchSession() {
                 }}
                 className="rounded bg-indigo-600 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-40"
               >
-                新 Epoch
+                继续任务（新 Epoch）
               </button>
             </div>
 
@@ -666,7 +675,7 @@ function WorkbenchSession() {
               <button
                 type="button"
                 data-testid="grant-budget"
-                disabled={!canCommand}
+                disabled={!canCommand || runStatus === 'completed' || runStatus === 'stopping' || (grant.model <= 0 && grant.tool <= 0 && grant.seconds <= 0)}
                 onClick={() => {
                   const body = commandFor('grant_budget', {
                     additional_model_calls: grant.model,

@@ -108,6 +108,31 @@ test('pause still allows stop, then a new epoch is separate', async ({ page }) =
   await expect(page.getByTestId('run-status')).toContainText('running');
 });
 
+test('temporary provider interruption explains recovery without claiming success', async ({ page }) => {
+  await page.route('**/api/runs/**', async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path !== `/api/runs/${RUN}` && path !== `/api/runs/${RUN}/workbench`) {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch();
+    const body = await response.json();
+    if (path.endsWith('/workbench')) {
+      body.run.status = 'stopped';
+    } else {
+      body.status = 'stopped';
+      body.finish_reason = 'needs_input';
+      body.final_output = '模型服务暂时不可用，已有结果已保留。\n\nEvidence inventory';
+    }
+    await route.fulfill({ response, json: body });
+  });
+  await page.goto(runPath());
+  await expect(page.getByTestId('run-status')).toContainText('stopped');
+  await expect(page.getByTestId('run-termination-notice')).toContainText('模型服务暂时不可用');
+  await page.getByTestId('epoch-reason').fill('模型服务恢复后继续');
+  await expect(page.getByTestId('start-epoch')).toBeEnabled();
+});
+
 test('chat submit shows pending, 202, source command, and 409', async ({ page }) => {
   await page.goto(runPath());
   await page.getByLabel('给 Main Agent 的消息').fill('请记录当前入口');

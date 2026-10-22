@@ -86,6 +86,19 @@ func (e *Engine) dispatcherLoop(ctx context.Context) {
 				}
 				continue
 			}
+			if e.budgetMgr.WorkerModelCallsRemaining(e.plannerReserve, e.mainReserve) == 0 {
+				e.workerTokens <- token
+				// Let Planner review persisted results, without creating empty
+				// attempts that cannot make even one model request.
+				if e.workerBudgetBlocked.CompareAndSwap(false, true) {
+					e.markIdleDecision()
+				}
+				if !e.waitDispatch(ctx, 100*time.Millisecond) {
+					return
+				}
+				continue
+			}
+			e.workerBudgetBlocked.Store(false)
 			wi, att, sess, claimErr := e.runService.ClaimNextPendingWorkItem(ctx, e.runID)
 			if claimErr != nil {
 				e.workerTokens <- token

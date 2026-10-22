@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"agent-workbench/backend/internal/checker"
+	"agent-workbench/backend/internal/contract"
 	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/service"
 
@@ -143,6 +144,11 @@ func (t *SubmitPlanTool) Execute(ctx context.Context, argumentsJSON []byte) (str
 		created, err = t.runService.SubmitPlan(ctx, t.runID, payload.Items)
 	}
 	if err != nil {
+		var ce *contract.Error
+		if errors.As(err, &ce) {
+			raw, _ := json.Marshal(ce.Envelope())
+			return string(raw), nil
+		}
 		return "", err
 	}
 
@@ -153,6 +159,7 @@ func (t *SubmitPlanTool) Execute(ctx context.Context, argumentsJSON []byte) (str
 	res := map[string]interface{}{
 		"status":        "success",
 		"created_count": len(created),
+		"work_items":    created,
 		"message":       fmt.Sprintf("Plan submitted successfully with %d work items", len(created)),
 	}
 	b, _ := json.Marshal(res)

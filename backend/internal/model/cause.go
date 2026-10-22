@@ -22,6 +22,7 @@ const (
 	CauseWorkerTimeout              TerminationCause = "worker_timeout"
 	CauseWorkerSettlementComplete   TerminationCause = "worker_settlement_complete"
 	CauseWorkerKilled               TerminationCause = "worker_killed"
+	CauseWorkerBudgetReserved       TerminationCause = "worker_budget_reserved"
 )
 
 func (c TerminationCause) String() string {
@@ -47,7 +48,7 @@ func (c TerminationCause) TargetRunStatus() RunStatus {
 	switch c {
 	case CauseCompleted, TerminationCause("final_answer"), TerminationCause("all steps completed"):
 		return RunStatusCompleted
-	case CauseUserStop, CauseTimeout, CausePartial, CauseNeedsInput:
+	case CauseUserStop, CauseTimeout, CausePartial, CauseNeedsInput, CauseWorkerBudgetReserved:
 		return RunStatusStopped
 	case CauseModelBudgetExhausted, CauseToolBudgetExhausted:
 		return RunStatusStopped

@@ -119,9 +119,13 @@ type controlTool struct {
 }
 
 func newControlTool(name string, controller contract.ExecutionController, scope contract.ExecutionScope, principal contract.Principal, keyFn func(contract.Command) string) *controlTool {
+	description := "Apply " + name + " through the shared execution controller. A text reply does not change run state."
+	if contract.CommandType(name).TargetsWorkItem() {
+		description += " Copy work_item_id from the current work list. expected_attempt_id is optional: omit it unless you have the exact CURRENT attempt UUID; never substitute the work item UUID or an older attempt. Continue/retry cannot add model budget."
+	}
 	return &controlTool{
 		name:        name,
-		description: "Apply " + name + " through the shared execution controller. A text reply does not change run state.",
+		description: description,
 		parameters:  controlSchema(name),
 		controller:  controller,
 		scope:       scope,
@@ -256,7 +260,7 @@ func (t *controlTool) command(argumentsJSON []byte) (contract.Command, error) {
 func controlSchema(name string) json.RawMessage {
 	switch contract.CommandType(name) {
 	case contract.CmdSteerWork, contract.CmdKillWork, contract.CmdContinueWork, contract.CmdRetryWork:
-		return json.RawMessage(`{"type":"object","properties":{"work_item_id":{"type":"string"},"expected_attempt_id":{"type":"string"},"instruction":{"type":"string"},"reason":{"type":"string"}},"required":["work_item_id"]}`)
+		return json.RawMessage(`{"type":"object","properties":{"work_item_id":{"type":"string","format":"uuid","description":"Exact work item UUID from current progress"},"expected_attempt_id":{"type":"string","format":"uuid","description":"Optional CURRENT attempt UUID. Omit when unknown; never use a work item UUID, placeholder, or stale attempt."},"instruction":{"type":"string"},"reason":{"type":"string"}},"required":["work_item_id"]}`)
 	case contract.CmdHint:
 		return json.RawMessage(`{"type":"object","properties":{"text":{"type":"string"}},"required":["text"]}`)
 	case contract.CmdAddIntent:

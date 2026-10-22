@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"agent-workbench/backend/internal/agent"
-	"agent-workbench/backend/internal/contract"
 	"agent-workbench/backend/internal/model"
 )
 
@@ -17,6 +16,7 @@ var (
 	ErrExplorationModelBudgetExhausted = errors.New("exploration model budget exhausted")
 	ErrToolBudgetExhausted             = errors.New("tool budget exhausted")
 	ErrInsufficientTime                = errors.New("insufficient time remaining for work item")
+	ErrWorkerBudgetReserved            = errors.New("remaining model calls are reserved for Planner/Main")
 )
 
 // BudgetManager provides centralized, atomic budget tracking for model calls,
@@ -115,6 +115,10 @@ func (b *BudgetManager) restoreUsage(models, tools int) {
 // AcquireModelCall atomically requests a quota slot for a model call.
 // Non-wrapup calls cannot consume the reserved wrap-up quota.
 func (b *BudgetManager) AcquireModelCall(ctx context.Context, isWrapup bool) error {
+	return b.acquireModelCall(ctx, isWrapup, 0)
+}
+
+func (b *BudgetManager) acquireModelCall(ctx context.Context, isWrapup bool, keep int) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -138,10 +142,22 @@ func (b *BudgetManager) AcquireModelCall(ctx context.Context, isWrapup bool) err
 	if !isWrapup && int(b.consumedModelCalls) >= b.maxExplorationCalls {
 		return ErrExplorationModelBudgetExhausted
 	}
+	if !isWrapup && b.maxModelCalls-int(b.consumedModelCalls) <= keep {
+		return ErrWorkerBudgetReserved
+	}
 
 	b.consumedModelCalls++
 	b.inflightModelCalls++
 	return nil
+}
+
+// WorkerModelCallsRemaining is an admission snapshot, not a grant. The actual
+// reserve check and counter increment also happen under the same budget lock.
+func (b *BudgetManager) WorkerModelCallsRemaining(planner, main int) int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	keep := max(planner+main, b.reserveForWrapup)
+	return max(0, b.maxModelCalls-int(b.consumedModelCalls)-keep)
 }
 
 // ReleaseModelCall decrements the in-flight model call count when a call returns.
@@ -489,16 +505,11 @@ func (w *WorkerBudgetGate) tryAcquireModelLocked(ctx context.Context, isSettleme
 		}
 	}
 
-	if !isSettlement && contract.WorkerModelCallsAdmittable(w.bm.RemainingModelCalls(), w.plannerReserve, w.mainReserve) <= 0 {
-		return agent.BudgetGateResult{
-			Allowed: false,
-			Scope:   agent.ScopeGlobal,
-			Cause:   model.CauseModelBudgetExhausted,
-		}
-	}
-
 	// 5. Acquire from global budget
-	if err := w.bm.AcquireModelCall(ctx, isSettlement); err != nil {
+	if err := w.bm.acquireModelCall(ctx, isSettlement, w.plannerReserve+w.mainReserve); err != nil {
+		if errors.Is(err, ErrWorkerBudgetReserved) {
+			return agent.BudgetGateResult{Scope: agent.ScopeGlobal, Cause: model.CauseWorkerBudgetReserved}
+		}
 		if errors.Is(err, ErrModelBudgetExhausted) {
 			return agent.BudgetGateResult{
 				Allowed: false,

@@ -123,7 +123,12 @@ func (c *Controller) Apply(ctx context.Context, principal contract.Principal, sc
 		attemptID = item.CurrentAttemptID
 	}
 
-	if run.Status.IsTerminal() && cmd.Type != contract.CmdStartEpoch {
+	// Structured human grants must be possible BEFORE restarting an exhausted
+	// epoch. They update only the ledger; they do not revive execution. The
+	// principal check above still rejects budget grants from every model role.
+	canGrantBeforeRecovery := cmd.Type == contract.CmdGrantBudget &&
+		(run.Status == model.RunStatusStopped || run.Status == model.RunStatusFailed || run.Status == model.RunStatusInterrupted)
+	if run.Status.IsTerminal() && cmd.Type != contract.CmdStartEpoch && !canGrantBeforeRecovery {
 		return nil, invalidState("terminal run is read-only until an explicit epoch recovery")
 	}
 	if cmd.Type == contract.CmdStartEpoch {

@@ -39,7 +39,7 @@ func (t *GetEndpointTool) Name() string {
 }
 
 func (t *GetEndpointTool) Description() string {
-	return "Fetch an HTTP endpoint target by asset_id. The target URL is strictly resolved from the immutable RunAsset snapshot."
+	return "Fetch an assigned HTTP endpoint by its asset UUID from the Assigned assets table. Never put a URL, name, or WorkItem/Attempt ID in asset_id. The target URL is strictly resolved from the immutable RunAsset snapshot."
 }
 
 func (t *GetEndpointTool) Parameters() json.RawMessage {
@@ -48,7 +48,8 @@ func (t *GetEndpointTool) Parameters() json.RawMessage {
 		"properties": {
 			"asset_id": {
 				"type": "string",
-				"description": "The UUID of the target HTTP endpoint asset"
+				"format": "uuid",
+				"description": "Copy the exact asset_id UUID from Assigned assets; never a URL"
 			}
 		},
 		"required": ["asset_id"]
@@ -66,7 +67,7 @@ func (t *GetEndpointTool) Validate(argumentsJSON []byte) error {
 		return errors.New("asset_id is required")
 	}
 	if _, err := uuid.Parse(payload.AssetID); err != nil {
-		return fmt.Errorf("invalid asset_id: must be a valid UUID: %w", err)
+		return errors.New("invalid asset_id: copy the asset UUID from Assigned assets, not the URL. Use http_request(url=...) only when that tool and URL are authorized")
 	}
 	return nil
 }

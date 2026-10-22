@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"agent-workbench/backend/internal/checker"
+	"agent-workbench/backend/internal/contract"
 	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/provider"
 
@@ -719,7 +720,8 @@ func (s *RunService) SubmitPlanWithRound(ctx context.Context, runID uuid.UUID, p
 		}
 	}
 	if limits.Budget.MaxWorkItems > 0 && len(keyToItem)+newItems > limits.Budget.MaxWorkItems {
-		return nil, fmt.Errorf("run work item limit exceeded")
+		return nil, &contract.Error{Code: contract.CodeRunBudgetExhausted, Scope: contract.ScopeRun,
+			Message: fmt.Sprintf("run work item limit exceeded: used=%d, requested_new=%d, limit=%d; do not create replacement keys. Inspect existing directions; continue unfinished work only while worker model allowance remains, otherwise conclude partial/blocked", len(keyToItem), newItems, limits.Budget.MaxWorkItems), SuggestedAction: contract.ActionNone}
 	}
 	// Validate keys in this batch for duplicates, asset scope, observation source, and conflict
 	batchKeys := make(map[string]bool)
@@ -1380,7 +1382,7 @@ func (s *RunService) FinishWorkItem(ctx context.Context, workItemID, attemptID, 
 		finishReason == "max_model_calls_exceeded" || finishReason == "max_tool_calls_exceeded" ||
 		finishReason == string(model.CauseWorkerModelBudgetExhausted) || finishReason == string(model.CauseWorkerToolBudgetExhausted) ||
 		finishReason == string(model.CauseWorkerTimeout) || finishReason == string(model.CauseWorkerSettlementComplete) ||
-		finishReason == "worker_exhausted" {
+		finishReason == "worker_exhausted" || finishReason == string(model.CauseWorkerBudgetReserved) {
 		targetItemStatus = model.WorkItemStatusExhausted
 		targetAttemptStatus = "exhausted"
 	}
@@ -1498,6 +1500,10 @@ func (s *RunService) ContinueWorkItem(
 		return nil, fmt.Errorf("%w: work item already has an active attempt", ErrAttemptConflict)
 	}
 
+	if err := checkWorkerContinuationBudget(ctx, tx, runID); err != nil {
+		return nil, err
+	}
+
 	// 4. Update work item status to pending (clearing blocked_reason) so unified engine claims it
 	_, err = tx.Exec(ctx,
 		`UPDATE work_items SET status = 'pending', blocked_reason = NULL, updated_at = now() WHERE id = $1`,
@@ -1585,6 +1591,10 @@ func (s *RunService) RetryWorkItem(
 	}
 	if runningAttempts > 0 {
 		return nil, fmt.Errorf("%w: work item already has an active attempt", ErrAttemptConflict)
+	}
+
+	if err := checkWorkerContinuationBudget(ctx, tx, runID); err != nil {
+		return nil, err
 	}
 
 	// 4. Update work item status to pending
