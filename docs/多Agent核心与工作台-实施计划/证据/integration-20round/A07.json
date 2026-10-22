@@ -1,0 +1,510 @@
+{
+  "id": "A07",
+  "status": "fail",
+  "owner": "agent-5",
+  "rounds": 20,
+  "failures": [
+    {
+      "round": 1,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 1,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 1,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 1,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 1,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 2,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 2,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 2,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 2,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 2,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 3,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 3,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 3,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 3,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 3,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 4,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 4,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 4,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 4,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 4,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 5,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 5,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 5,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 5,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 5,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 6,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 6,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 6,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 6,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 6,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 7,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 7,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 7,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 7,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 7,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 8,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 8,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 8,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 8,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 8,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 9,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 9,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 9,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 9,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 9,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 10,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 10,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 10,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 10,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 10,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 11,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 11,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 11,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 11,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 11,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 12,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 12,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 12,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 12,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 12,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 13,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 13,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 13,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 13,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 13,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 14,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 14,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 14,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 14,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 14,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 15,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 15,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 15,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 15,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 15,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 16,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 16,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 16,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 16,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 16,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 17,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 17,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 17,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 17,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 17,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 18,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 18,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 18,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 18,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 18,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 19,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 19,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 19,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 19,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 19,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    },
+    {
+      "round": 20,
+      "check": "planner follow-up",
+      "detail": "no follow-up planner call while a worker was held"
+    },
+    {
+      "round": 20,
+      "check": "kill arguments",
+      "detail": "follow-up did not send kill_work with the prompt work_item_id"
+    },
+    {
+      "round": 20,
+      "check": "steer arguments",
+      "detail": "follow-up did not send steer_work with the prompt work_item_id"
+    },
+    {
+      "round": 20,
+      "check": "kill target",
+      "detail": "dir-kill status=\"running\" dir-keep status=\"running\" followups=0"
+    },
+    {
+      "round": 20,
+      "check": "steer target",
+      "detail": "dir-steer has no control message from the planner"
+    }
+  ],
+  "command": "go test ./test/ -count=1 -run TestMA_A07_PlannerSteerAndKillAreRealCommands",
+  "finished_at": "2026-10-22T08:46:18Z"
+}

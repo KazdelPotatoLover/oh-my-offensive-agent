@@ -1,0 +1,110 @@
+{
+  "id": "A08",
+  "status": "fail",
+  "owner": "agent-5",
+  "rounds": 20,
+  "failures": [
+    {
+      "round": 1,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 2,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 3,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 4,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 5,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 6,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 7,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 8,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 9,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 10,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 11,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 12,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 13,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 14,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 15,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 16,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 17,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 18,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 19,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    },
+    {
+      "round": 20,
+      "check": "pause cites command and session",
+      "detail": "pause_cmds=0 cited=0 session=\"\""
+    }
+  ],
+  "command": "go test ./test/ -count=1 -run TestMA_A08_MainAgentIdempotentBoundary",
+  "finished_at": "2026-10-22T08:46:41Z"
+}

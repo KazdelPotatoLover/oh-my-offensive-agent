@@ -1,0 +1,27 @@
+{
+  "id": "A11",
+  "status": "fail",
+  "owner": "agent-4",
+  "rounds": 1,
+  "failures": [
+    {
+      "round": 1,
+      "check": "job row",
+      "detail": "run_command produced no execution_jobs row"
+    },
+    {
+      "round": 1,
+      "check": "owned container",
+      "detail": "no container with the run label was observed; cleanup will not prune"
+    }
+  ],
+  "observed": {
+    "docker": {
+      "error": "",
+      "label": "ma7.accept=f906bbed-4b77-4919-87bc-a51a3ce2b0fc",
+      "output": ""
+    }
+  },
+  "command": "go test ./test/ -count=1 -run TestMA_A11_ContainerIsolationAndTrustedCapture",
+  "finished_at": "2026-10-22T08:46:51Z"
+}

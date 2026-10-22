@@ -1,0 +1,90 @@
+{
+  "id": "A03",
+  "status": "fail",
+  "owner": "agent-1",
+  "rounds": 20,
+  "failures": [
+    {
+      "round": 1,
+      "check": "dispatch B while A in flight",
+      "detail": "B arrived=0 A still held=1 planner_calls=2"
+    },
+    {
+      "round": 2,
+      "check": "dispatch B while A in flight",
+      "detail": "B arrived=0 A still held=1 planner_calls=0"
+    },
+    {
+      "round": 3,
+      "check": "dispatch B while A in flight",
+      "detail": "B arrived=0 A still held=1 planner_calls=0"
+    },
+    {
+      "round": 4,
+      "check": "dispatch B while A in flight",
+      "detail": "B arrived=0 A still held=1 planner_calls=0"
+    },
+    {
+      "round": 5,
+      "check": "dispatch B while A in flight",
+      "detail": "B arrived=0 A still held=1 planner_calls=0"
+    },
+    {
+      "round": 6,
+      "check": "dispatch B while A in flight",
+      "detail": "B arrived=0 A still held=1 planner_calls=0"
+    },
+    {
+      "round": 7,
+      "check": "dispatch B while A in flight",
+      "detail": "B arrived=0 A still held=1 planner_calls=0"
+    },
+    {
+      "round": 9,
+      "check": "dispatch B while A in flight",
+      "detail": "B arrived=0 A still held=1 planner_calls=0"
+    },
+    {
+      "round": 10,
+      "check": "dispatch B while A in flight",
+      "detail": "B arrived=0 A still held=1 planner_calls=0"
+    },
+    {
+      "round": 11,
+      "check": "dispatch B while A in flight",
+      "detail": "B arrived=0 A still held=1 planner_calls=0"
+    },
+    {
+      "round": 12,
+      "check": "dispatch B while A in flight",
+      "detail": "B arrived=0 A still held=1 planner_calls=0"
+    },
+    {
+      "round": 13,
+      "check": "dispatch B while A in flight",
+      "detail": "B arrived=0 A still held=1 planner_calls=0"
+    },
+    {
+      "round": 15,
+      "check": "dispatch B while A in flight",
+      "detail": "B arrived=0 A still held=1 planner_calls=0"
+    },
+    {
+      "round": 18,
+      "check": "dispatch B while A in flight",
+      "detail": "B arrived=0 A still held=1 planner_calls=0"
+    },
+    {
+      "round": 19,
+      "check": "dispatch B while A in flight",
+      "detail": "B arrived=0 A still held=1 planner_calls=2"
+    },
+    {
+      "round": 20,
+      "check": "dispatch B while A in flight",
+      "detail": "B arrived=0 A still held=1 planner_calls=2"
+    }
+  ],
+  "command": "go test ./test/ -count=1 -run TestMA_A03_InFlightFactCanDispatchSecondDirection",
+  "finished_at": "2026-10-22T08:38:34Z"
+}

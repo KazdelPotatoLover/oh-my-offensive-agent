@@ -1,0 +1,443 @@
+{
+  "id": "A01",
+  "status": "pass",
+  "owner": "agent-1",
+  "rounds": 20,
+  "failures": null,
+  "observed": {
+    "round 1 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 1 discovery=true N=1": {
+      "attempt_count": 1,
+      "barrier_met": true,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 1,
+      "worker_barrier": 1
+    },
+    "round 1 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 10 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 10 discovery=true N=1": {
+      "attempt_count": 1,
+      "barrier_met": true,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 1,
+      "worker_barrier": 1
+    },
+    "round 10 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 11 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 11 discovery=true N=2": {
+      "attempt_count": 2,
+      "barrier_met": true,
+      "running_attempts": 2,
+      "server_peak": 2,
+      "snapshot": 2,
+      "worker_barrier": 2
+    },
+    "round 11 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 12 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 12 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 13 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 13 discovery=true N=1": {
+      "attempt_count": 1,
+      "barrier_met": true,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 1,
+      "worker_barrier": 1
+    },
+    "round 13 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 14 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 14 discovery=true N=2": {
+      "attempt_count": 2,
+      "barrier_met": true,
+      "running_attempts": 2,
+      "server_peak": 2,
+      "snapshot": 2,
+      "worker_barrier": 2
+    },
+    "round 14 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 15 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 15 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 16 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 16 discovery=true N=1": {
+      "attempt_count": 1,
+      "barrier_met": true,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 1,
+      "worker_barrier": 1
+    },
+    "round 16 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 17 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 17 discovery=true N=2": {
+      "attempt_count": 2,
+      "barrier_met": true,
+      "running_attempts": 2,
+      "server_peak": 2,
+      "snapshot": 2,
+      "worker_barrier": 2
+    },
+    "round 17 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 18 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 18 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 19 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 19 discovery=true N=1": {
+      "attempt_count": 1,
+      "barrier_met": true,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 1,
+      "worker_barrier": 1
+    },
+    "round 19 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 2 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 2 discovery=true N=2": {
+      "attempt_count": 2,
+      "barrier_met": true,
+      "running_attempts": 2,
+      "server_peak": 2,
+      "snapshot": 2,
+      "worker_barrier": 2
+    },
+    "round 2 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 20 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 20 discovery=true N=2": {
+      "attempt_count": 2,
+      "barrier_met": true,
+      "running_attempts": 2,
+      "server_peak": 2,
+      "snapshot": 2,
+      "worker_barrier": 2
+    },
+    "round 20 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 3 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 3 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 4 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 4 discovery=true N=1": {
+      "attempt_count": 1,
+      "barrier_met": true,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 1,
+      "worker_barrier": 1
+    },
+    "round 4 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 5 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 5 discovery=true N=2": {
+      "attempt_count": 2,
+      "barrier_met": true,
+      "running_attempts": 2,
+      "server_peak": 2,
+      "snapshot": 2,
+      "worker_barrier": 2
+    },
+    "round 5 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 6 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 6 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 7 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 7 discovery=true N=1": {
+      "attempt_count": 1,
+      "barrier_met": true,
+      "running_attempts": 1,
+      "server_peak": 1,
+      "snapshot": 1,
+      "worker_barrier": 1
+    },
+    "round 7 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 8 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 8 discovery=true N=2": {
+      "attempt_count": 2,
+      "barrier_met": true,
+      "running_attempts": 2,
+      "server_peak": 2,
+      "snapshot": 2,
+      "worker_barrier": 2
+    },
+    "round 8 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 9 discovery=false N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    },
+    "round 9 discovery=true N=4": {
+      "attempt_count": 4,
+      "barrier_met": true,
+      "running_attempts": 4,
+      "server_peak": 4,
+      "snapshot": 4,
+      "worker_barrier": 4
+    }
+  },
+  "command": "go test ./test/ -count=1 -run TestMA_A01_DiscoveryWorkerCapacityRequiresRealOverlap",
+  "finished_at": "2026-10-22T08:35:19Z"
+}

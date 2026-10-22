@@ -1,0 +1,48 @@
+{
+  "id": "A09",
+  "status": "fail",
+  "owner": "agent-3",
+  "rounds": 1,
+  "failures": [
+    {
+      "round": 1,
+      "check": "https seed accepted",
+      "detail": "status 500 body {\"error\":\"failed to create run: only http scheme is permitted for seed URL\"}\n"
+    },
+    {
+      "round": 1,
+      "check": "tls request recorded",
+      "detail": "the lab recorded no TLS request; a database row is not a substitute"
+    },
+    {
+      "round": 1,
+      "check": "identity isolation",
+      "detail": "product authenticated identities=map[]; cookie and token aliases were not both exercised"
+    },
+    {
+      "round": 1,
+      "check": "credential ref",
+      "detail": "workbench 200 did not expose ref: aliases"
+    }
+  ],
+  "observed": {
+    "https_create": {
+      "body": "{\"error\":\"failed to create run: only http scheme is permitted for seed URL\"}\n",
+      "status": 500
+    },
+    "lab_requests": [
+      {
+        "at": "2026-10-22T16:46:43.91569696+08:00",
+        "method": "GET",
+        "path": "/m-76ccab1cb468/redirect",
+        "proto": "HTTP/1.1",
+        "tls": false,
+        "status": 302,
+        "identity": "",
+        "remote": "127.0.0.1:47728"
+      }
+    ]
+  },
+  "command": "go test ./test/ -count=1 -run TestMA_A09_AuthenticatedHTTPIdentityAndTLS",
+  "finished_at": "2026-10-22T08:46:44Z"
+}

@@ -1,0 +1,1269 @@
+2026/10/22 16:33:56 INFO created run run_id=fbb2908c-86bc-4658-9939-aaed22a194ec task_id=918ec17c-76fa-4c75-a3f4-bd6db05708b1 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:33:56 INFO executor started run_id=fbb2908c-86bc-4658-9939-aaed22a194ec epoch=1
+2026/10/22 16:33:56 INFO run state transition run_id=fbb2908c-86bc-4658-9939-aaed22a194ec from=queued to=running
+2026/10/22 16:33:57 INFO executor finished run_id=fbb2908c-86bc-4658-9939-aaed22a194ec epoch=1
+2026/10/22 16:33:57 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:33:57 INFO all active workers and retests stop requested
+2026/10/22 16:33:58 INFO created run run_id=f63e5f43-14ce-4cce-a868-d0e7709ad41b task_id=d294d84f-2325-4e74-a391-b3979a48326c task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:33:58 INFO executor started run_id=f63e5f43-14ce-4cce-a868-d0e7709ad41b epoch=1
+2026/10/22 16:33:58 INFO run state transition run_id=f63e5f43-14ce-4cce-a868-d0e7709ad41b from=queued to=running
+2026/10/22 16:33:58 INFO executor finished run_id=f63e5f43-14ce-4cce-a868-d0e7709ad41b epoch=1
+2026/10/22 16:33:58 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:33:58 INFO all active workers and retests stop requested
+2026/10/22 16:33:59 INFO created run run_id=459d7c57-9a89-4453-9804-c9829e1680fb task_id=174f1cb4-e61b-4a39-ab6b-db6b22b2c0de task_name=ma7-samples
+2026/10/22 16:33:59 INFO executor started run_id=459d7c57-9a89-4453-9804-c9829e1680fb epoch=1
+2026/10/22 16:33:59 INFO run state transition run_id=459d7c57-9a89-4453-9804-c9829e1680fb from=queued to=running
+2026/10/22 16:34:00 INFO executor finished run_id=459d7c57-9a89-4453-9804-c9829e1680fb epoch=1
+2026/10/22 16:34:00 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:00 INFO all active workers and retests stop requested
+2026/10/22 16:34:01 INFO created run run_id=1bd63d68-04ea-4372-ae28-95aa8de1fa8a task_id=2647eb99-ba40-4960-ab32-6bb7f92635ce task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:01 INFO executor started run_id=1bd63d68-04ea-4372-ae28-95aa8de1fa8a epoch=1
+2026/10/22 16:34:01 INFO run state transition run_id=1bd63d68-04ea-4372-ae28-95aa8de1fa8a from=queued to=running
+2026/10/22 16:34:01 INFO executor finished run_id=1bd63d68-04ea-4372-ae28-95aa8de1fa8a epoch=1
+2026/10/22 16:34:01 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:01 INFO all active workers and retests stop requested
+2026/10/22 16:34:02 INFO created run run_id=42805a6c-ed3f-40d7-b013-f9bdcce6380c task_id=66be9428-d7f7-4d2e-9160-4fab0f8ea241 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:02 INFO executor started run_id=42805a6c-ed3f-40d7-b013-f9bdcce6380c epoch=1
+2026/10/22 16:34:02 INFO run state transition run_id=42805a6c-ed3f-40d7-b013-f9bdcce6380c from=queued to=running
+2026/10/22 16:34:03 INFO executor finished run_id=42805a6c-ed3f-40d7-b013-f9bdcce6380c epoch=1
+2026/10/22 16:34:03 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:03 INFO all active workers and retests stop requested
+2026/10/22 16:34:04 INFO created run run_id=0d0926cd-bd40-42c3-b276-fed6831d0263 task_id=60862d73-d622-4928-95ce-6e77cfffc63f task_name=ma7-samples
+2026/10/22 16:34:04 INFO executor started run_id=0d0926cd-bd40-42c3-b276-fed6831d0263 epoch=1
+2026/10/22 16:34:04 INFO run state transition run_id=0d0926cd-bd40-42c3-b276-fed6831d0263 from=queued to=running
+2026/10/22 16:34:04 INFO executor finished run_id=0d0926cd-bd40-42c3-b276-fed6831d0263 epoch=1
+2026/10/22 16:34:04 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:04 INFO all active workers and retests stop requested
+2026/10/22 16:34:05 INFO created run run_id=d47eda61-c792-4796-8e75-ba4c9b7ae7b0 task_id=183afc19-ec9d-43cc-a151-27626b664636 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:05 INFO executor started run_id=d47eda61-c792-4796-8e75-ba4c9b7ae7b0 epoch=1
+2026/10/22 16:34:05 INFO run state transition run_id=d47eda61-c792-4796-8e75-ba4c9b7ae7b0 from=queued to=running
+2026/10/22 16:34:06 INFO executor finished run_id=d47eda61-c792-4796-8e75-ba4c9b7ae7b0 epoch=1
+2026/10/22 16:34:06 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:06 INFO all active workers and retests stop requested
+2026/10/22 16:34:07 INFO created run run_id=65e66234-f27a-48b8-aee7-7ff149d448fa task_id=47710fec-c71e-486b-997f-25bbb91380e2 task_name=ma7-samples
+2026/10/22 16:34:07 INFO executor started run_id=65e66234-f27a-48b8-aee7-7ff149d448fa epoch=1
+2026/10/22 16:34:07 INFO run state transition run_id=65e66234-f27a-48b8-aee7-7ff149d448fa from=queued to=running
+2026/10/22 16:34:07 INFO executor finished run_id=65e66234-f27a-48b8-aee7-7ff149d448fa epoch=1
+2026/10/22 16:34:07 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:07 INFO all active workers and retests stop requested
+2026/10/22 16:34:08 INFO created run run_id=21c03d0a-6f19-402e-8462-8b68c0541578 task_id=9972b1ef-786e-468f-b731-053b07c02f2f task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:08 INFO executor started run_id=21c03d0a-6f19-402e-8462-8b68c0541578 epoch=1
+2026/10/22 16:34:08 INFO run state transition run_id=21c03d0a-6f19-402e-8462-8b68c0541578 from=queued to=running
+2026/10/22 16:34:09 INFO executor finished run_id=21c03d0a-6f19-402e-8462-8b68c0541578 epoch=1
+2026/10/22 16:34:09 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:09 INFO all active workers and retests stop requested
+2026/10/22 16:34:10 INFO created run run_id=c8b543c3-b0cc-44ff-a7b2-131c711931bd task_id=fba6d8d6-bdac-4504-8415-2779b253164e task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:10 INFO executor started run_id=c8b543c3-b0cc-44ff-a7b2-131c711931bd epoch=1
+2026/10/22 16:34:10 INFO run state transition run_id=c8b543c3-b0cc-44ff-a7b2-131c711931bd from=queued to=running
+2026/10/22 16:34:11 INFO executor finished run_id=c8b543c3-b0cc-44ff-a7b2-131c711931bd epoch=1
+2026/10/22 16:34:11 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:11 INFO all active workers and retests stop requested
+2026/10/22 16:34:12 INFO created run run_id=54a7ed35-9607-46b6-9954-ef077459ac0f task_id=c7dc559c-8071-4177-bf2a-d65f5f91ca0b task_name=ma7-samples
+2026/10/22 16:34:12 INFO executor started run_id=54a7ed35-9607-46b6-9954-ef077459ac0f epoch=1
+2026/10/22 16:34:12 INFO run state transition run_id=54a7ed35-9607-46b6-9954-ef077459ac0f from=queued to=running
+2026/10/22 16:34:12 INFO executor finished run_id=54a7ed35-9607-46b6-9954-ef077459ac0f epoch=1
+2026/10/22 16:34:12 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:12 INFO all active workers and retests stop requested
+2026/10/22 16:34:13 INFO created run run_id=f92ea5c7-abf2-409b-b466-a43ea5e8ce99 task_id=a6cbf08c-d99e-4d60-ab17-3c07be1ea3e7 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:13 INFO executor started run_id=f92ea5c7-abf2-409b-b466-a43ea5e8ce99 epoch=1
+2026/10/22 16:34:13 INFO run state transition run_id=f92ea5c7-abf2-409b-b466-a43ea5e8ce99 from=queued to=running
+2026/10/22 16:34:14 INFO executor finished run_id=f92ea5c7-abf2-409b-b466-a43ea5e8ce99 epoch=1
+2026/10/22 16:34:14 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:14 INFO all active workers and retests stop requested
+2026/10/22 16:34:15 INFO created run run_id=d556653f-bdbc-4ae1-b4e7-54a80ba0fe02 task_id=1104c5bf-67b2-40d6-8457-3c92b306201e task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:15 INFO executor started run_id=d556653f-bdbc-4ae1-b4e7-54a80ba0fe02 epoch=1
+2026/10/22 16:34:15 INFO run state transition run_id=d556653f-bdbc-4ae1-b4e7-54a80ba0fe02 from=queued to=running
+2026/10/22 16:34:15 INFO executor finished run_id=d556653f-bdbc-4ae1-b4e7-54a80ba0fe02 epoch=1
+2026/10/22 16:34:15 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:15 INFO all active workers and retests stop requested
+2026/10/22 16:34:16 INFO created run run_id=70c43135-6b55-40b0-8338-66521d330908 task_id=33072dcf-6561-46b8-b726-8f5a01472f21 task_name=ma7-samples
+2026/10/22 16:34:16 INFO executor started run_id=70c43135-6b55-40b0-8338-66521d330908 epoch=1
+2026/10/22 16:34:16 INFO run state transition run_id=70c43135-6b55-40b0-8338-66521d330908 from=queued to=running
+2026/10/22 16:34:17 INFO executor finished run_id=70c43135-6b55-40b0-8338-66521d330908 epoch=1
+2026/10/22 16:34:17 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:17 INFO all active workers and retests stop requested
+2026/10/22 16:34:18 INFO created run run_id=7db2b4a5-a9b2-4393-9381-039cc048e93a task_id=3c39c552-588c-44d0-817f-7599e013b385 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:18 INFO executor started run_id=7db2b4a5-a9b2-4393-9381-039cc048e93a epoch=1
+2026/10/22 16:34:18 INFO run state transition run_id=7db2b4a5-a9b2-4393-9381-039cc048e93a from=queued to=running
+2026/10/22 16:34:18 INFO executor finished run_id=7db2b4a5-a9b2-4393-9381-039cc048e93a epoch=1
+2026/10/22 16:34:18 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:18 INFO all active workers and retests stop requested
+2026/10/22 16:34:19 INFO created run run_id=298cbb60-197a-4713-b6e7-b04bb784b465 task_id=f2467bd0-c798-4759-99a8-d7f7ece65fa2 task_name=ma7-samples
+2026/10/22 16:34:19 INFO executor started run_id=298cbb60-197a-4713-b6e7-b04bb784b465 epoch=1
+2026/10/22 16:34:19 INFO run state transition run_id=298cbb60-197a-4713-b6e7-b04bb784b465 from=queued to=running
+2026/10/22 16:34:20 INFO executor finished run_id=298cbb60-197a-4713-b6e7-b04bb784b465 epoch=1
+2026/10/22 16:34:20 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:20 INFO all active workers and retests stop requested
+2026/10/22 16:34:21 INFO created run run_id=e40a53bf-7ff7-4fed-ba11-27f49bef9891 task_id=e65351b9-c816-4e04-845b-f0dcf70d53fd task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:21 INFO executor started run_id=e40a53bf-7ff7-4fed-ba11-27f49bef9891 epoch=1
+2026/10/22 16:34:21 INFO run state transition run_id=e40a53bf-7ff7-4fed-ba11-27f49bef9891 from=queued to=running
+2026/10/22 16:34:22 INFO executor finished run_id=e40a53bf-7ff7-4fed-ba11-27f49bef9891 epoch=1
+2026/10/22 16:34:22 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:22 INFO all active workers and retests stop requested
+2026/10/22 16:34:23 INFO created run run_id=23cef95b-953e-4b48-b5a8-b7f1fd511d18 task_id=71467308-f670-484d-b14f-dfd4e7e13316 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:23 INFO executor started run_id=23cef95b-953e-4b48-b5a8-b7f1fd511d18 epoch=1
+2026/10/22 16:34:23 INFO run state transition run_id=23cef95b-953e-4b48-b5a8-b7f1fd511d18 from=queued to=running
+2026/10/22 16:34:23 INFO executor finished run_id=23cef95b-953e-4b48-b5a8-b7f1fd511d18 epoch=1
+2026/10/22 16:34:23 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:23 INFO all active workers and retests stop requested
+2026/10/22 16:34:24 INFO created run run_id=39c38c5c-72da-46a9-8512-5118d5016ab6 task_id=8904e489-0915-48c2-879c-d5f4401d925a task_name=ma7-samples
+2026/10/22 16:34:24 INFO executor started run_id=39c38c5c-72da-46a9-8512-5118d5016ab6 epoch=1
+2026/10/22 16:34:24 INFO run state transition run_id=39c38c5c-72da-46a9-8512-5118d5016ab6 from=queued to=running
+2026/10/22 16:34:25 INFO executor finished run_id=39c38c5c-72da-46a9-8512-5118d5016ab6 epoch=1
+2026/10/22 16:34:25 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:25 INFO all active workers and retests stop requested
+2026/10/22 16:34:26 INFO created run run_id=641a5f19-9631-46a5-b8f5-6be998b2844a task_id=37a34cd0-4980-4000-8ec0-61804578b899 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:26 INFO executor started run_id=641a5f19-9631-46a5-b8f5-6be998b2844a epoch=1
+2026/10/22 16:34:26 INFO run state transition run_id=641a5f19-9631-46a5-b8f5-6be998b2844a from=queued to=running
+2026/10/22 16:34:26 INFO executor finished run_id=641a5f19-9631-46a5-b8f5-6be998b2844a epoch=1
+2026/10/22 16:34:26 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:26 INFO all active workers and retests stop requested
+2026/10/22 16:34:27 INFO created run run_id=2a2c2de8-9237-4b02-9030-7685864aa00f task_id=70a7ec25-62fc-49ba-8bdd-5b3e6beab8b7 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:27 INFO executor started run_id=2a2c2de8-9237-4b02-9030-7685864aa00f epoch=1
+2026/10/22 16:34:27 INFO run state transition run_id=2a2c2de8-9237-4b02-9030-7685864aa00f from=queued to=running
+2026/10/22 16:34:28 INFO executor finished run_id=2a2c2de8-9237-4b02-9030-7685864aa00f epoch=1
+2026/10/22 16:34:28 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:28 INFO all active workers and retests stop requested
+2026/10/22 16:34:29 INFO created run run_id=c3cd5bb7-e7db-473b-a77d-22f3a97c0d9c task_id=c2e860c2-4dc8-43e7-9398-2acb8762add6 task_name=ma7-samples
+2026/10/22 16:34:29 INFO executor started run_id=c3cd5bb7-e7db-473b-a77d-22f3a97c0d9c epoch=1
+2026/10/22 16:34:29 INFO run state transition run_id=c3cd5bb7-e7db-473b-a77d-22f3a97c0d9c from=queued to=running
+2026/10/22 16:34:29 INFO executor finished run_id=c3cd5bb7-e7db-473b-a77d-22f3a97c0d9c epoch=1
+2026/10/22 16:34:29 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:29 INFO all active workers and retests stop requested
+2026/10/22 16:34:30 INFO created run run_id=db554053-5f00-4859-9905-ef7059b132c2 task_id=e4944a8f-254c-48de-8791-ab4d366ff7cc task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:30 INFO executor started run_id=db554053-5f00-4859-9905-ef7059b132c2 epoch=1
+2026/10/22 16:34:30 INFO run state transition run_id=db554053-5f00-4859-9905-ef7059b132c2 from=queued to=running
+2026/10/22 16:34:31 INFO executor finished run_id=db554053-5f00-4859-9905-ef7059b132c2 epoch=1
+2026/10/22 16:34:31 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:31 INFO all active workers and retests stop requested
+2026/10/22 16:34:32 INFO created run run_id=1ef3f3a2-03a0-4e39-9364-3844eb3b40b0 task_id=ea104826-1911-4243-90e2-458cf31d060a task_name=ma7-samples
+2026/10/22 16:34:32 INFO executor started run_id=1ef3f3a2-03a0-4e39-9364-3844eb3b40b0 epoch=1
+2026/10/22 16:34:32 INFO run state transition run_id=1ef3f3a2-03a0-4e39-9364-3844eb3b40b0 from=queued to=running
+2026/10/22 16:34:32 INFO executor finished run_id=1ef3f3a2-03a0-4e39-9364-3844eb3b40b0 epoch=1
+2026/10/22 16:34:32 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:32 INFO all active workers and retests stop requested
+2026/10/22 16:34:33 INFO created run run_id=01d1b121-83a4-4383-906d-d4294a5961ae task_id=92cff021-0a44-4313-ac66-a8dba6386542 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:33 INFO executor started run_id=01d1b121-83a4-4383-906d-d4294a5961ae epoch=1
+2026/10/22 16:34:33 INFO run state transition run_id=01d1b121-83a4-4383-906d-d4294a5961ae from=queued to=running
+2026/10/22 16:34:34 INFO executor finished run_id=01d1b121-83a4-4383-906d-d4294a5961ae epoch=1
+2026/10/22 16:34:34 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:34 INFO all active workers and retests stop requested
+2026/10/22 16:34:35 INFO created run run_id=2e207609-f646-410b-a310-b94321ed89c2 task_id=233ee50e-aa53-4ad0-8270-4b0f3a9bfaf2 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:35 INFO executor started run_id=2e207609-f646-410b-a310-b94321ed89c2 epoch=1
+2026/10/22 16:34:35 INFO run state transition run_id=2e207609-f646-410b-a310-b94321ed89c2 from=queued to=running
+2026/10/22 16:34:36 INFO executor finished run_id=2e207609-f646-410b-a310-b94321ed89c2 epoch=1
+2026/10/22 16:34:36 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:36 INFO all active workers and retests stop requested
+2026/10/22 16:34:36 INFO created run run_id=f43dcc9f-668c-47e3-bf44-e394b4fb9a52 task_id=73140e52-4b2b-4da5-8855-bc5f0179e987 task_name=ma7-samples
+2026/10/22 16:34:36 INFO executor started run_id=f43dcc9f-668c-47e3-bf44-e394b4fb9a52 epoch=1
+2026/10/22 16:34:36 INFO run state transition run_id=f43dcc9f-668c-47e3-bf44-e394b4fb9a52 from=queued to=running
+2026/10/22 16:34:37 INFO executor finished run_id=f43dcc9f-668c-47e3-bf44-e394b4fb9a52 epoch=1
+2026/10/22 16:34:37 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:37 INFO all active workers and retests stop requested
+2026/10/22 16:34:38 INFO created run run_id=55ad313d-e36b-48cc-b771-913bc32fca78 task_id=4e2a9266-685e-4ac4-bc14-70fc3f89d7b4 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:38 INFO executor started run_id=55ad313d-e36b-48cc-b771-913bc32fca78 epoch=1
+2026/10/22 16:34:38 INFO run state transition run_id=55ad313d-e36b-48cc-b771-913bc32fca78 from=queued to=running
+2026/10/22 16:34:39 INFO executor finished run_id=55ad313d-e36b-48cc-b771-913bc32fca78 epoch=1
+2026/10/22 16:34:39 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:39 INFO all active workers and retests stop requested
+2026/10/22 16:34:40 INFO created run run_id=31378519-f680-4beb-b74b-61e1066a3445 task_id=51c82420-d4aa-48b8-aae4-de090dcb4d3c task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:40 INFO executor started run_id=31378519-f680-4beb-b74b-61e1066a3445 epoch=1
+2026/10/22 16:34:40 INFO run state transition run_id=31378519-f680-4beb-b74b-61e1066a3445 from=queued to=running
+2026/10/22 16:34:40 INFO executor finished run_id=31378519-f680-4beb-b74b-61e1066a3445 epoch=1
+2026/10/22 16:34:40 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:40 INFO all active workers and retests stop requested
+2026/10/22 16:34:41 INFO created run run_id=0bdc3aa6-2ea4-4028-8cf7-241b6038512f task_id=b27c351c-c723-47c6-9fca-eee4a4f15492 task_name=ma7-samples
+2026/10/22 16:34:41 INFO executor started run_id=0bdc3aa6-2ea4-4028-8cf7-241b6038512f epoch=1
+2026/10/22 16:34:41 INFO run state transition run_id=0bdc3aa6-2ea4-4028-8cf7-241b6038512f from=queued to=running
+2026/10/22 16:34:42 INFO executor finished run_id=0bdc3aa6-2ea4-4028-8cf7-241b6038512f epoch=1
+2026/10/22 16:34:42 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:42 INFO all active workers and retests stop requested
+2026/10/22 16:34:43 INFO created run run_id=76e17e9b-4c14-4f4d-b957-90bcf3e03690 task_id=654345a8-00bf-4b43-9a10-2b772e9cddb5 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:43 INFO executor started run_id=76e17e9b-4c14-4f4d-b957-90bcf3e03690 epoch=1
+2026/10/22 16:34:43 INFO run state transition run_id=76e17e9b-4c14-4f4d-b957-90bcf3e03690 from=queued to=running
+2026/10/22 16:34:43 INFO executor finished run_id=76e17e9b-4c14-4f4d-b957-90bcf3e03690 epoch=1
+2026/10/22 16:34:43 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:43 INFO all active workers and retests stop requested
+2026/10/22 16:34:44 INFO created run run_id=c5bcc312-d1ce-4a15-b8c1-91b4116c731a task_id=4a405664-2af7-4654-8477-acfd4295d0f3 task_name=ma7-samples
+2026/10/22 16:34:44 INFO executor started run_id=c5bcc312-d1ce-4a15-b8c1-91b4116c731a epoch=1
+2026/10/22 16:34:44 INFO run state transition run_id=c5bcc312-d1ce-4a15-b8c1-91b4116c731a from=queued to=running
+2026/10/22 16:34:45 INFO executor finished run_id=c5bcc312-d1ce-4a15-b8c1-91b4116c731a epoch=1
+2026/10/22 16:34:45 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:45 INFO all active workers and retests stop requested
+2026/10/22 16:34:46 INFO created run run_id=1a854d9b-c7b2-498a-adb2-316b81599ef5 task_id=ae178252-0258-47bc-b776-10458638d0d4 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:46 INFO executor started run_id=1a854d9b-c7b2-498a-adb2-316b81599ef5 epoch=1
+2026/10/22 16:34:46 INFO run state transition run_id=1a854d9b-c7b2-498a-adb2-316b81599ef5 from=queued to=running
+2026/10/22 16:34:46 INFO executor finished run_id=1a854d9b-c7b2-498a-adb2-316b81599ef5 epoch=1
+2026/10/22 16:34:46 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:46 INFO all active workers and retests stop requested
+2026/10/22 16:34:47 INFO created run run_id=3c9dcbcf-46bd-41f3-8931-56c9b05c2a4e task_id=679a86a1-26d9-4224-bd1e-5fd157adb08b task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:47 INFO executor started run_id=3c9dcbcf-46bd-41f3-8931-56c9b05c2a4e epoch=1
+2026/10/22 16:34:47 INFO run state transition run_id=3c9dcbcf-46bd-41f3-8931-56c9b05c2a4e from=queued to=running
+2026/10/22 16:34:48 INFO executor finished run_id=3c9dcbcf-46bd-41f3-8931-56c9b05c2a4e epoch=1
+2026/10/22 16:34:48 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:48 INFO all active workers and retests stop requested
+2026/10/22 16:34:49 INFO created run run_id=634967bf-05a5-4b1b-9061-7afaeeb45d53 task_id=7ba8865e-6eba-4b88-b230-77fa37f1d3fd task_name=ma7-samples
+2026/10/22 16:34:49 INFO executor started run_id=634967bf-05a5-4b1b-9061-7afaeeb45d53 epoch=1
+2026/10/22 16:34:49 INFO run state transition run_id=634967bf-05a5-4b1b-9061-7afaeeb45d53 from=queued to=running
+2026/10/22 16:34:49 INFO executor finished run_id=634967bf-05a5-4b1b-9061-7afaeeb45d53 epoch=1
+2026/10/22 16:34:50 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:50 INFO all active workers and retests stop requested
+2026/10/22 16:34:50 INFO created run run_id=6469f7df-8c13-4602-8dd2-06992ece24a1 task_id=0a2859fe-8962-49e3-9ec0-901638af23c8 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:50 INFO executor started run_id=6469f7df-8c13-4602-8dd2-06992ece24a1 epoch=1
+2026/10/22 16:34:50 INFO run state transition run_id=6469f7df-8c13-4602-8dd2-06992ece24a1 from=queued to=running
+2026/10/22 16:34:51 INFO executor finished run_id=6469f7df-8c13-4602-8dd2-06992ece24a1 epoch=1
+2026/10/22 16:34:51 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:51 INFO all active workers and retests stop requested
+2026/10/22 16:34:52 INFO created run run_id=80bda37c-e3f1-44da-91ab-6aa09df06df3 task_id=424a50e6-c2f5-43d8-9a3f-3a0af4e334cc task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:52 INFO executor started run_id=80bda37c-e3f1-44da-91ab-6aa09df06df3 epoch=1
+2026/10/22 16:34:52 INFO run state transition run_id=80bda37c-e3f1-44da-91ab-6aa09df06df3 from=queued to=running
+2026/10/22 16:34:53 INFO executor finished run_id=80bda37c-e3f1-44da-91ab-6aa09df06df3 epoch=1
+2026/10/22 16:34:53 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:53 INFO all active workers and retests stop requested
+2026/10/22 16:34:54 INFO created run run_id=70896ea2-5ba3-45e6-82b1-7fafd0cd9896 task_id=a8154593-1680-49ce-a8cf-8d8da7a71a61 task_name=ma7-samples
+2026/10/22 16:34:54 INFO executor started run_id=70896ea2-5ba3-45e6-82b1-7fafd0cd9896 epoch=1
+2026/10/22 16:34:54 INFO run state transition run_id=70896ea2-5ba3-45e6-82b1-7fafd0cd9896 from=queued to=running
+2026/10/22 16:34:54 INFO executor finished run_id=70896ea2-5ba3-45e6-82b1-7fafd0cd9896 epoch=1
+2026/10/22 16:34:54 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:54 INFO all active workers and retests stop requested
+2026/10/22 16:34:55 INFO created run run_id=1d86d13f-4d8a-46cc-a9b6-4d69f34f513a task_id=2fea3bcc-d86b-4b13-a8f8-4c9687aac9d7 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:55 INFO executor started run_id=1d86d13f-4d8a-46cc-a9b6-4d69f34f513a epoch=1
+2026/10/22 16:34:55 INFO run state transition run_id=1d86d13f-4d8a-46cc-a9b6-4d69f34f513a from=queued to=running
+2026/10/22 16:34:56 INFO executor finished run_id=1d86d13f-4d8a-46cc-a9b6-4d69f34f513a epoch=1
+2026/10/22 16:34:56 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:56 INFO all active workers and retests stop requested
+2026/10/22 16:34:57 INFO created run run_id=477d38f7-a966-4063-9797-397f037e04c7 task_id=eaf09874-0e0e-421a-b48c-9dca532fc7a3 task_name=ma7-samples
+2026/10/22 16:34:57 INFO executor started run_id=477d38f7-a966-4063-9797-397f037e04c7 epoch=1
+2026/10/22 16:34:57 INFO run state transition run_id=477d38f7-a966-4063-9797-397f037e04c7 from=queued to=running
+2026/10/22 16:34:57 INFO executor finished run_id=477d38f7-a966-4063-9797-397f037e04c7 epoch=1
+2026/10/22 16:34:57 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:57 INFO all active workers and retests stop requested
+2026/10/22 16:34:58 INFO created run run_id=4ca515c2-3317-44a7-baa2-eb21b13dee8e task_id=838b3ada-47f1-4587-ad05-e46052d0de49 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:34:58 INFO executor started run_id=4ca515c2-3317-44a7-baa2-eb21b13dee8e epoch=1
+2026/10/22 16:34:58 INFO run state transition run_id=4ca515c2-3317-44a7-baa2-eb21b13dee8e from=queued to=running
+2026/10/22 16:34:59 INFO executor finished run_id=4ca515c2-3317-44a7-baa2-eb21b13dee8e epoch=1
+2026/10/22 16:34:59 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:34:59 INFO all active workers and retests stop requested
+2026/10/22 16:35:00 INFO created run run_id=016938fc-fc71-4bb5-a98b-e75e809543cb task_id=7b1f7af9-3442-41b6-9320-4c8e5037a9e8 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:35:00 INFO executor started run_id=016938fc-fc71-4bb5-a98b-e75e809543cb epoch=1
+2026/10/22 16:35:00 INFO run state transition run_id=016938fc-fc71-4bb5-a98b-e75e809543cb from=queued to=running
+2026/10/22 16:35:01 INFO executor finished run_id=016938fc-fc71-4bb5-a98b-e75e809543cb epoch=1
+2026/10/22 16:35:01 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:01 INFO all active workers and retests stop requested
+2026/10/22 16:35:02 INFO created run run_id=d38da3e1-82e4-434a-9097-b8f77630e4e8 task_id=0ae88d05-253d-4732-8e8d-3f5558386323 task_name=ma7-samples
+2026/10/22 16:35:02 INFO executor started run_id=d38da3e1-82e4-434a-9097-b8f77630e4e8 epoch=1
+2026/10/22 16:35:02 INFO run state transition run_id=d38da3e1-82e4-434a-9097-b8f77630e4e8 from=queued to=running
+2026/10/22 16:35:02 INFO executor finished run_id=d38da3e1-82e4-434a-9097-b8f77630e4e8 epoch=1
+2026/10/22 16:35:02 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:02 INFO all active workers and retests stop requested
+2026/10/22 16:35:03 INFO created run run_id=bac513dc-83f8-48fb-a02b-ea6e6f14e32d task_id=216160fb-cb6d-4610-858b-a90dc293e3b3 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:35:03 INFO executor started run_id=bac513dc-83f8-48fb-a02b-ea6e6f14e32d epoch=1
+2026/10/22 16:35:03 INFO run state transition run_id=bac513dc-83f8-48fb-a02b-ea6e6f14e32d from=queued to=running
+2026/10/22 16:35:04 INFO executor finished run_id=bac513dc-83f8-48fb-a02b-ea6e6f14e32d epoch=1
+2026/10/22 16:35:04 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:04 INFO all active workers and retests stop requested
+2026/10/22 16:35:05 INFO created run run_id=ed8f32c7-72cb-4202-b832-92832a6badc4 task_id=e37ec0cc-d251-49fa-87e2-8ce8f0f1700b task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:35:05 INFO executor started run_id=ed8f32c7-72cb-4202-b832-92832a6badc4 epoch=1
+2026/10/22 16:35:05 INFO run state transition run_id=ed8f32c7-72cb-4202-b832-92832a6badc4 from=queued to=running
+2026/10/22 16:35:05 INFO executor finished run_id=ed8f32c7-72cb-4202-b832-92832a6badc4 epoch=1
+2026/10/22 16:35:05 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:05 INFO all active workers and retests stop requested
+2026/10/22 16:35:06 INFO created run run_id=0683882f-96eb-4cc8-bf51-c0bbd2da7393 task_id=bea1f292-0e7a-4f37-a267-5cd72fffc663 task_name=ma7-samples
+2026/10/22 16:35:06 INFO executor started run_id=0683882f-96eb-4cc8-bf51-c0bbd2da7393 epoch=1
+2026/10/22 16:35:06 INFO run state transition run_id=0683882f-96eb-4cc8-bf51-c0bbd2da7393 from=queued to=running
+2026/10/22 16:35:07 INFO executor finished run_id=0683882f-96eb-4cc8-bf51-c0bbd2da7393 epoch=1
+2026/10/22 16:35:07 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:07 INFO all active workers and retests stop requested
+2026/10/22 16:35:08 INFO created run run_id=af082b1d-156a-49f9-95e6-2e2975c77a13 task_id=b605ef96-e3be-4b9c-8619-9aeb002d8540 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:35:08 INFO executor started run_id=af082b1d-156a-49f9-95e6-2e2975c77a13 epoch=1
+2026/10/22 16:35:08 INFO run state transition run_id=af082b1d-156a-49f9-95e6-2e2975c77a13 from=queued to=running
+2026/10/22 16:35:08 INFO executor finished run_id=af082b1d-156a-49f9-95e6-2e2975c77a13 epoch=1
+2026/10/22 16:35:08 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:08 INFO all active workers and retests stop requested
+2026/10/22 16:35:09 INFO created run run_id=6a349b86-c273-461f-b8a7-549b4a19d368 task_id=d7ea597d-7703-4dff-b8ef-9e0c085d4c45 task_name=ma7-samples
+2026/10/22 16:35:09 INFO executor started run_id=6a349b86-c273-461f-b8a7-549b4a19d368 epoch=1
+2026/10/22 16:35:09 INFO run state transition run_id=6a349b86-c273-461f-b8a7-549b4a19d368 from=queued to=running
+2026/10/22 16:35:10 INFO executor finished run_id=6a349b86-c273-461f-b8a7-549b4a19d368 epoch=1
+2026/10/22 16:35:10 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:10 INFO all active workers and retests stop requested
+2026/10/22 16:35:11 INFO created run run_id=e81a266c-cbf4-40fc-97b8-b579c7b2b6c4 task_id=2ef4876f-acf8-431f-990d-753823274936 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:35:11 INFO executor started run_id=e81a266c-cbf4-40fc-97b8-b579c7b2b6c4 epoch=1
+2026/10/22 16:35:11 INFO run state transition run_id=e81a266c-cbf4-40fc-97b8-b579c7b2b6c4 from=queued to=running
+2026/10/22 16:35:11 INFO executor finished run_id=e81a266c-cbf4-40fc-97b8-b579c7b2b6c4 epoch=1
+2026/10/22 16:35:11 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:11 INFO all active workers and retests stop requested
+2026/10/22 16:35:12 INFO created run run_id=d74e9c10-6998-4742-8cbe-3e257900d1d3 task_id=d88766e6-adb5-400e-91d4-3974b47c492c task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:35:12 INFO executor started run_id=d74e9c10-6998-4742-8cbe-3e257900d1d3 epoch=1
+2026/10/22 16:35:12 INFO run state transition run_id=d74e9c10-6998-4742-8cbe-3e257900d1d3 from=queued to=running
+2026/10/22 16:35:13 INFO executor finished run_id=d74e9c10-6998-4742-8cbe-3e257900d1d3 epoch=1
+2026/10/22 16:35:13 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:13 INFO all active workers and retests stop requested
+2026/10/22 16:35:14 INFO created run run_id=a30ca650-20b9-424b-bd84-04d489e7b233 task_id=8de05ebc-5e49-4009-909f-b93f85c6ed0f task_name=ma7-samples
+2026/10/22 16:35:14 INFO executor started run_id=a30ca650-20b9-424b-bd84-04d489e7b233 epoch=1
+2026/10/22 16:35:14 INFO run state transition run_id=a30ca650-20b9-424b-bd84-04d489e7b233 from=queued to=running
+2026/10/22 16:35:14 INFO executor finished run_id=a30ca650-20b9-424b-bd84-04d489e7b233 epoch=1
+2026/10/22 16:35:14 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:14 INFO all active workers and retests stop requested
+2026/10/22 16:35:15 INFO created run run_id=fefb1e25-8192-4b42-897d-88f34d629a70 task_id=86d9c739-5bbe-477f-ba46-d705dff1e1c4 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:35:15 INFO executor started run_id=fefb1e25-8192-4b42-897d-88f34d629a70 epoch=1
+2026/10/22 16:35:15 INFO run state transition run_id=fefb1e25-8192-4b42-897d-88f34d629a70 from=queued to=running
+2026/10/22 16:35:16 INFO executor finished run_id=fefb1e25-8192-4b42-897d-88f34d629a70 epoch=1
+2026/10/22 16:35:16 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:16 INFO all active workers and retests stop requested
+2026/10/22 16:35:17 INFO created run run_id=00133f46-65d0-4b21-bdab-82b2c90405b7 task_id=e4b06162-f84b-4415-bf1a-2cb876bd2242 task_name=ma7-discovery-m-be243682fe93
+2026/10/22 16:35:17 INFO executor started run_id=00133f46-65d0-4b21-bdab-82b2c90405b7 epoch=1
+2026/10/22 16:35:17 INFO run state transition run_id=00133f46-65d0-4b21-bdab-82b2c90405b7 from=queued to=running
+2026/10/22 16:35:17 INFO executor finished run_id=00133f46-65d0-4b21-bdab-82b2c90405b7 epoch=1
+2026/10/22 16:35:17 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:17 INFO all active workers and retests stop requested
+2026/10/22 16:35:18 INFO created run run_id=49f9ba0c-a608-46f9-9143-6fee40c85a83 task_id=f0ef07cc-ecb3-498d-a532-45c8b55fd491 task_name=ma7-samples
+2026/10/22 16:35:18 INFO executor started run_id=49f9ba0c-a608-46f9-9143-6fee40c85a83 epoch=1
+2026/10/22 16:35:18 INFO run state transition run_id=49f9ba0c-a608-46f9-9143-6fee40c85a83 from=queued to=running
+2026/10/22 16:35:19 INFO executor finished run_id=49f9ba0c-a608-46f9-9143-6fee40c85a83 epoch=1
+2026/10/22 16:35:19 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:19 INFO all active workers and retests stop requested
+2026/10/22 16:35:20 INFO created run run_id=1ca5564e-9708-4a9d-a8d2-dcf4167be904 task_id=41d5b234-6fdd-40d7-a96c-376d04261fef task_name=ma7-samples
+2026/10/22 16:35:20 INFO executor started run_id=1ca5564e-9708-4a9d-a8d2-dcf4167be904 epoch=1
+2026/10/22 16:35:20 INFO run state transition run_id=1ca5564e-9708-4a9d-a8d2-dcf4167be904 from=queued to=running
+2026/10/22 16:35:24 INFO executor finished run_id=1ca5564e-9708-4a9d-a8d2-dcf4167be904 epoch=1
+2026/10/22 16:35:24 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:24 INFO all active workers and retests stop requested
+2026/10/22 16:35:25 INFO created run run_id=36766a3f-2ff1-4238-98da-8e8d95c68ed0 task_id=839afad1-73ac-4d12-80b2-aa6ece23f37c task_name=ma7-samples
+2026/10/22 16:35:25 INFO executor started run_id=36766a3f-2ff1-4238-98da-8e8d95c68ed0 epoch=1
+2026/10/22 16:35:25 INFO run state transition run_id=36766a3f-2ff1-4238-98da-8e8d95c68ed0 from=queued to=running
+2026/10/22 16:35:29 INFO executor finished run_id=36766a3f-2ff1-4238-98da-8e8d95c68ed0 epoch=1
+2026/10/22 16:35:29 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:29 INFO all active workers and retests stop requested
+2026/10/22 16:35:30 INFO created run run_id=7c248f5b-c754-43dd-8169-154f4431c427 task_id=bccf611d-91f5-4b42-a1f3-d162574492bb task_name=ma7-samples
+2026/10/22 16:35:30 INFO executor started run_id=7c248f5b-c754-43dd-8169-154f4431c427 epoch=1
+2026/10/22 16:35:30 INFO run state transition run_id=7c248f5b-c754-43dd-8169-154f4431c427 from=queued to=running
+2026/10/22 16:35:34 INFO executor finished run_id=7c248f5b-c754-43dd-8169-154f4431c427 epoch=1
+2026/10/22 16:35:34 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:34 INFO all active workers and retests stop requested
+2026/10/22 16:35:34 INFO created run run_id=b6ec68dc-8a67-4407-ba97-57d43ac9fd98 task_id=bfa04685-3575-47c9-a346-bf786f017a1a task_name=ma7-samples
+2026/10/22 16:35:34 INFO executor started run_id=b6ec68dc-8a67-4407-ba97-57d43ac9fd98 epoch=1
+2026/10/22 16:35:34 INFO run state transition run_id=b6ec68dc-8a67-4407-ba97-57d43ac9fd98 from=queued to=running
+2026/10/22 16:35:38 INFO executor finished run_id=b6ec68dc-8a67-4407-ba97-57d43ac9fd98 epoch=1
+2026/10/22 16:35:38 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:38 INFO all active workers and retests stop requested
+2026/10/22 16:35:39 INFO created run run_id=6010cc15-4fc0-4af1-b96b-2905fd0c650c task_id=27799b80-4046-417c-b6ac-12e364fefb4e task_name=ma7-samples
+2026/10/22 16:35:39 INFO executor started run_id=6010cc15-4fc0-4af1-b96b-2905fd0c650c epoch=1
+2026/10/22 16:35:39 INFO run state transition run_id=6010cc15-4fc0-4af1-b96b-2905fd0c650c from=queued to=running
+2026/10/22 16:35:43 INFO executor finished run_id=6010cc15-4fc0-4af1-b96b-2905fd0c650c epoch=1
+2026/10/22 16:35:43 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:43 INFO all active workers and retests stop requested
+2026/10/22 16:35:44 INFO created run run_id=4e534d8f-8f25-4c7d-b19d-94c312649b1a task_id=e623b78f-f38d-45b5-bf80-3243c4dcd39a task_name=ma7-samples
+2026/10/22 16:35:44 INFO executor started run_id=4e534d8f-8f25-4c7d-b19d-94c312649b1a epoch=1
+2026/10/22 16:35:44 INFO run state transition run_id=4e534d8f-8f25-4c7d-b19d-94c312649b1a from=queued to=running
+2026/10/22 16:35:48 INFO executor finished run_id=4e534d8f-8f25-4c7d-b19d-94c312649b1a epoch=1
+2026/10/22 16:35:48 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:48 INFO all active workers and retests stop requested
+2026/10/22 16:35:49 INFO created run run_id=e6432b77-8714-4167-859b-8722773af0e7 task_id=b67b05e0-3ea3-4595-819c-d1552cbd2ff3 task_name=ma7-samples
+2026/10/22 16:35:49 INFO executor started run_id=e6432b77-8714-4167-859b-8722773af0e7 epoch=1
+2026/10/22 16:35:49 INFO run state transition run_id=e6432b77-8714-4167-859b-8722773af0e7 from=queued to=running
+2026/10/22 16:35:53 INFO executor finished run_id=e6432b77-8714-4167-859b-8722773af0e7 epoch=1
+2026/10/22 16:35:53 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:53 INFO all active workers and retests stop requested
+2026/10/22 16:35:54 INFO created run run_id=acf3e10d-33c2-48ca-8c8a-069f13828e46 task_id=1995b439-f1a6-4b83-bbf2-b153fe9e93a8 task_name=ma7-samples
+2026/10/22 16:35:54 INFO executor started run_id=acf3e10d-33c2-48ca-8c8a-069f13828e46 epoch=1
+2026/10/22 16:35:54 INFO run state transition run_id=acf3e10d-33c2-48ca-8c8a-069f13828e46 from=queued to=running
+2026/10/22 16:35:58 INFO executor finished run_id=acf3e10d-33c2-48ca-8c8a-069f13828e46 epoch=1
+2026/10/22 16:35:58 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:35:58 INFO all active workers and retests stop requested
+2026/10/22 16:35:59 INFO created run run_id=b18605e9-e312-4846-9e01-0a01e87a4c60 task_id=0599063c-b12f-4988-a521-73ecb9205fbb task_name=ma7-samples
+2026/10/22 16:35:59 INFO executor started run_id=b18605e9-e312-4846-9e01-0a01e87a4c60 epoch=1
+2026/10/22 16:35:59 INFO run state transition run_id=b18605e9-e312-4846-9e01-0a01e87a4c60 from=queued to=running
+2026/10/22 16:36:03 INFO executor finished run_id=b18605e9-e312-4846-9e01-0a01e87a4c60 epoch=1
+2026/10/22 16:36:03 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:36:03 INFO all active workers and retests stop requested
+2026/10/22 16:36:04 INFO created run run_id=678b05f9-8f52-42dc-8bc0-5f142cd3e893 task_id=4ab890e5-9570-4c5f-ae9e-720fbe0dadb7 task_name=ma7-samples
+2026/10/22 16:36:04 INFO executor started run_id=678b05f9-8f52-42dc-8bc0-5f142cd3e893 epoch=1
+2026/10/22 16:36:04 INFO run state transition run_id=678b05f9-8f52-42dc-8bc0-5f142cd3e893 from=queued to=running
+2026/10/22 16:36:08 INFO executor finished run_id=678b05f9-8f52-42dc-8bc0-5f142cd3e893 epoch=1
+2026/10/22 16:36:08 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:36:08 INFO all active workers and retests stop requested
+2026/10/22 16:36:09 INFO created run run_id=c934389b-c021-419b-b867-7a3fd03c1b5a task_id=3d935417-7e7a-43a8-b112-d70df377f8e7 task_name=ma7-samples
+2026/10/22 16:36:09 INFO executor started run_id=c934389b-c021-419b-b867-7a3fd03c1b5a epoch=1
+2026/10/22 16:36:09 INFO run state transition run_id=c934389b-c021-419b-b867-7a3fd03c1b5a from=queued to=running
+2026/10/22 16:36:13 INFO executor finished run_id=c934389b-c021-419b-b867-7a3fd03c1b5a epoch=1
+2026/10/22 16:36:13 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:36:13 INFO all active workers and retests stop requested
+2026/10/22 16:36:14 INFO created run run_id=04b6e220-270f-436b-8f3f-5dbad68a9796 task_id=6e4b884c-13b3-43ff-a8ca-2abc7af46aa1 task_name=ma7-samples
+2026/10/22 16:36:14 INFO executor started run_id=04b6e220-270f-436b-8f3f-5dbad68a9796 epoch=1
+2026/10/22 16:36:14 INFO run state transition run_id=04b6e220-270f-436b-8f3f-5dbad68a9796 from=queued to=running
+2026/10/22 16:36:18 INFO executor finished run_id=04b6e220-270f-436b-8f3f-5dbad68a9796 epoch=1
+2026/10/22 16:36:18 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:36:18 INFO all active workers and retests stop requested
+2026/10/22 16:36:19 INFO created run run_id=1f9bfbcd-ec27-4310-b4b9-b34239363cb5 task_id=26ceba6d-f678-46f9-a483-0b6cd88c8d7f task_name=ma7-samples
+2026/10/22 16:36:19 INFO executor started run_id=1f9bfbcd-ec27-4310-b4b9-b34239363cb5 epoch=1
+2026/10/22 16:36:19 INFO run state transition run_id=1f9bfbcd-ec27-4310-b4b9-b34239363cb5 from=queued to=running
+2026/10/22 16:36:23 INFO executor finished run_id=1f9bfbcd-ec27-4310-b4b9-b34239363cb5 epoch=1
+2026/10/22 16:36:23 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:36:23 INFO all active workers and retests stop requested
+2026/10/22 16:36:24 INFO created run run_id=3019c343-cafd-4d80-8014-b21c96f5f316 task_id=9a39faa3-ea42-44ce-8a47-5cb43032d0b7 task_name=ma7-samples
+2026/10/22 16:36:24 INFO executor started run_id=3019c343-cafd-4d80-8014-b21c96f5f316 epoch=1
+2026/10/22 16:36:24 INFO run state transition run_id=3019c343-cafd-4d80-8014-b21c96f5f316 from=queued to=running
+2026/10/22 16:36:27 INFO executor finished run_id=3019c343-cafd-4d80-8014-b21c96f5f316 epoch=1
+2026/10/22 16:36:27 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:36:27 INFO all active workers and retests stop requested
+2026/10/22 16:36:28 INFO created run run_id=314aacb3-3811-4006-885e-87e5dd7a5347 task_id=e689307d-0e16-420b-8b9f-7b0af87ed8b9 task_name=ma7-samples
+2026/10/22 16:36:28 INFO executor started run_id=314aacb3-3811-4006-885e-87e5dd7a5347 epoch=1
+2026/10/22 16:36:28 INFO run state transition run_id=314aacb3-3811-4006-885e-87e5dd7a5347 from=queued to=running
+2026/10/22 16:36:32 INFO executor finished run_id=314aacb3-3811-4006-885e-87e5dd7a5347 epoch=1
+2026/10/22 16:36:32 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:36:32 INFO all active workers and retests stop requested
+2026/10/22 16:36:33 INFO created run run_id=779b8ff7-ef06-4d41-8ada-c4b3c51b740f task_id=68059469-afdb-4c0f-854b-881ab6e9c8ec task_name=ma7-samples
+2026/10/22 16:36:33 INFO executor started run_id=779b8ff7-ef06-4d41-8ada-c4b3c51b740f epoch=1
+2026/10/22 16:36:33 INFO run state transition run_id=779b8ff7-ef06-4d41-8ada-c4b3c51b740f from=queued to=running
+2026/10/22 16:36:37 INFO executor finished run_id=779b8ff7-ef06-4d41-8ada-c4b3c51b740f epoch=1
+2026/10/22 16:36:37 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:36:37 INFO all active workers and retests stop requested
+2026/10/22 16:36:38 INFO created run run_id=62b0eb59-d8cb-42a6-82e6-9bc89c7b25b1 task_id=fd12a571-55e0-4c99-93bc-08811e5f7821 task_name=ma7-samples
+2026/10/22 16:36:38 INFO executor started run_id=62b0eb59-d8cb-42a6-82e6-9bc89c7b25b1 epoch=1
+2026/10/22 16:36:38 INFO run state transition run_id=62b0eb59-d8cb-42a6-82e6-9bc89c7b25b1 from=queued to=running
+2026/10/22 16:36:42 INFO executor finished run_id=62b0eb59-d8cb-42a6-82e6-9bc89c7b25b1 epoch=1
+2026/10/22 16:36:42 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:36:42 INFO all active workers and retests stop requested
+2026/10/22 16:36:43 INFO created run run_id=26edcd10-d09b-4060-b4d5-82eaf0cabdec task_id=7d125760-1173-4cd2-acae-1ae8997fefaa task_name=ma7-samples
+2026/10/22 16:36:43 INFO executor started run_id=26edcd10-d09b-4060-b4d5-82eaf0cabdec epoch=1
+2026/10/22 16:36:43 INFO run state transition run_id=26edcd10-d09b-4060-b4d5-82eaf0cabdec from=queued to=running
+2026/10/22 16:36:47 INFO executor finished run_id=26edcd10-d09b-4060-b4d5-82eaf0cabdec epoch=1
+2026/10/22 16:36:47 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:36:47 INFO all active workers and retests stop requested
+2026/10/22 16:36:48 INFO created run run_id=ce0401be-0848-4a32-80fa-64a078d81f7c task_id=27014972-5d79-4d2d-9e17-d4a0ee4598d3 task_name=ma7-samples
+2026/10/22 16:36:48 INFO executor started run_id=ce0401be-0848-4a32-80fa-64a078d81f7c epoch=1
+2026/10/22 16:36:48 INFO run state transition run_id=ce0401be-0848-4a32-80fa-64a078d81f7c from=queued to=running
+2026/10/22 16:36:52 INFO executor finished run_id=ce0401be-0848-4a32-80fa-64a078d81f7c epoch=1
+2026/10/22 16:36:52 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:36:52 INFO all active workers and retests stop requested
+2026/10/22 16:36:53 INFO created run run_id=042e3e9e-ae10-4caf-b007-70c7a7dbdb60 task_id=dc65e49e-6374-4de9-a470-6a9668ef1b01 task_name=ma7-samples
+2026/10/22 16:36:53 INFO executor started run_id=042e3e9e-ae10-4caf-b007-70c7a7dbdb60 epoch=1
+2026/10/22 16:36:53 INFO run state transition run_id=042e3e9e-ae10-4caf-b007-70c7a7dbdb60 from=queued to=running
+2026/10/22 16:36:57 INFO executor finished run_id=042e3e9e-ae10-4caf-b007-70c7a7dbdb60 epoch=1
+2026/10/22 16:36:57 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:36:57 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A02_ClaimOverlapAndDispatchDuringPlannerCall (97.91s)
+    ma_acceptance_a01_a08_test.go:204: A02 failed 40 assertion(s); evidence /home/hjdssj/project/personal/oma-worktrees/ma-integration/docs/多Agent核心与工作台-实施计划/证据/integration-20round/A02.json; first: {Round:1 Check:planner follow-up Detail:follow-up planner call did not start while workers were held}
+2026/10/22 16:36:58 INFO created run run_id=08cbc4a8-f93f-4f2b-9087-5b6a9be6ca9b task_id=1a80b0d5-49a9-4b18-9796-ec47cc73d912 task_name=ma7-samples
+2026/10/22 16:36:58 INFO executor started run_id=08cbc4a8-f93f-4f2b-9087-5b6a9be6ca9b epoch=1
+2026/10/22 16:36:58 INFO run state transition run_id=08cbc4a8-f93f-4f2b-9087-5b6a9be6ca9b from=queued to=running
+2026/10/22 16:37:02 INFO executor finished run_id=08cbc4a8-f93f-4f2b-9087-5b6a9be6ca9b epoch=1
+2026/10/22 16:37:02 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:37:02 INFO all active workers and retests stop requested
+2026/10/22 16:37:03 INFO created run run_id=4c5dea82-dd5f-4643-92a9-44e58c2c80ae task_id=38194446-c81a-4b0d-884f-70cf4ed765f9 task_name=ma7-samples
+2026/10/22 16:37:03 INFO executor started run_id=4c5dea82-dd5f-4643-92a9-44e58c2c80ae epoch=1
+2026/10/22 16:37:03 INFO run state transition run_id=4c5dea82-dd5f-4643-92a9-44e58c2c80ae from=queued to=running
+2026/10/22 16:37:08 INFO executor finished run_id=4c5dea82-dd5f-4643-92a9-44e58c2c80ae epoch=1
+2026/10/22 16:37:08 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:37:08 INFO all active workers and retests stop requested
+2026/10/22 16:37:09 INFO created run run_id=d908f77b-0835-40cf-8d64-1603501505c4 task_id=e828842b-a531-49a2-9e82-684737c784eb task_name=ma7-samples
+2026/10/22 16:37:09 INFO executor started run_id=d908f77b-0835-40cf-8d64-1603501505c4 epoch=1
+2026/10/22 16:37:09 INFO run state transition run_id=d908f77b-0835-40cf-8d64-1603501505c4 from=queued to=running
+2026/10/22 16:37:13 INFO executor finished run_id=d908f77b-0835-40cf-8d64-1603501505c4 epoch=1
+2026/10/22 16:37:13 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:37:13 INFO all active workers and retests stop requested
+2026/10/22 16:37:14 INFO created run run_id=acdf6f98-da38-4005-9522-25b76285002b task_id=6ddd56f8-1838-42c2-b43f-8d266f949b30 task_name=ma7-samples
+2026/10/22 16:37:14 INFO executor started run_id=acdf6f98-da38-4005-9522-25b76285002b epoch=1
+2026/10/22 16:37:14 INFO run state transition run_id=acdf6f98-da38-4005-9522-25b76285002b from=queued to=running
+2026/10/22 16:37:19 INFO executor finished run_id=acdf6f98-da38-4005-9522-25b76285002b epoch=1
+2026/10/22 16:37:19 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:37:19 INFO all active workers and retests stop requested
+2026/10/22 16:37:20 INFO created run run_id=a06f57cf-5bca-4846-afc6-81d06997a44c task_id=4bf87eb4-d1af-49a0-9f92-9c6cdf469295 task_name=ma7-samples
+2026/10/22 16:37:20 INFO executor started run_id=a06f57cf-5bca-4846-afc6-81d06997a44c epoch=1
+2026/10/22 16:37:20 INFO run state transition run_id=a06f57cf-5bca-4846-afc6-81d06997a44c from=queued to=running
+2026/10/22 16:37:24 INFO executor finished run_id=a06f57cf-5bca-4846-afc6-81d06997a44c epoch=1
+2026/10/22 16:37:24 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:37:24 INFO all active workers and retests stop requested
+2026/10/22 16:37:25 INFO created run run_id=c049bad2-800e-4336-9096-174aef6ed063 task_id=22545374-d241-4095-8361-593d05483291 task_name=ma7-samples
+2026/10/22 16:37:25 INFO executor started run_id=c049bad2-800e-4336-9096-174aef6ed063 epoch=1
+2026/10/22 16:37:25 INFO run state transition run_id=c049bad2-800e-4336-9096-174aef6ed063 from=queued to=running
+2026/10/22 16:37:30 INFO executor finished run_id=c049bad2-800e-4336-9096-174aef6ed063 epoch=1
+2026/10/22 16:37:30 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:37:30 INFO all active workers and retests stop requested
+2026/10/22 16:37:31 INFO created run run_id=c35f2f7c-e04c-48fb-9264-462a32d235f1 task_id=06d1b229-7ae4-44b3-bb6a-65c788a03a7b task_name=ma7-samples
+2026/10/22 16:37:31 INFO executor started run_id=c35f2f7c-e04c-48fb-9264-462a32d235f1 epoch=1
+2026/10/22 16:37:31 INFO run state transition run_id=c35f2f7c-e04c-48fb-9264-462a32d235f1 from=queued to=running
+2026/10/22 16:37:36 INFO executor finished run_id=c35f2f7c-e04c-48fb-9264-462a32d235f1 epoch=1
+2026/10/22 16:37:36 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:37:36 INFO all active workers and retests stop requested
+2026/10/22 16:37:36 INFO created run run_id=5e0cead7-014c-4a17-a3a8-d5576abb05de task_id=aa4fa8c5-5d5a-4182-8754-ceb0edb43ac1 task_name=ma7-samples
+2026/10/22 16:37:37 INFO executor started run_id=5e0cead7-014c-4a17-a3a8-d5576abb05de epoch=1
+2026/10/22 16:37:37 INFO run state transition run_id=5e0cead7-014c-4a17-a3a8-d5576abb05de from=queued to=running
+2026/10/22 16:37:38 INFO executor finished run_id=5e0cead7-014c-4a17-a3a8-d5576abb05de epoch=1
+2026/10/22 16:37:38 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:37:38 INFO all active workers and retests stop requested
+2026/10/22 16:37:39 INFO created run run_id=59641103-3e91-4ee1-aa5a-39efc7c55cee task_id=6841c511-0bc6-4902-aaba-fdfeef31ae91 task_name=ma7-samples
+2026/10/22 16:37:39 INFO executor started run_id=59641103-3e91-4ee1-aa5a-39efc7c55cee epoch=1
+2026/10/22 16:37:39 INFO run state transition run_id=59641103-3e91-4ee1-aa5a-39efc7c55cee from=queued to=running
+2026/10/22 16:37:43 INFO executor finished run_id=59641103-3e91-4ee1-aa5a-39efc7c55cee epoch=1
+2026/10/22 16:37:43 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:37:43 INFO all active workers and retests stop requested
+2026/10/22 16:37:44 INFO created run run_id=b3b40e28-42fc-471d-aefe-0a4d9aaa2fa9 task_id=0dbc40e8-7394-485d-882a-abfb7b1c5658 task_name=ma7-samples
+2026/10/22 16:37:44 INFO executor started run_id=b3b40e28-42fc-471d-aefe-0a4d9aaa2fa9 epoch=1
+2026/10/22 16:37:44 INFO run state transition run_id=b3b40e28-42fc-471d-aefe-0a4d9aaa2fa9 from=queued to=running
+2026/10/22 16:37:49 INFO executor finished run_id=b3b40e28-42fc-471d-aefe-0a4d9aaa2fa9 epoch=1
+2026/10/22 16:37:49 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:37:49 INFO all active workers and retests stop requested
+2026/10/22 16:37:50 INFO created run run_id=74025bb0-483e-4014-8657-61ed2ad4c1b0 task_id=ae880d94-6290-4d32-9cc7-8ff22d54309d task_name=ma7-samples
+2026/10/22 16:37:50 INFO executor started run_id=74025bb0-483e-4014-8657-61ed2ad4c1b0 epoch=1
+2026/10/22 16:37:50 INFO run state transition run_id=74025bb0-483e-4014-8657-61ed2ad4c1b0 from=queued to=running
+2026/10/22 16:37:54 INFO executor finished run_id=74025bb0-483e-4014-8657-61ed2ad4c1b0 epoch=1
+2026/10/22 16:37:54 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:37:54 INFO all active workers and retests stop requested
+2026/10/22 16:37:55 INFO created run run_id=1544feb5-d527-41e5-87ef-27a22a7c6efe task_id=330367e8-73cb-4340-8efd-e056f59649bf task_name=ma7-samples
+2026/10/22 16:37:55 INFO executor started run_id=1544feb5-d527-41e5-87ef-27a22a7c6efe epoch=1
+2026/10/22 16:37:55 INFO run state transition run_id=1544feb5-d527-41e5-87ef-27a22a7c6efe from=queued to=running
+2026/10/22 16:38:00 INFO executor finished run_id=1544feb5-d527-41e5-87ef-27a22a7c6efe epoch=1
+2026/10/22 16:38:00 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:38:00 INFO all active workers and retests stop requested
+2026/10/22 16:38:01 INFO created run run_id=d83548fa-33d9-4555-9e65-fc1581ee0b77 task_id=d701fbe8-3b20-47ef-9853-16f3d3d08f54 task_name=ma7-samples
+2026/10/22 16:38:01 INFO executor started run_id=d83548fa-33d9-4555-9e65-fc1581ee0b77 epoch=1
+2026/10/22 16:38:01 INFO run state transition run_id=d83548fa-33d9-4555-9e65-fc1581ee0b77 from=queued to=running
+2026/10/22 16:38:06 INFO executor finished run_id=d83548fa-33d9-4555-9e65-fc1581ee0b77 epoch=1
+2026/10/22 16:38:06 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:38:06 INFO all active workers and retests stop requested
+2026/10/22 16:38:07 INFO created run run_id=b8496be9-4d6f-4c56-aa63-97c19cf14fde task_id=023598b6-fee7-456a-acfe-1a56d45a330c task_name=ma7-samples
+2026/10/22 16:38:07 INFO executor started run_id=b8496be9-4d6f-4c56-aa63-97c19cf14fde epoch=1
+2026/10/22 16:38:07 INFO run state transition run_id=b8496be9-4d6f-4c56-aa63-97c19cf14fde from=queued to=running
+2026/10/22 16:38:08 INFO executor finished run_id=b8496be9-4d6f-4c56-aa63-97c19cf14fde epoch=1
+2026/10/22 16:38:08 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:38:08 INFO all active workers and retests stop requested
+2026/10/22 16:38:09 INFO created run run_id=8f2e42b1-f2db-4855-a3ca-d2a725261254 task_id=54e6018d-46b9-4f81-85bb-5854673eed5d task_name=ma7-samples
+2026/10/22 16:38:09 INFO executor started run_id=8f2e42b1-f2db-4855-a3ca-d2a725261254 epoch=1
+2026/10/22 16:38:09 INFO run state transition run_id=8f2e42b1-f2db-4855-a3ca-d2a725261254 from=queued to=running
+2026/10/22 16:38:13 INFO executor finished run_id=8f2e42b1-f2db-4855-a3ca-d2a725261254 epoch=1
+2026/10/22 16:38:13 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:38:13 INFO all active workers and retests stop requested
+2026/10/22 16:38:14 INFO created run run_id=0d54b8c4-fe2a-499a-8823-c3dac07267c2 task_id=f0c42dd1-0678-4968-9847-2786a1efaeb8 task_name=ma7-samples
+2026/10/22 16:38:14 INFO executor started run_id=0d54b8c4-fe2a-499a-8823-c3dac07267c2 epoch=1
+2026/10/22 16:38:14 INFO run state transition run_id=0d54b8c4-fe2a-499a-8823-c3dac07267c2 from=queued to=running
+2026/10/22 16:38:15 INFO executor finished run_id=0d54b8c4-fe2a-499a-8823-c3dac07267c2 epoch=1
+2026/10/22 16:38:15 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:38:15 INFO all active workers and retests stop requested
+2026/10/22 16:38:16 INFO created run run_id=924922bd-83d3-4c16-88af-0cc36a1857fb task_id=b8d08ae2-bdc6-4eef-9412-fa45bb8aeda3 task_name=ma7-samples
+2026/10/22 16:38:16 INFO executor started run_id=924922bd-83d3-4c16-88af-0cc36a1857fb epoch=1
+2026/10/22 16:38:16 INFO run state transition run_id=924922bd-83d3-4c16-88af-0cc36a1857fb from=queued to=running
+2026/10/22 16:38:17 INFO executor finished run_id=924922bd-83d3-4c16-88af-0cc36a1857fb epoch=1
+2026/10/22 16:38:17 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:38:17 INFO all active workers and retests stop requested
+2026/10/22 16:38:18 INFO created run run_id=cfeba52f-6a7a-4589-89e6-ebf1771c4635 task_id=bc49a1a5-33c3-4449-b30d-74228dfcff14 task_name=ma7-samples
+2026/10/22 16:38:18 INFO executor started run_id=cfeba52f-6a7a-4589-89e6-ebf1771c4635 epoch=1
+2026/10/22 16:38:18 INFO run state transition run_id=cfeba52f-6a7a-4589-89e6-ebf1771c4635 from=queued to=running
+2026/10/22 16:38:23 INFO executor finished run_id=cfeba52f-6a7a-4589-89e6-ebf1771c4635 epoch=1
+2026/10/22 16:38:23 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:38:23 INFO all active workers and retests stop requested
+2026/10/22 16:38:24 INFO created run run_id=8b6e56ed-210a-463e-94c5-4971854900ab task_id=85ac4b63-07e2-4b1e-9feb-cf0d92a4f9e0 task_name=ma7-samples
+2026/10/22 16:38:24 INFO executor started run_id=8b6e56ed-210a-463e-94c5-4971854900ab epoch=1
+2026/10/22 16:38:24 INFO run state transition run_id=8b6e56ed-210a-463e-94c5-4971854900ab from=queued to=running
+2026/10/22 16:38:28 INFO executor finished run_id=8b6e56ed-210a-463e-94c5-4971854900ab epoch=1
+2026/10/22 16:38:29 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:38:29 INFO all active workers and retests stop requested
+2026/10/22 16:38:29 INFO created run run_id=9c1a0fe2-51e8-4a7c-8d84-3edd99996424 task_id=462ceca1-0870-4f63-a94b-93898e974741 task_name=ma7-samples
+2026/10/22 16:38:29 INFO executor started run_id=9c1a0fe2-51e8-4a7c-8d84-3edd99996424 epoch=1
+2026/10/22 16:38:29 INFO run state transition run_id=9c1a0fe2-51e8-4a7c-8d84-3edd99996424 from=queued to=running
+2026/10/22 16:38:34 INFO executor finished run_id=9c1a0fe2-51e8-4a7c-8d84-3edd99996424 epoch=1
+2026/10/22 16:38:34 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:38:34 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A03_InFlightFactCanDispatchSecondDirection (97.17s)
+    ma_acceptance_a01_a08_test.go:277: A03 failed 16 assertion(s); evidence /home/hjdssj/project/personal/oma-worktrees/ma-integration/docs/多Agent核心与工作台-实施计划/证据/integration-20round/A03.json; first: {Round:1 Check:dispatch B while A in flight Detail:B arrived=0 A still held=1 planner_calls=2}
+2026/10/22 16:38:35 INFO created run run_id=ad11a634-57c1-4b66-8232-992815544779 task_id=c433cdbe-5e55-4352-8a24-ef2446e1b8fc task_name=ma7-samples
+2026/10/22 16:38:35 INFO executor started run_id=ad11a634-57c1-4b66-8232-992815544779 epoch=1
+2026/10/22 16:38:35 INFO run state transition run_id=ad11a634-57c1-4b66-8232-992815544779 from=queued to=running
+2026/10/22 16:38:36 INFO executor finished run_id=ad11a634-57c1-4b66-8232-992815544779 epoch=1
+2026/10/22 16:38:36 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:38:36 INFO all active workers and retests stop requested
+2026/10/22 16:38:37 INFO created run run_id=69b25c4f-fbff-49d2-85db-afc371934691 task_id=6529e058-7466-4b87-bd7b-a19b8468f78f task_name=ma7-samples
+2026/10/22 16:38:37 INFO executor started run_id=69b25c4f-fbff-49d2-85db-afc371934691 epoch=1
+2026/10/22 16:38:37 INFO run state transition run_id=69b25c4f-fbff-49d2-85db-afc371934691 from=queued to=running
+2026/10/22 16:38:38 INFO executor finished run_id=69b25c4f-fbff-49d2-85db-afc371934691 epoch=1
+2026/10/22 16:38:38 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:38:38 INFO all active workers and retests stop requested
+2026/10/22 16:38:39 INFO created run run_id=1e627b7e-094c-4e45-8bfc-aa487196cc26 task_id=c5a1b0db-78ef-46c5-b838-b163418de279 task_name=ma7-samples
+2026/10/22 16:38:39 INFO executor started run_id=1e627b7e-094c-4e45-8bfc-aa487196cc26 epoch=1
+2026/10/22 16:38:39 INFO run state transition run_id=1e627b7e-094c-4e45-8bfc-aa487196cc26 from=queued to=running
+2026/10/22 16:38:39 INFO executor finished run_id=1e627b7e-094c-4e45-8bfc-aa487196cc26 epoch=1
+2026/10/22 16:38:40 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:38:40 INFO all active workers and retests stop requested
+2026/10/22 16:38:40 INFO created run run_id=c9d78183-069c-4146-8efe-43268d64eda1 task_id=df1ee66e-8f64-4e9c-9f31-a6f8994ef63c task_name=ma7-samples
+2026/10/22 16:38:40 INFO executor started run_id=c9d78183-069c-4146-8efe-43268d64eda1 epoch=1
+2026/10/22 16:38:40 INFO run state transition run_id=c9d78183-069c-4146-8efe-43268d64eda1 from=queued to=running
+2026/10/22 16:38:41 INFO executor finished run_id=c9d78183-069c-4146-8efe-43268d64eda1 epoch=1
+2026/10/22 16:38:41 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:38:41 INFO all active workers and retests stop requested
+2026/10/22 16:38:43 INFO created run run_id=e8962782-c41f-421e-9ed6-400dd12b3995 task_id=d482055b-390c-4ded-bf87-09737b7e445c task_name=ma7-samples
+2026/10/22 16:38:43 INFO executor started run_id=e8962782-c41f-421e-9ed6-400dd12b3995 epoch=1
+2026/10/22 16:38:43 INFO run state transition run_id=e8962782-c41f-421e-9ed6-400dd12b3995 from=queued to=running
+2026/10/22 16:38:45 INFO executor finished run_id=e8962782-c41f-421e-9ed6-400dd12b3995 epoch=1
+2026/10/22 16:38:45 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:38:45 INFO all active workers and retests stop requested
+2026/10/22 16:38:47 INFO created run run_id=0bbc2151-71c8-4fda-92ca-bb6038d3cc26 task_id=8971a64a-f8d7-4ee0-ae9c-a446cb432b10 task_name=ma7-samples
+2026/10/22 16:38:47 INFO executor started run_id=0bbc2151-71c8-4fda-92ca-bb6038d3cc26 epoch=1
+2026/10/22 16:38:47 INFO run state transition run_id=0bbc2151-71c8-4fda-92ca-bb6038d3cc26 from=queued to=running
+2026/10/22 16:38:48 INFO executor finished run_id=0bbc2151-71c8-4fda-92ca-bb6038d3cc26 epoch=1
+2026/10/22 16:38:48 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:38:48 INFO all active workers and retests stop requested
+2026/10/22 16:38:50 INFO created run run_id=73332d8b-660a-483e-a67b-9d7432bb63bb task_id=8c4455c2-1ca5-4005-aa75-9459086af589 task_name=ma7-samples
+2026/10/22 16:38:50 INFO executor started run_id=73332d8b-660a-483e-a67b-9d7432bb63bb epoch=1
+2026/10/22 16:38:50 INFO run state transition run_id=73332d8b-660a-483e-a67b-9d7432bb63bb from=queued to=running
+2026/10/22 16:38:51 INFO executor finished run_id=73332d8b-660a-483e-a67b-9d7432bb63bb epoch=1
+2026/10/22 16:38:51 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:38:51 INFO all active workers and retests stop requested
+2026/10/22 16:38:53 INFO created run run_id=38bb35f9-a8f9-431d-bd54-f8a82b957c81 task_id=11becab2-e482-4e62-a667-a650bcae2d44 task_name=ma7-samples
+2026/10/22 16:38:53 INFO executor started run_id=38bb35f9-a8f9-431d-bd54-f8a82b957c81 epoch=1
+2026/10/22 16:38:53 INFO run state transition run_id=38bb35f9-a8f9-431d-bd54-f8a82b957c81 from=queued to=running
+2026/10/22 16:38:54 INFO executor finished run_id=38bb35f9-a8f9-431d-bd54-f8a82b957c81 epoch=1
+2026/10/22 16:38:54 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:38:54 INFO all active workers and retests stop requested
+2026/10/22 16:38:57 INFO created run run_id=7fc727e4-1fcf-4d31-8d35-04e94e113aaf task_id=3a81a31b-4d4f-4a24-9ce7-ad0300760737 task_name=ma7-samples
+2026/10/22 16:38:57 INFO executor started run_id=7fc727e4-1fcf-4d31-8d35-04e94e113aaf epoch=1
+2026/10/22 16:38:57 INFO run state transition run_id=7fc727e4-1fcf-4d31-8d35-04e94e113aaf from=queued to=running
+2026/10/22 16:38:58 INFO executor finished run_id=7fc727e4-1fcf-4d31-8d35-04e94e113aaf epoch=1
+2026/10/22 16:38:58 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:38:58 INFO all active workers and retests stop requested
+2026/10/22 16:39:00 INFO created run run_id=a54ea5c1-9c1d-4630-920b-dd6a0c728512 task_id=2daa0550-294e-4488-acee-310acc5d1c73 task_name=ma7-samples
+2026/10/22 16:39:00 INFO executor started run_id=a54ea5c1-9c1d-4630-920b-dd6a0c728512 epoch=1
+2026/10/22 16:39:00 INFO run state transition run_id=a54ea5c1-9c1d-4630-920b-dd6a0c728512 from=queued to=running
+2026/10/22 16:39:01 INFO executor finished run_id=a54ea5c1-9c1d-4630-920b-dd6a0c728512 epoch=1
+2026/10/22 16:39:01 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:01 INFO all active workers and retests stop requested
+2026/10/22 16:39:03 INFO created run run_id=7787d167-d648-48e9-b0c0-e152527c557b task_id=f6fec9f0-4bff-40a8-8b89-b36fce4d6799 task_name=ma7-samples
+2026/10/22 16:39:03 INFO executor started run_id=7787d167-d648-48e9-b0c0-e152527c557b epoch=1
+2026/10/22 16:39:03 INFO run state transition run_id=7787d167-d648-48e9-b0c0-e152527c557b from=queued to=running
+2026/10/22 16:39:04 INFO executor finished run_id=7787d167-d648-48e9-b0c0-e152527c557b epoch=1
+2026/10/22 16:39:04 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:04 INFO all active workers and retests stop requested
+2026/10/22 16:39:06 INFO created run run_id=fa789d39-3869-4567-a357-03e4cefa9b98 task_id=a2e9f4c1-561e-4b19-8b8f-4752ac7611c0 task_name=ma7-samples
+2026/10/22 16:39:06 INFO executor started run_id=fa789d39-3869-4567-a357-03e4cefa9b98 epoch=1
+2026/10/22 16:39:06 INFO run state transition run_id=fa789d39-3869-4567-a357-03e4cefa9b98 from=queued to=running
+2026/10/22 16:39:08 INFO executor finished run_id=fa789d39-3869-4567-a357-03e4cefa9b98 epoch=1
+2026/10/22 16:39:08 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:08 INFO all active workers and retests stop requested
+2026/10/22 16:39:10 INFO created run run_id=7d05f3fb-8c78-480a-a707-4294896eb637 task_id=f7b40da2-60b0-43a5-ba7f-d1c39dcccbea task_name=ma7-samples
+2026/10/22 16:39:10 INFO executor started run_id=7d05f3fb-8c78-480a-a707-4294896eb637 epoch=1
+2026/10/22 16:39:10 INFO run state transition run_id=7d05f3fb-8c78-480a-a707-4294896eb637 from=queued to=running
+2026/10/22 16:39:11 INFO executor finished run_id=7d05f3fb-8c78-480a-a707-4294896eb637 epoch=1
+2026/10/22 16:39:11 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:11 INFO all active workers and retests stop requested
+2026/10/22 16:39:13 INFO created run run_id=d601fa6c-04d0-4736-a177-1e6cdf9eea8b task_id=44b7a5c3-af5b-4ee1-bb30-d3c93f150779 task_name=ma7-samples
+2026/10/22 16:39:13 INFO executor started run_id=d601fa6c-04d0-4736-a177-1e6cdf9eea8b epoch=1
+2026/10/22 16:39:13 INFO run state transition run_id=d601fa6c-04d0-4736-a177-1e6cdf9eea8b from=queued to=running
+2026/10/22 16:39:14 INFO executor finished run_id=d601fa6c-04d0-4736-a177-1e6cdf9eea8b epoch=1
+2026/10/22 16:39:14 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:14 INFO all active workers and retests stop requested
+2026/10/22 16:39:16 INFO created run run_id=3cefc541-1cd6-498c-969f-bd5209320b43 task_id=af6dbcb3-2f5b-4e42-9d58-780e437be557 task_name=ma7-samples
+2026/10/22 16:39:16 INFO executor started run_id=3cefc541-1cd6-498c-969f-bd5209320b43 epoch=1
+2026/10/22 16:39:16 INFO run state transition run_id=3cefc541-1cd6-498c-969f-bd5209320b43 from=queued to=running
+2026/10/22 16:39:17 INFO executor finished run_id=3cefc541-1cd6-498c-969f-bd5209320b43 epoch=1
+2026/10/22 16:39:17 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:17 INFO all active workers and retests stop requested
+2026/10/22 16:39:19 INFO created run run_id=e19f8e7f-852f-4197-9e09-5f867333387f task_id=731d641b-831b-4c5b-a3bf-2e7c4c56ce87 task_name=ma7-samples
+2026/10/22 16:39:20 INFO executor started run_id=e19f8e7f-852f-4197-9e09-5f867333387f epoch=1
+2026/10/22 16:39:20 INFO run state transition run_id=e19f8e7f-852f-4197-9e09-5f867333387f from=queued to=running
+2026/10/22 16:39:21 INFO executor finished run_id=e19f8e7f-852f-4197-9e09-5f867333387f epoch=1
+2026/10/22 16:39:21 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:21 INFO all active workers and retests stop requested
+2026/10/22 16:39:23 INFO created run run_id=c3234fc2-622e-402a-8860-4904321a3c09 task_id=4352b849-7767-4304-af0a-cfa8d92aba9d task_name=ma7-samples
+2026/10/22 16:39:23 INFO executor started run_id=c3234fc2-622e-402a-8860-4904321a3c09 epoch=1
+2026/10/22 16:39:23 INFO run state transition run_id=c3234fc2-622e-402a-8860-4904321a3c09 from=queued to=running
+2026/10/22 16:39:24 INFO executor finished run_id=c3234fc2-622e-402a-8860-4904321a3c09 epoch=1
+2026/10/22 16:39:24 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:24 INFO all active workers and retests stop requested
+2026/10/22 16:39:25 INFO created run run_id=d0fec2fa-d81f-4b85-a4b2-cb078ca1e4de task_id=f6d0e532-e8b3-40ce-b11f-a0d6cfe95d66 task_name=ma7-samples
+2026/10/22 16:39:25 INFO executor started run_id=d0fec2fa-d81f-4b85-a4b2-cb078ca1e4de epoch=1
+2026/10/22 16:39:25 INFO run state transition run_id=d0fec2fa-d81f-4b85-a4b2-cb078ca1e4de from=queued to=running
+2026/10/22 16:39:26 INFO executor finished run_id=d0fec2fa-d81f-4b85-a4b2-cb078ca1e4de epoch=1
+2026/10/22 16:39:26 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:26 INFO all active workers and retests stop requested
+2026/10/22 16:39:27 INFO created run run_id=44390376-bad6-4a03-be29-da80fcbd5b1c task_id=62122ec4-d314-4617-8794-049faa79f6b8 task_name=ma7-samples
+2026/10/22 16:39:27 INFO executor started run_id=44390376-bad6-4a03-be29-da80fcbd5b1c epoch=1
+2026/10/22 16:39:27 INFO run state transition run_id=44390376-bad6-4a03-be29-da80fcbd5b1c from=queued to=running
+2026/10/22 16:39:27 INFO executor finished run_id=44390376-bad6-4a03-be29-da80fcbd5b1c epoch=1
+2026/10/22 16:39:27 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:27 INFO all active workers and retests stop requested
+2026/10/22 16:39:28 INFO created run run_id=77c8d06e-7a79-4bd2-89b1-0e8b3a773317 task_id=bb1d0972-3484-489c-9ea9-f245dfc300f7 task_name=ma7-samples
+2026/10/22 16:39:28 INFO executor started run_id=77c8d06e-7a79-4bd2-89b1-0e8b3a773317 epoch=1
+2026/10/22 16:39:28 INFO run state transition run_id=77c8d06e-7a79-4bd2-89b1-0e8b3a773317 from=queued to=running
+2026/10/22 16:39:29 INFO executor finished run_id=77c8d06e-7a79-4bd2-89b1-0e8b3a773317 epoch=1
+2026/10/22 16:39:29 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:29 INFO all active workers and retests stop requested
+2026/10/22 16:39:30 INFO created run run_id=84c9ac03-c34d-4817-b8db-356e1f269580 task_id=f1adda54-35b0-4f52-b864-bffb07d00305 task_name=ma7-samples
+2026/10/22 16:39:30 INFO executor started run_id=84c9ac03-c34d-4817-b8db-356e1f269580 epoch=1
+2026/10/22 16:39:30 INFO run state transition run_id=84c9ac03-c34d-4817-b8db-356e1f269580 from=queued to=running
+2026/10/22 16:39:30 ERROR engine: planner round 1 failed to submit plan run_id=84c9ac03-c34d-4817-b8db-356e1f269580 error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=503ca295-c3fe-4e70-9492-b7b5ca250f0a"
+2026/10/22 16:39:30 INFO executor finished run_id=84c9ac03-c34d-4817-b8db-356e1f269580 epoch=1
+2026/10/22 16:39:32 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:32 INFO all active workers and retests stop requested
+2026/10/22 16:39:33 INFO created run run_id=12f8bde9-e804-410f-bf30-630cac1dbdbe task_id=38e80118-1525-4146-a7d7-59c5ca40c3e8 task_name=ma7-samples
+2026/10/22 16:39:33 INFO executor started run_id=12f8bde9-e804-410f-bf30-630cac1dbdbe epoch=1
+2026/10/22 16:39:33 INFO run state transition run_id=12f8bde9-e804-410f-bf30-630cac1dbdbe from=queued to=running
+2026/10/22 16:39:33 ERROR engine: planner round 1 failed to submit plan run_id=12f8bde9-e804-410f-bf30-630cac1dbdbe error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=77df7834-beba-4778-9dd4-138e89adff50"
+2026/10/22 16:39:33 INFO executor finished run_id=12f8bde9-e804-410f-bf30-630cac1dbdbe epoch=1
+2026/10/22 16:39:34 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:34 INFO all active workers and retests stop requested
+2026/10/22 16:39:35 INFO created run run_id=47fee495-bf72-4e8c-bc13-ab29467096ab task_id=4b6b8b9f-7ff9-44bd-97b0-042826de6429 task_name=ma7-samples
+2026/10/22 16:39:35 INFO executor started run_id=47fee495-bf72-4e8c-bc13-ab29467096ab epoch=1
+2026/10/22 16:39:35 INFO run state transition run_id=47fee495-bf72-4e8c-bc13-ab29467096ab from=queued to=running
+2026/10/22 16:39:35 ERROR engine: planner round 1 failed to submit plan run_id=47fee495-bf72-4e8c-bc13-ab29467096ab error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=c2fa654a-1352-42f4-9e91-980d9aa1708d"
+2026/10/22 16:39:35 INFO executor finished run_id=47fee495-bf72-4e8c-bc13-ab29467096ab epoch=1
+2026/10/22 16:39:37 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:37 INFO all active workers and retests stop requested
+2026/10/22 16:39:38 INFO created run run_id=a07a9199-f2d3-44ac-b5e5-3af592af4fe8 task_id=5bcbf17b-5d1e-40b5-9f3b-f77f682b4361 task_name=ma7-samples
+2026/10/22 16:39:38 INFO executor started run_id=a07a9199-f2d3-44ac-b5e5-3af592af4fe8 epoch=1
+2026/10/22 16:39:38 INFO run state transition run_id=a07a9199-f2d3-44ac-b5e5-3af592af4fe8 from=queued to=running
+2026/10/22 16:39:38 ERROR engine: planner round 1 failed to submit plan run_id=a07a9199-f2d3-44ac-b5e5-3af592af4fe8 error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=d19f9bd4-15ea-4e97-8f3c-aeb63ea2d85f"
+2026/10/22 16:39:38 INFO executor finished run_id=a07a9199-f2d3-44ac-b5e5-3af592af4fe8 epoch=1
+2026/10/22 16:39:39 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:39 INFO all active workers and retests stop requested
+2026/10/22 16:39:40 INFO created run run_id=64cc222d-270b-4d91-8a99-2469fcc62fca task_id=55bbc3aa-1f98-4fd2-a883-dfec6bb6094e task_name=ma7-samples
+2026/10/22 16:39:40 INFO executor started run_id=64cc222d-270b-4d91-8a99-2469fcc62fca epoch=1
+2026/10/22 16:39:40 INFO run state transition run_id=64cc222d-270b-4d91-8a99-2469fcc62fca from=queued to=running
+2026/10/22 16:39:40 ERROR engine: planner round 1 failed to submit plan run_id=64cc222d-270b-4d91-8a99-2469fcc62fca error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=6223281f-c8e5-41e2-ac70-8548c60f7ea4"
+2026/10/22 16:39:40 INFO executor finished run_id=64cc222d-270b-4d91-8a99-2469fcc62fca epoch=1
+2026/10/22 16:39:41 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:41 INFO all active workers and retests stop requested
+2026/10/22 16:39:42 INFO created run run_id=936b7e3b-89ae-45fe-bfed-60b365db0c9f task_id=13017435-e357-4a62-bbf2-d5bcde516805 task_name=ma7-samples
+2026/10/22 16:39:42 INFO executor started run_id=936b7e3b-89ae-45fe-bfed-60b365db0c9f epoch=1
+2026/10/22 16:39:42 INFO run state transition run_id=936b7e3b-89ae-45fe-bfed-60b365db0c9f from=queued to=running
+2026/10/22 16:39:42 ERROR engine: planner round 1 failed to submit plan run_id=936b7e3b-89ae-45fe-bfed-60b365db0c9f error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=6732b9f4-622a-4a17-af3c-c1e701c948ce"
+2026/10/22 16:39:43 INFO executor finished run_id=936b7e3b-89ae-45fe-bfed-60b365db0c9f epoch=1
+2026/10/22 16:39:44 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:44 INFO all active workers and retests stop requested
+2026/10/22 16:39:45 INFO created run run_id=b3ec0796-d650-44df-ad8a-4751a8c3d7ea task_id=4dbd6d1d-7b4c-4570-b40c-433d3ad843ee task_name=ma7-samples
+2026/10/22 16:39:45 INFO executor started run_id=b3ec0796-d650-44df-ad8a-4751a8c3d7ea epoch=1
+2026/10/22 16:39:45 INFO run state transition run_id=b3ec0796-d650-44df-ad8a-4751a8c3d7ea from=queued to=running
+2026/10/22 16:39:45 ERROR engine: planner round 1 failed to submit plan run_id=b3ec0796-d650-44df-ad8a-4751a8c3d7ea error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=968bd103-c646-4c6f-83e9-19d524f1dc82"
+2026/10/22 16:39:45 INFO executor finished run_id=b3ec0796-d650-44df-ad8a-4751a8c3d7ea epoch=1
+2026/10/22 16:39:46 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:46 INFO all active workers and retests stop requested
+2026/10/22 16:39:47 INFO created run run_id=8d51730e-32d1-43ed-9c8d-583f01553540 task_id=df2efb24-a601-4ace-9d35-b42fb156d8e9 task_name=ma7-samples
+2026/10/22 16:39:47 INFO executor started run_id=8d51730e-32d1-43ed-9c8d-583f01553540 epoch=1
+2026/10/22 16:39:47 INFO run state transition run_id=8d51730e-32d1-43ed-9c8d-583f01553540 from=queued to=running
+2026/10/22 16:39:47 ERROR engine: planner round 1 failed to submit plan run_id=8d51730e-32d1-43ed-9c8d-583f01553540 error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=6e214161-51fe-4cc6-a03c-8e66e3261f09"
+2026/10/22 16:39:47 INFO executor finished run_id=8d51730e-32d1-43ed-9c8d-583f01553540 epoch=1
+2026/10/22 16:39:49 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:49 INFO all active workers and retests stop requested
+2026/10/22 16:39:50 INFO created run run_id=6a63c85b-198a-4e29-a82d-2e7c2f1f5cce task_id=458685f8-8453-4027-a7ff-8278f549a34b task_name=ma7-samples
+2026/10/22 16:39:50 INFO executor started run_id=6a63c85b-198a-4e29-a82d-2e7c2f1f5cce epoch=1
+2026/10/22 16:39:50 INFO run state transition run_id=6a63c85b-198a-4e29-a82d-2e7c2f1f5cce from=queued to=running
+2026/10/22 16:39:50 ERROR engine: planner round 1 failed to submit plan run_id=6a63c85b-198a-4e29-a82d-2e7c2f1f5cce error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=e40b18ea-cb03-429b-952d-8872a852fdcd"
+2026/10/22 16:39:50 INFO executor finished run_id=6a63c85b-198a-4e29-a82d-2e7c2f1f5cce epoch=1
+2026/10/22 16:39:51 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:51 INFO all active workers and retests stop requested
+2026/10/22 16:39:52 INFO created run run_id=6ef176a2-c92c-4602-8434-10b5c82f33a6 task_id=b5830dda-76d3-4039-b1ce-65202b1fe690 task_name=ma7-samples
+2026/10/22 16:39:52 INFO executor started run_id=6ef176a2-c92c-4602-8434-10b5c82f33a6 epoch=1
+2026/10/22 16:39:52 INFO run state transition run_id=6ef176a2-c92c-4602-8434-10b5c82f33a6 from=queued to=running
+2026/10/22 16:39:52 ERROR engine: planner round 1 failed to submit plan run_id=6ef176a2-c92c-4602-8434-10b5c82f33a6 error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=bb0a8dfc-cfef-4020-a629-c6fc1d5f52e1"
+2026/10/22 16:39:52 INFO executor finished run_id=6ef176a2-c92c-4602-8434-10b5c82f33a6 epoch=1
+2026/10/22 16:39:54 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:54 INFO all active workers and retests stop requested
+2026/10/22 16:39:55 INFO created run run_id=4eabc393-c7ee-4639-adfe-e3d480e643ba task_id=2f2021b0-1f07-4704-a282-844442d2971f task_name=ma7-samples
+2026/10/22 16:39:55 INFO executor started run_id=4eabc393-c7ee-4639-adfe-e3d480e643ba epoch=1
+2026/10/22 16:39:55 INFO run state transition run_id=4eabc393-c7ee-4639-adfe-e3d480e643ba from=queued to=running
+2026/10/22 16:39:55 ERROR engine: planner round 1 failed to submit plan run_id=4eabc393-c7ee-4639-adfe-e3d480e643ba error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=07d4f028-24e0-49e9-9508-80d680e734c4"
+2026/10/22 16:39:55 INFO executor finished run_id=4eabc393-c7ee-4639-adfe-e3d480e643ba epoch=1
+2026/10/22 16:39:56 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:56 INFO all active workers and retests stop requested
+2026/10/22 16:39:57 INFO created run run_id=3ce858b8-defc-4df5-b0ed-cfd9463d09a8 task_id=e448242b-eb89-4776-95a1-f0a31c2fd5f8 task_name=ma7-samples
+2026/10/22 16:39:57 INFO executor started run_id=3ce858b8-defc-4df5-b0ed-cfd9463d09a8 epoch=1
+2026/10/22 16:39:57 INFO run state transition run_id=3ce858b8-defc-4df5-b0ed-cfd9463d09a8 from=queued to=running
+2026/10/22 16:39:57 ERROR engine: planner round 1 failed to submit plan run_id=3ce858b8-defc-4df5-b0ed-cfd9463d09a8 error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=1c19bebe-9d0e-4b49-afff-9465a1bff228"
+2026/10/22 16:39:57 INFO executor finished run_id=3ce858b8-defc-4df5-b0ed-cfd9463d09a8 epoch=1
+2026/10/22 16:39:58 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:39:58 INFO all active workers and retests stop requested
+2026/10/22 16:39:59 INFO created run run_id=ce88035f-2a31-44aa-945a-5bcf0fedb124 task_id=16a238f6-9e68-4f74-9b09-f91834b9d155 task_name=ma7-samples
+2026/10/22 16:39:59 INFO executor started run_id=ce88035f-2a31-44aa-945a-5bcf0fedb124 epoch=1
+2026/10/22 16:39:59 INFO run state transition run_id=ce88035f-2a31-44aa-945a-5bcf0fedb124 from=queued to=running
+2026/10/22 16:39:59 ERROR engine: planner round 1 failed to submit plan run_id=ce88035f-2a31-44aa-945a-5bcf0fedb124 error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=f81c66bd-b181-4ed4-8478-59d48fff2138"
+2026/10/22 16:39:59 INFO executor finished run_id=ce88035f-2a31-44aa-945a-5bcf0fedb124 epoch=1
+2026/10/22 16:40:01 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:40:01 INFO all active workers and retests stop requested
+2026/10/22 16:40:02 INFO created run run_id=c6bf972d-5a59-4de9-ab92-0ac941919169 task_id=86de0e7f-5af4-497e-a0e8-7b4dc54370b8 task_name=ma7-samples
+2026/10/22 16:40:02 INFO executor started run_id=c6bf972d-5a59-4de9-ab92-0ac941919169 epoch=1
+2026/10/22 16:40:02 INFO run state transition run_id=c6bf972d-5a59-4de9-ab92-0ac941919169 from=queued to=running
+2026/10/22 16:40:02 ERROR engine: planner round 1 failed to submit plan run_id=c6bf972d-5a59-4de9-ab92-0ac941919169 error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=3624a7a8-1016-4a18-96fc-a8ce91d7a112"
+2026/10/22 16:40:02 INFO executor finished run_id=c6bf972d-5a59-4de9-ab92-0ac941919169 epoch=1
+2026/10/22 16:40:03 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:40:03 INFO all active workers and retests stop requested
+2026/10/22 16:40:04 INFO created run run_id=b8c0cc76-05b6-42f8-8d51-b6ac837218cf task_id=b7437828-6c9c-42af-8e31-d376bed0fa39 task_name=ma7-samples
+2026/10/22 16:40:04 INFO executor started run_id=b8c0cc76-05b6-42f8-8d51-b6ac837218cf epoch=1
+2026/10/22 16:40:04 INFO run state transition run_id=b8c0cc76-05b6-42f8-8d51-b6ac837218cf from=queued to=running
+2026/10/22 16:40:04 ERROR engine: planner round 1 failed to submit plan run_id=b8c0cc76-05b6-42f8-8d51-b6ac837218cf error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=dc44b740-737c-4123-ab9f-90b39e570969"
+2026/10/22 16:40:04 INFO executor finished run_id=b8c0cc76-05b6-42f8-8d51-b6ac837218cf epoch=1
+2026/10/22 16:40:06 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:40:06 INFO all active workers and retests stop requested
+2026/10/22 16:40:07 INFO created run run_id=04c6f2cd-3af3-4eba-b722-6dcc2ac6f25a task_id=84131a9d-e856-4ec3-ad01-01f714f408b0 task_name=ma7-samples
+2026/10/22 16:40:07 INFO executor started run_id=04c6f2cd-3af3-4eba-b722-6dcc2ac6f25a epoch=1
+2026/10/22 16:40:07 INFO run state transition run_id=04c6f2cd-3af3-4eba-b722-6dcc2ac6f25a from=queued to=running
+2026/10/22 16:40:07 ERROR engine: planner round 1 failed to submit plan run_id=04c6f2cd-3af3-4eba-b722-6dcc2ac6f25a error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=00967842-bb5a-4691-8dfa-2149396b013c"
+2026/10/22 16:40:07 INFO executor finished run_id=04c6f2cd-3af3-4eba-b722-6dcc2ac6f25a epoch=1
+2026/10/22 16:40:08 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:40:08 INFO all active workers and retests stop requested
+2026/10/22 16:40:09 INFO created run run_id=ab109c5e-9116-4308-9644-43ff69385532 task_id=083427e2-98a0-4e98-8e9f-59d3306a4ce8 task_name=ma7-samples
+2026/10/22 16:40:09 INFO executor started run_id=ab109c5e-9116-4308-9644-43ff69385532 epoch=1
+2026/10/22 16:40:09 INFO run state transition run_id=ab109c5e-9116-4308-9644-43ff69385532 from=queued to=running
+2026/10/22 16:40:09 ERROR engine: planner round 1 failed to submit plan run_id=ab109c5e-9116-4308-9644-43ff69385532 error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=f9d1914c-87e8-4877-8714-ad6b17093364"
+2026/10/22 16:40:09 INFO executor finished run_id=ab109c5e-9116-4308-9644-43ff69385532 epoch=1
+2026/10/22 16:40:11 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:40:11 INFO all active workers and retests stop requested
+2026/10/22 16:40:12 INFO created run run_id=fb3975ce-2645-4418-b548-884d274e229e task_id=ab329b01-3aa8-4ffc-9145-ad9292a9adb6 task_name=ma7-samples
+2026/10/22 16:40:12 INFO executor started run_id=fb3975ce-2645-4418-b548-884d274e229e epoch=1
+2026/10/22 16:40:12 INFO run state transition run_id=fb3975ce-2645-4418-b548-884d274e229e from=queued to=running
+2026/10/22 16:40:12 ERROR engine: planner round 1 failed to submit plan run_id=fb3975ce-2645-4418-b548-884d274e229e error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=58431001-621f-4280-8241-2a90779ce5e6"
+2026/10/22 16:40:12 INFO executor finished run_id=fb3975ce-2645-4418-b548-884d274e229e epoch=1
+2026/10/22 16:40:13 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:40:13 INFO all active workers and retests stop requested
+2026/10/22 16:40:14 INFO created run run_id=039c92a1-7a71-4d87-9b08-8e2a6ab76666 task_id=2d15cc2f-c0f0-466f-9adc-2492322b5b88 task_name=ma7-samples
+2026/10/22 16:40:14 INFO executor started run_id=039c92a1-7a71-4d87-9b08-8e2a6ab76666 epoch=1
+2026/10/22 16:40:14 INFO run state transition run_id=039c92a1-7a71-4d87-9b08-8e2a6ab76666 from=queued to=running
+2026/10/22 16:40:14 ERROR engine: planner round 1 failed to submit plan run_id=039c92a1-7a71-4d87-9b08-8e2a6ab76666 error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=a166e32e-fbcb-4146-a3d4-767b08788ac5"
+2026/10/22 16:40:14 INFO executor finished run_id=039c92a1-7a71-4d87-9b08-8e2a6ab76666 epoch=1
+2026/10/22 16:40:16 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:40:16 INFO all active workers and retests stop requested
+2026/10/22 16:40:16 INFO created run run_id=9e445892-75fb-41ba-8aff-9d13da4a78df task_id=1a50bec6-706d-4ae6-98ab-c1d36b2b45fa task_name=ma7-samples
+2026/10/22 16:40:16 INFO executor started run_id=9e445892-75fb-41ba-8aff-9d13da4a78df epoch=1
+2026/10/22 16:40:16 INFO run state transition run_id=9e445892-75fb-41ba-8aff-9d13da4a78df from=queued to=running
+2026/10/22 16:40:17 ERROR engine: planner round 1 failed to submit plan run_id=9e445892-75fb-41ba-8aff-9d13da4a78df error="provider error: upstream model provider returned an error: HTTP 429: scripted upstream failure class=upstream_rate_limited diagnostic_ref=56b712596adcab39469aded75084958455fbe1771da4537e14efcca7b7490dbc source_model_call=fba3ccf7-6a6b-4ca5-a33b-61908d25b29c"
+2026/10/22 16:40:17 INFO executor finished run_id=9e445892-75fb-41ba-8aff-9d13da4a78df epoch=1
+2026/10/22 16:40:18 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:40:18 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A05_BadResponsesDoNotExecuteOrReplayForever (48.68s)
+    ma_acceptance_a01_a08_test.go:569: A05 failed 60 assertion(s); evidence /home/hjdssj/project/personal/oma-worktrees/ma-integration/docs/多Agent核心与工作台-实施计划/证据/integration-20round/A05.json; first: {Round:1 Check:bounded 429 and 5xx recovery Detail:429=1 5xx=0 planner_calls=1 model_calls=1 events=1}
+2026/10/22 16:40:19 INFO created run run_id=168195b9-241c-4425-baec-ece117a2f0b3 task_id=dc61d654-41da-4f3b-acb7-13397ee552fa task_name=ma7-samples
+2026/10/22 16:40:19 INFO executor started run_id=168195b9-241c-4425-baec-ece117a2f0b3 epoch=1
+2026/10/22 16:40:19 INFO run state transition run_id=168195b9-241c-4425-baec-ece117a2f0b3 from=queued to=running
+2026/10/22 16:40:28 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:40:28 INFO worker stop requested via StopAll run_id=168195b9-241c-4425-baec-ece117a2f0b3
+2026/10/22 16:40:28 INFO all active workers and retests stop requested
+2026/10/22 16:40:28 INFO executor finished run_id=168195b9-241c-4425-baec-ece117a2f0b3 epoch=1
+2026/10/22 16:40:29 INFO created run run_id=3f10db60-1377-45d8-b7cb-da324c774d06 task_id=3acb345d-8b8f-4fb9-8d5c-7c9b8e82b32a task_name=ma7-samples
+2026/10/22 16:40:29 INFO executor started run_id=3f10db60-1377-45d8-b7cb-da324c774d06 epoch=1
+2026/10/22 16:40:29 INFO run state transition run_id=3f10db60-1377-45d8-b7cb-da324c774d06 from=queued to=running
+2026/10/22 16:40:39 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:40:39 INFO worker stop requested via StopAll run_id=3f10db60-1377-45d8-b7cb-da324c774d06
+2026/10/22 16:40:39 INFO all active workers and retests stop requested
+2026/10/22 16:40:39 INFO executor finished run_id=3f10db60-1377-45d8-b7cb-da324c774d06 epoch=1
+2026/10/22 16:40:40 INFO created run run_id=3f56001a-2447-4713-8ab4-b66becdb9149 task_id=0825a2d8-bcf9-4c19-b0d0-eb7278ef84a7 task_name=ma7-samples
+2026/10/22 16:40:40 INFO executor started run_id=3f56001a-2447-4713-8ab4-b66becdb9149 epoch=1
+2026/10/22 16:40:40 INFO run state transition run_id=3f56001a-2447-4713-8ab4-b66becdb9149 from=queued to=running
+2026/10/22 16:40:49 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:40:49 INFO worker stop requested via StopAll run_id=3f56001a-2447-4713-8ab4-b66becdb9149
+2026/10/22 16:40:49 INFO all active workers and retests stop requested
+2026/10/22 16:40:49 INFO executor finished run_id=3f56001a-2447-4713-8ab4-b66becdb9149 epoch=1
+2026/10/22 16:40:50 INFO created run run_id=2b3e85be-f4b4-4330-9440-0a04304d28bb task_id=656a788a-eac6-48f2-a0d2-aa5b8db776c1 task_name=ma7-samples
+2026/10/22 16:40:50 INFO executor started run_id=2b3e85be-f4b4-4330-9440-0a04304d28bb epoch=1
+2026/10/22 16:40:50 INFO run state transition run_id=2b3e85be-f4b4-4330-9440-0a04304d28bb from=queued to=running
+2026/10/22 16:41:00 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:41:00 INFO worker stop requested via StopAll run_id=2b3e85be-f4b4-4330-9440-0a04304d28bb
+2026/10/22 16:41:00 INFO all active workers and retests stop requested
+2026/10/22 16:41:00 INFO executor finished run_id=2b3e85be-f4b4-4330-9440-0a04304d28bb epoch=1
+2026/10/22 16:41:01 INFO created run run_id=938fd27d-a416-43f1-939a-7da790c2a9ff task_id=2a30ba42-ec56-454d-8fdf-5cc45119634e task_name=ma7-samples
+2026/10/22 16:41:01 INFO executor started run_id=938fd27d-a416-43f1-939a-7da790c2a9ff epoch=1
+2026/10/22 16:41:01 INFO run state transition run_id=938fd27d-a416-43f1-939a-7da790c2a9ff from=queued to=running
+2026/10/22 16:41:10 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:41:10 INFO worker stop requested via StopAll run_id=938fd27d-a416-43f1-939a-7da790c2a9ff
+2026/10/22 16:41:10 INFO all active workers and retests stop requested
+2026/10/22 16:41:10 INFO executor finished run_id=938fd27d-a416-43f1-939a-7da790c2a9ff epoch=1
+2026/10/22 16:41:11 INFO created run run_id=cc11a5c1-6172-46dd-a62e-2bbc2fcdf7d1 task_id=325409a6-6058-4131-b553-d07a1fe28b1f task_name=ma7-samples
+2026/10/22 16:41:11 INFO executor started run_id=cc11a5c1-6172-46dd-a62e-2bbc2fcdf7d1 epoch=1
+2026/10/22 16:41:11 INFO run state transition run_id=cc11a5c1-6172-46dd-a62e-2bbc2fcdf7d1 from=queued to=running
+2026/10/22 16:41:20 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:41:20 INFO worker stop requested via StopAll run_id=cc11a5c1-6172-46dd-a62e-2bbc2fcdf7d1
+2026/10/22 16:41:20 INFO all active workers and retests stop requested
+2026/10/22 16:41:21 INFO executor finished run_id=cc11a5c1-6172-46dd-a62e-2bbc2fcdf7d1 epoch=1
+2026/10/22 16:41:21 INFO created run run_id=19450fb5-7048-400d-8c1f-7e4113f9f394 task_id=9ce86142-3cda-47c3-806a-8d8bf2341103 task_name=ma7-samples
+2026/10/22 16:41:22 INFO executor started run_id=19450fb5-7048-400d-8c1f-7e4113f9f394 epoch=1
+2026/10/22 16:41:22 INFO run state transition run_id=19450fb5-7048-400d-8c1f-7e4113f9f394 from=queued to=running
+2026/10/22 16:41:31 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:41:31 INFO worker stop requested via StopAll run_id=19450fb5-7048-400d-8c1f-7e4113f9f394
+2026/10/22 16:41:31 INFO all active workers and retests stop requested
+2026/10/22 16:41:31 INFO executor finished run_id=19450fb5-7048-400d-8c1f-7e4113f9f394 epoch=1
+2026/10/22 16:41:32 INFO created run run_id=9e7f68dd-6730-444e-a233-07ea76595884 task_id=87382a41-b722-4c2c-a8a4-0af9826cc6ad task_name=ma7-samples
+2026/10/22 16:41:32 INFO executor started run_id=9e7f68dd-6730-444e-a233-07ea76595884 epoch=1
+2026/10/22 16:41:32 INFO run state transition run_id=9e7f68dd-6730-444e-a233-07ea76595884 from=queued to=running
+2026/10/22 16:41:41 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:41:41 INFO worker stop requested via StopAll run_id=9e7f68dd-6730-444e-a233-07ea76595884
+2026/10/22 16:41:41 INFO all active workers and retests stop requested
+2026/10/22 16:41:41 INFO executor finished run_id=9e7f68dd-6730-444e-a233-07ea76595884 epoch=1
+2026/10/22 16:41:42 INFO created run run_id=82d8e2dc-6197-46ff-a74c-63ac05d06f48 task_id=55167d37-8d9c-46ee-ad9a-8542ffd33f38 task_name=ma7-samples
+2026/10/22 16:41:42 INFO executor started run_id=82d8e2dc-6197-46ff-a74c-63ac05d06f48 epoch=1
+2026/10/22 16:41:42 INFO run state transition run_id=82d8e2dc-6197-46ff-a74c-63ac05d06f48 from=queued to=running
+2026/10/22 16:41:52 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:41:52 INFO worker stop requested via StopAll run_id=82d8e2dc-6197-46ff-a74c-63ac05d06f48
+2026/10/22 16:41:52 INFO all active workers and retests stop requested
+2026/10/22 16:41:52 INFO executor finished run_id=82d8e2dc-6197-46ff-a74c-63ac05d06f48 epoch=1
+2026/10/22 16:41:53 INFO created run run_id=d2be3ddb-dac8-4720-9d80-10cf40cfb3dd task_id=e48aaaa1-7a76-4326-a513-f47b9e182e38 task_name=ma7-samples
+2026/10/22 16:41:53 INFO executor started run_id=d2be3ddb-dac8-4720-9d80-10cf40cfb3dd epoch=1
+2026/10/22 16:41:53 INFO run state transition run_id=d2be3ddb-dac8-4720-9d80-10cf40cfb3dd from=queued to=running
+2026/10/22 16:42:02 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:42:02 INFO worker stop requested via StopAll run_id=d2be3ddb-dac8-4720-9d80-10cf40cfb3dd
+2026/10/22 16:42:02 INFO all active workers and retests stop requested
+2026/10/22 16:42:02 INFO executor finished run_id=d2be3ddb-dac8-4720-9d80-10cf40cfb3dd epoch=1
+2026/10/22 16:42:03 INFO created run run_id=fcbf598e-b242-4955-92f3-70c3e14df23d task_id=354db0e3-d37f-49c0-a2f5-60de0fa9e3ea task_name=ma7-samples
+2026/10/22 16:42:03 INFO executor started run_id=fcbf598e-b242-4955-92f3-70c3e14df23d epoch=1
+2026/10/22 16:42:03 INFO run state transition run_id=fcbf598e-b242-4955-92f3-70c3e14df23d from=queued to=running
+2026/10/22 16:42:13 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:42:13 INFO worker stop requested via StopAll run_id=fcbf598e-b242-4955-92f3-70c3e14df23d
+2026/10/22 16:42:13 INFO all active workers and retests stop requested
+2026/10/22 16:42:13 INFO executor finished run_id=fcbf598e-b242-4955-92f3-70c3e14df23d epoch=1
+2026/10/22 16:42:14 INFO created run run_id=e08dfff3-c992-4eec-a85b-55d4285db0a6 task_id=e5b8623d-9a77-4ff5-b85b-f81f172b5f0e task_name=ma7-samples
+2026/10/22 16:42:14 INFO executor started run_id=e08dfff3-c992-4eec-a85b-55d4285db0a6 epoch=1
+2026/10/22 16:42:14 INFO run state transition run_id=e08dfff3-c992-4eec-a85b-55d4285db0a6 from=queued to=running
+2026/10/22 16:42:23 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:42:23 INFO worker stop requested via StopAll run_id=e08dfff3-c992-4eec-a85b-55d4285db0a6
+2026/10/22 16:42:23 INFO all active workers and retests stop requested
+2026/10/22 16:42:23 INFO executor finished run_id=e08dfff3-c992-4eec-a85b-55d4285db0a6 epoch=1
+2026/10/22 16:42:24 INFO created run run_id=13ea3faf-7e9e-41b6-b734-15a4db76286d task_id=6b082d23-72a6-4240-b718-1064c93cc900 task_name=ma7-samples
+2026/10/22 16:42:24 INFO executor started run_id=13ea3faf-7e9e-41b6-b734-15a4db76286d epoch=1
+2026/10/22 16:42:24 INFO run state transition run_id=13ea3faf-7e9e-41b6-b734-15a4db76286d from=queued to=running
+2026/10/22 16:42:33 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:42:33 INFO worker stop requested via StopAll run_id=13ea3faf-7e9e-41b6-b734-15a4db76286d
+2026/10/22 16:42:33 INFO all active workers and retests stop requested
+2026/10/22 16:42:34 INFO executor finished run_id=13ea3faf-7e9e-41b6-b734-15a4db76286d epoch=1
+2026/10/22 16:42:35 INFO created run run_id=f7e1a73b-da61-47e9-bb5e-c0caed1ede21 task_id=b7f36fe7-b70b-4998-92e9-68e9f8afb96d task_name=ma7-samples
+2026/10/22 16:42:35 INFO executor started run_id=f7e1a73b-da61-47e9-bb5e-c0caed1ede21 epoch=1
+2026/10/22 16:42:35 INFO run state transition run_id=f7e1a73b-da61-47e9-bb5e-c0caed1ede21 from=queued to=running
+2026/10/22 16:42:44 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:42:44 INFO worker stop requested via StopAll run_id=f7e1a73b-da61-47e9-bb5e-c0caed1ede21
+2026/10/22 16:42:44 INFO all active workers and retests stop requested
+2026/10/22 16:42:44 INFO executor finished run_id=f7e1a73b-da61-47e9-bb5e-c0caed1ede21 epoch=1
+2026/10/22 16:42:45 INFO created run run_id=d4df3024-b344-4f5a-93fc-a2387dd1f221 task_id=0bdecfb0-9369-4add-8111-4a22c490e94a task_name=ma7-samples
+2026/10/22 16:42:45 INFO executor started run_id=d4df3024-b344-4f5a-93fc-a2387dd1f221 epoch=1
+2026/10/22 16:42:45 INFO run state transition run_id=d4df3024-b344-4f5a-93fc-a2387dd1f221 from=queued to=running
+2026/10/22 16:42:54 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:42:54 INFO worker stop requested via StopAll run_id=d4df3024-b344-4f5a-93fc-a2387dd1f221
+2026/10/22 16:42:54 INFO all active workers and retests stop requested
+2026/10/22 16:42:55 INFO executor finished run_id=d4df3024-b344-4f5a-93fc-a2387dd1f221 epoch=1
+2026/10/22 16:42:55 INFO created run run_id=d8073248-32c4-4d7d-8ce4-0906390d080c task_id=6fafd16e-32eb-4adc-9bbf-0b5546917e6d task_name=ma7-samples
+2026/10/22 16:42:55 INFO executor started run_id=d8073248-32c4-4d7d-8ce4-0906390d080c epoch=1
+2026/10/22 16:42:55 INFO run state transition run_id=d8073248-32c4-4d7d-8ce4-0906390d080c from=queued to=running
+2026/10/22 16:43:05 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:43:05 INFO worker stop requested via StopAll run_id=d8073248-32c4-4d7d-8ce4-0906390d080c
+2026/10/22 16:43:05 INFO all active workers and retests stop requested
+2026/10/22 16:43:05 INFO executor finished run_id=d8073248-32c4-4d7d-8ce4-0906390d080c epoch=1
+2026/10/22 16:43:06 INFO created run run_id=d3b2c8c2-198f-4162-b6e8-ddc6c9d89076 task_id=9f14dd78-0fdb-420c-aa81-f8e68d42c54e task_name=ma7-samples
+2026/10/22 16:43:06 INFO executor started run_id=d3b2c8c2-198f-4162-b6e8-ddc6c9d89076 epoch=1
+2026/10/22 16:43:06 INFO run state transition run_id=d3b2c8c2-198f-4162-b6e8-ddc6c9d89076 from=queued to=running
+2026/10/22 16:43:15 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:43:15 INFO worker stop requested via StopAll run_id=d3b2c8c2-198f-4162-b6e8-ddc6c9d89076
+2026/10/22 16:43:15 INFO all active workers and retests stop requested
+2026/10/22 16:43:15 INFO executor finished run_id=d3b2c8c2-198f-4162-b6e8-ddc6c9d89076 epoch=1
+2026/10/22 16:43:16 INFO created run run_id=16225976-f597-4192-99dc-b358644e5270 task_id=9fe2f33e-4026-47c8-9213-d77b7241c0e0 task_name=ma7-samples
+2026/10/22 16:43:16 INFO executor started run_id=16225976-f597-4192-99dc-b358644e5270 epoch=1
+2026/10/22 16:43:16 INFO run state transition run_id=16225976-f597-4192-99dc-b358644e5270 from=queued to=running
+2026/10/22 16:43:26 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:43:26 INFO worker stop requested via StopAll run_id=16225976-f597-4192-99dc-b358644e5270
+2026/10/22 16:43:26 INFO all active workers and retests stop requested
+2026/10/22 16:43:26 INFO executor finished run_id=16225976-f597-4192-99dc-b358644e5270 epoch=1
+2026/10/22 16:43:27 INFO created run run_id=7a8951c7-d6b2-4966-872c-4a77fefa1c60 task_id=66e69146-b7bc-410b-bde7-7c1edea556e6 task_name=ma7-samples
+2026/10/22 16:43:27 INFO executor started run_id=7a8951c7-d6b2-4966-872c-4a77fefa1c60 epoch=1
+2026/10/22 16:43:27 INFO run state transition run_id=7a8951c7-d6b2-4966-872c-4a77fefa1c60 from=queued to=running
+2026/10/22 16:43:36 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:43:36 INFO worker stop requested via StopAll run_id=7a8951c7-d6b2-4966-872c-4a77fefa1c60
+2026/10/22 16:43:36 INFO all active workers and retests stop requested
+2026/10/22 16:43:36 INFO executor finished run_id=7a8951c7-d6b2-4966-872c-4a77fefa1c60 epoch=1
+2026/10/22 16:43:37 INFO created run run_id=626095e3-bc09-44dc-891e-dfef85a18771 task_id=eda37325-0445-451e-adc8-9740df19f62a task_name=ma7-samples
+2026/10/22 16:43:37 INFO executor started run_id=626095e3-bc09-44dc-891e-dfef85a18771 epoch=1
+2026/10/22 16:43:37 INFO run state transition run_id=626095e3-bc09-44dc-891e-dfef85a18771 from=queued to=running
+2026/10/22 16:43:46 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:43:46 INFO worker stop requested via StopAll run_id=626095e3-bc09-44dc-891e-dfef85a18771
+2026/10/22 16:43:46 INFO all active workers and retests stop requested
+2026/10/22 16:43:47 INFO executor finished run_id=626095e3-bc09-44dc-891e-dfef85a18771 epoch=1
+--- FAIL: TestMA_A06_SharedModelLimitQueuesAndCancel (208.66s)
+    ma_acceptance_a01_a08_test.go:622: A06 failed 60 assertion(s); evidence /home/hjdssj/project/personal/oma-worktrees/ma-integration/docs/多Agent核心与工作台-实施计划/证据/integration-20round/A06.json; first: {Round:1 Check:shared limit 2 Detail:peak in-flight model requests=4 while N=4}
+2026/10/22 16:43:49 INFO created run run_id=56d57975-8b05-40a1-9cf8-fda4d5cb3d7b task_id=a175e31a-4298-4047-af54-a59ecb9570c3 task_name=ma7-samples
+2026/10/22 16:43:49 INFO executor started run_id=56d57975-8b05-40a1-9cf8-fda4d5cb3d7b epoch=1
+2026/10/22 16:43:49 INFO run state transition run_id=56d57975-8b05-40a1-9cf8-fda4d5cb3d7b from=queued to=running
+2026/10/22 16:43:53 WARN manager: work item kill has no attempt for job revoke run_id=56d57975-8b05-40a1-9cf8-fda4d5cb3d7b work_item_id=9bcd60ff-0649-4c4b-9f63-5236594ce410
+2026/10/22 16:43:56 ERROR engine: planner round failed run_id=56d57975-8b05-40a1-9cf8-fda4d5cb3d7b round=2 error=<nil>
+2026/10/22 16:43:56 INFO executor finished run_id=56d57975-8b05-40a1-9cf8-fda4d5cb3d7b epoch=1
+2026/10/22 16:43:56 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:43:56 INFO all active workers and retests stop requested
+2026/10/22 16:43:57 INFO created run run_id=69e88ed0-ebaa-4901-b7cb-adc6c69d2e84 task_id=9abd6f33-31b7-4e85-8105-c38834713c9b task_name=ma7-samples
+2026/10/22 16:43:57 INFO executor started run_id=69e88ed0-ebaa-4901-b7cb-adc6c69d2e84 epoch=1
+2026/10/22 16:43:57 INFO run state transition run_id=69e88ed0-ebaa-4901-b7cb-adc6c69d2e84 from=queued to=running
+2026/10/22 16:44:01 WARN manager: work item kill has no attempt for job revoke run_id=69e88ed0-ebaa-4901-b7cb-adc6c69d2e84 work_item_id=82a5914d-d860-4b2b-9dd9-bad0ac2d12cc
+2026/10/22 16:44:03 ERROR engine: planner round failed run_id=69e88ed0-ebaa-4901-b7cb-adc6c69d2e84 round=2 error=<nil>
+2026/10/22 16:44:03 INFO executor finished run_id=69e88ed0-ebaa-4901-b7cb-adc6c69d2e84 epoch=1
+2026/10/22 16:44:03 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:44:03 INFO all active workers and retests stop requested
+2026/10/22 16:44:04 INFO created run run_id=f08ef342-66a0-47f9-a359-f2045f4a06df task_id=e7179d8f-7e6c-4d72-bcb5-0aad745c33bf task_name=ma7-samples
+2026/10/22 16:44:04 INFO executor started run_id=f08ef342-66a0-47f9-a359-f2045f4a06df epoch=1
+2026/10/22 16:44:04 INFO run state transition run_id=f08ef342-66a0-47f9-a359-f2045f4a06df from=queued to=running
+2026/10/22 16:44:08 WARN manager: work item kill has no attempt for job revoke run_id=f08ef342-66a0-47f9-a359-f2045f4a06df work_item_id=a1f8a45d-1a26-4815-a723-6effd4a05ad4
+2026/10/22 16:44:10 ERROR engine: planner round failed run_id=f08ef342-66a0-47f9-a359-f2045f4a06df round=2 error=<nil>
+2026/10/22 16:44:11 INFO executor finished run_id=f08ef342-66a0-47f9-a359-f2045f4a06df epoch=1
+2026/10/22 16:44:11 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:44:11 INFO all active workers and retests stop requested
+2026/10/22 16:44:11 INFO created run run_id=96f559a3-cfe4-4ee3-a291-a4db12ca0bec task_id=3477771a-c138-4766-ba32-97eac6fe6b17 task_name=ma7-samples
+2026/10/22 16:44:11 INFO executor started run_id=96f559a3-cfe4-4ee3-a291-a4db12ca0bec epoch=1
+2026/10/22 16:44:12 INFO run state transition run_id=96f559a3-cfe4-4ee3-a291-a4db12ca0bec from=queued to=running
+2026/10/22 16:44:16 WARN manager: work item kill has no attempt for job revoke run_id=96f559a3-cfe4-4ee3-a291-a4db12ca0bec work_item_id=fb0fb05a-651f-484e-a473-d4ccaa96a162
+2026/10/22 16:44:18 ERROR engine: planner round failed run_id=96f559a3-cfe4-4ee3-a291-a4db12ca0bec round=2 error=<nil>
+2026/10/22 16:44:18 INFO executor finished run_id=96f559a3-cfe4-4ee3-a291-a4db12ca0bec epoch=1
+2026/10/22 16:44:18 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:44:18 INFO all active workers and retests stop requested
+2026/10/22 16:44:19 INFO created run run_id=5734c970-639b-4b29-98c3-843a455cdce2 task_id=8f2b73ae-5579-4ba8-bf24-ad32e6795ae8 task_name=ma7-samples
+2026/10/22 16:44:19 INFO executor started run_id=5734c970-639b-4b29-98c3-843a455cdce2 epoch=1
+2026/10/22 16:44:19 INFO run state transition run_id=5734c970-639b-4b29-98c3-843a455cdce2 from=queued to=running
+2026/10/22 16:44:23 WARN manager: work item kill has no attempt for job revoke run_id=5734c970-639b-4b29-98c3-843a455cdce2 work_item_id=6350aeef-338d-490f-b8b1-ae1fb831daba
+2026/10/22 16:44:25 ERROR engine: planner round failed run_id=5734c970-639b-4b29-98c3-843a455cdce2 round=2 error=<nil>
+2026/10/22 16:44:26 INFO executor finished run_id=5734c970-639b-4b29-98c3-843a455cdce2 epoch=1
+2026/10/22 16:44:26 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:44:26 INFO all active workers and retests stop requested
+2026/10/22 16:44:26 INFO created run run_id=ee1f7aee-89d3-407e-aa92-0fdbcc288d5f task_id=607e7659-c5a6-4367-b4ef-f5ab73557cb0 task_name=ma7-samples
+2026/10/22 16:44:26 INFO executor started run_id=ee1f7aee-89d3-407e-aa92-0fdbcc288d5f epoch=1
+2026/10/22 16:44:26 INFO run state transition run_id=ee1f7aee-89d3-407e-aa92-0fdbcc288d5f from=queued to=running
+2026/10/22 16:44:31 WARN manager: work item kill has no attempt for job revoke run_id=ee1f7aee-89d3-407e-aa92-0fdbcc288d5f work_item_id=633699e9-3dcd-4b01-9dda-4c4761f9d6c4
+2026/10/22 16:44:33 ERROR engine: planner round failed run_id=ee1f7aee-89d3-407e-aa92-0fdbcc288d5f round=2 error=<nil>
+2026/10/22 16:44:33 INFO executor finished run_id=ee1f7aee-89d3-407e-aa92-0fdbcc288d5f epoch=1
+2026/10/22 16:44:33 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:44:33 INFO all active workers and retests stop requested
+2026/10/22 16:44:34 INFO created run run_id=c428661f-6845-4898-b16b-3c6ce1d9b106 task_id=352762ee-806a-438d-b1c4-464e12f4e45f task_name=ma7-samples
+2026/10/22 16:44:34 INFO executor started run_id=c428661f-6845-4898-b16b-3c6ce1d9b106 epoch=1
+2026/10/22 16:44:34 INFO run state transition run_id=c428661f-6845-4898-b16b-3c6ce1d9b106 from=queued to=running
+2026/10/22 16:44:39 WARN manager: work item kill has no attempt for job revoke run_id=c428661f-6845-4898-b16b-3c6ce1d9b106 work_item_id=ef19076b-f3cf-46f4-bde9-f1736d853eeb
+2026/10/22 16:44:41 ERROR engine: planner round failed run_id=c428661f-6845-4898-b16b-3c6ce1d9b106 round=2 error=<nil>
+2026/10/22 16:44:41 INFO executor finished run_id=c428661f-6845-4898-b16b-3c6ce1d9b106 epoch=1
+2026/10/22 16:44:41 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:44:41 INFO all active workers and retests stop requested
+2026/10/22 16:44:42 INFO created run run_id=36b3432a-3c69-4181-98ef-b260cc731462 task_id=ffabea5f-b450-454d-bdea-6d6fa5916526 task_name=ma7-samples
+2026/10/22 16:44:42 INFO executor started run_id=36b3432a-3c69-4181-98ef-b260cc731462 epoch=1
+2026/10/22 16:44:42 INFO run state transition run_id=36b3432a-3c69-4181-98ef-b260cc731462 from=queued to=running
+2026/10/22 16:44:46 WARN manager: work item kill has no attempt for job revoke run_id=36b3432a-3c69-4181-98ef-b260cc731462 work_item_id=1db2422a-0f72-4275-9e2c-f8cbf9b64f9e
+2026/10/22 16:44:48 ERROR engine: planner round failed run_id=36b3432a-3c69-4181-98ef-b260cc731462 round=2 error=<nil>
+2026/10/22 16:44:48 INFO executor finished run_id=36b3432a-3c69-4181-98ef-b260cc731462 epoch=1
+2026/10/22 16:44:48 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:44:48 INFO all active workers and retests stop requested
+2026/10/22 16:44:49 INFO created run run_id=e13d8d0f-8315-4529-949a-ef96c39be121 task_id=4cbdd446-0c55-4dc6-b180-5517651ceb2a task_name=ma7-samples
+2026/10/22 16:44:49 INFO executor started run_id=e13d8d0f-8315-4529-949a-ef96c39be121 epoch=1
+2026/10/22 16:44:49 INFO run state transition run_id=e13d8d0f-8315-4529-949a-ef96c39be121 from=queued to=running
+2026/10/22 16:44:54 WARN manager: work item kill has no attempt for job revoke run_id=e13d8d0f-8315-4529-949a-ef96c39be121 work_item_id=de975b3a-9d53-444f-9abf-e2d8489a502b
+2026/10/22 16:44:56 ERROR engine: planner round failed run_id=e13d8d0f-8315-4529-949a-ef96c39be121 round=2 error=<nil>
+2026/10/22 16:44:56 INFO executor finished run_id=e13d8d0f-8315-4529-949a-ef96c39be121 epoch=1
+2026/10/22 16:44:56 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:44:56 INFO all active workers and retests stop requested
+2026/10/22 16:44:57 INFO created run run_id=ce91983e-ca60-4b05-9c58-a554e4de8b62 task_id=a192fd42-5ed9-474d-b25f-94426754a2bb task_name=ma7-samples
+2026/10/22 16:44:57 INFO executor started run_id=ce91983e-ca60-4b05-9c58-a554e4de8b62 epoch=1
+2026/10/22 16:44:57 INFO run state transition run_id=ce91983e-ca60-4b05-9c58-a554e4de8b62 from=queued to=running
+2026/10/22 16:45:01 WARN manager: work item kill has no attempt for job revoke run_id=ce91983e-ca60-4b05-9c58-a554e4de8b62 work_item_id=15012fdb-7ebb-4165-a844-39c5e7c9febd
+2026/10/22 16:45:03 ERROR engine: planner round failed run_id=ce91983e-ca60-4b05-9c58-a554e4de8b62 round=2 error=<nil>
+2026/10/22 16:45:03 INFO executor finished run_id=ce91983e-ca60-4b05-9c58-a554e4de8b62 epoch=1
+2026/10/22 16:45:03 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:45:03 INFO all active workers and retests stop requested
+2026/10/22 16:45:04 INFO created run run_id=93e3992b-d555-46f9-8300-4c370bc871bd task_id=cc007eef-15da-4e06-b484-88a7b1344fef task_name=ma7-samples
+2026/10/22 16:45:04 INFO executor started run_id=93e3992b-d555-46f9-8300-4c370bc871bd epoch=1
+2026/10/22 16:45:04 INFO run state transition run_id=93e3992b-d555-46f9-8300-4c370bc871bd from=queued to=running
+2026/10/22 16:45:09 WARN manager: work item kill has no attempt for job revoke run_id=93e3992b-d555-46f9-8300-4c370bc871bd work_item_id=fcc520c2-ced6-4ec4-9c4d-6deb48d6e3ff
+2026/10/22 16:45:11 ERROR engine: planner round failed run_id=93e3992b-d555-46f9-8300-4c370bc871bd round=2 error=<nil>
+2026/10/22 16:45:11 INFO executor finished run_id=93e3992b-d555-46f9-8300-4c370bc871bd epoch=1
+2026/10/22 16:45:11 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:45:11 INFO all active workers and retests stop requested
+2026/10/22 16:45:12 INFO created run run_id=b5c54da5-daed-47b9-9b59-b3378a092843 task_id=9f829788-af3d-440d-869a-58eeb8865b4c task_name=ma7-samples
+2026/10/22 16:45:12 INFO executor started run_id=b5c54da5-daed-47b9-9b59-b3378a092843 epoch=1
+2026/10/22 16:45:12 INFO run state transition run_id=b5c54da5-daed-47b9-9b59-b3378a092843 from=queued to=running
+2026/10/22 16:45:16 WARN manager: work item kill has no attempt for job revoke run_id=b5c54da5-daed-47b9-9b59-b3378a092843 work_item_id=556361fc-f41f-43bd-ab82-f515a4b909ee
+2026/10/22 16:45:18 ERROR engine: planner round failed run_id=b5c54da5-daed-47b9-9b59-b3378a092843 round=2 error=<nil>
+2026/10/22 16:45:18 INFO executor finished run_id=b5c54da5-daed-47b9-9b59-b3378a092843 epoch=1
+2026/10/22 16:45:18 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:45:18 INFO all active workers and retests stop requested
+2026/10/22 16:45:19 INFO created run run_id=d381967d-25f2-4579-a535-76dc16879311 task_id=66541451-3340-4217-a800-90948a074976 task_name=ma7-samples
+2026/10/22 16:45:19 INFO executor started run_id=d381967d-25f2-4579-a535-76dc16879311 epoch=1
+2026/10/22 16:45:19 INFO run state transition run_id=d381967d-25f2-4579-a535-76dc16879311 from=queued to=running
+2026/10/22 16:45:24 WARN manager: work item kill has no attempt for job revoke run_id=d381967d-25f2-4579-a535-76dc16879311 work_item_id=adf99ea8-acb3-4c2e-9708-992925de46d0
+2026/10/22 16:45:26 ERROR engine: planner round failed run_id=d381967d-25f2-4579-a535-76dc16879311 round=2 error=<nil>
+2026/10/22 16:45:26 INFO executor finished run_id=d381967d-25f2-4579-a535-76dc16879311 epoch=1
+2026/10/22 16:45:26 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:45:26 INFO all active workers and retests stop requested
+2026/10/22 16:45:27 INFO created run run_id=9d7bfc24-5ec8-4cfc-9985-94ada3c09b25 task_id=9df00a64-da58-41a9-b749-47549a7601bb task_name=ma7-samples
+2026/10/22 16:45:27 INFO executor started run_id=9d7bfc24-5ec8-4cfc-9985-94ada3c09b25 epoch=1
+2026/10/22 16:45:27 INFO run state transition run_id=9d7bfc24-5ec8-4cfc-9985-94ada3c09b25 from=queued to=running
+2026/10/22 16:45:31 WARN manager: work item kill has no attempt for job revoke run_id=9d7bfc24-5ec8-4cfc-9985-94ada3c09b25 work_item_id=8ceb6f38-810f-4da9-b56e-512f440ae56f
+2026/10/22 16:45:33 ERROR engine: planner round failed run_id=9d7bfc24-5ec8-4cfc-9985-94ada3c09b25 round=2 error=<nil>
+2026/10/22 16:45:33 INFO executor finished run_id=9d7bfc24-5ec8-4cfc-9985-94ada3c09b25 epoch=1
+2026/10/22 16:45:33 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:45:33 INFO all active workers and retests stop requested
+2026/10/22 16:45:34 INFO created run run_id=3db3bc63-fa8e-4565-ab73-07a91e087741 task_id=7a5575f6-a213-462e-b8f5-d486fa6ccd32 task_name=ma7-samples
+2026/10/22 16:45:34 INFO executor started run_id=3db3bc63-fa8e-4565-ab73-07a91e087741 epoch=1
+2026/10/22 16:45:34 INFO run state transition run_id=3db3bc63-fa8e-4565-ab73-07a91e087741 from=queued to=running
+2026/10/22 16:45:39 WARN manager: work item kill has no attempt for job revoke run_id=3db3bc63-fa8e-4565-ab73-07a91e087741 work_item_id=8fdc0dff-2c74-4bb2-ace8-26e7eb5b18db
+2026/10/22 16:45:41 ERROR engine: planner round failed run_id=3db3bc63-fa8e-4565-ab73-07a91e087741 round=2 error=<nil>
+2026/10/22 16:45:41 INFO executor finished run_id=3db3bc63-fa8e-4565-ab73-07a91e087741 epoch=1
+2026/10/22 16:45:41 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:45:41 INFO all active workers and retests stop requested
+2026/10/22 16:45:42 INFO created run run_id=071a8dee-f90d-42c5-a54d-a9a440a928c4 task_id=ce9606da-b7c9-487a-8eee-98a171bfe324 task_name=ma7-samples
+2026/10/22 16:45:42 INFO executor started run_id=071a8dee-f90d-42c5-a54d-a9a440a928c4 epoch=1
+2026/10/22 16:45:42 INFO run state transition run_id=071a8dee-f90d-42c5-a54d-a9a440a928c4 from=queued to=running
+2026/10/22 16:45:46 WARN manager: work item kill has no attempt for job revoke run_id=071a8dee-f90d-42c5-a54d-a9a440a928c4 work_item_id=943e667e-fb8a-4419-a431-a82cd73c6baa
+2026/10/22 16:45:48 ERROR engine: planner round failed run_id=071a8dee-f90d-42c5-a54d-a9a440a928c4 round=2 error=<nil>
+2026/10/22 16:45:48 INFO executor finished run_id=071a8dee-f90d-42c5-a54d-a9a440a928c4 epoch=1
+2026/10/22 16:45:48 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:45:48 INFO all active workers and retests stop requested
+2026/10/22 16:45:49 INFO created run run_id=2335e607-bcea-436a-9910-cad3f646a882 task_id=dda95093-6ab8-4c50-8ef2-5eaf08cd27e0 task_name=ma7-samples
+2026/10/22 16:45:49 INFO executor started run_id=2335e607-bcea-436a-9910-cad3f646a882 epoch=1
+2026/10/22 16:45:49 INFO run state transition run_id=2335e607-bcea-436a-9910-cad3f646a882 from=queued to=running
+2026/10/22 16:45:54 WARN manager: work item kill has no attempt for job revoke run_id=2335e607-bcea-436a-9910-cad3f646a882 work_item_id=c756f759-f586-4bc1-a32e-b6a6daec0501
+2026/10/22 16:45:56 ERROR engine: planner round failed run_id=2335e607-bcea-436a-9910-cad3f646a882 round=2 error=<nil>
+2026/10/22 16:45:56 INFO executor finished run_id=2335e607-bcea-436a-9910-cad3f646a882 epoch=1
+2026/10/22 16:45:56 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:45:56 INFO all active workers and retests stop requested
+2026/10/22 16:45:57 INFO created run run_id=906bce5f-3f29-4849-8976-a2d4c5439606 task_id=f8a7fec2-6ce6-41f1-ab32-c11127a1352b task_name=ma7-samples
+2026/10/22 16:45:57 INFO executor started run_id=906bce5f-3f29-4849-8976-a2d4c5439606 epoch=1
+2026/10/22 16:45:57 INFO run state transition run_id=906bce5f-3f29-4849-8976-a2d4c5439606 from=queued to=running
+2026/10/22 16:46:01 WARN manager: work item kill has no attempt for job revoke run_id=906bce5f-3f29-4849-8976-a2d4c5439606 work_item_id=eb775b7f-ef4e-4365-96bf-472c9ea14cc9
+2026/10/22 16:46:03 ERROR engine: planner round failed run_id=906bce5f-3f29-4849-8976-a2d4c5439606 round=2 error=<nil>
+2026/10/22 16:46:03 INFO executor finished run_id=906bce5f-3f29-4849-8976-a2d4c5439606 epoch=1
+2026/10/22 16:46:03 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:03 INFO all active workers and retests stop requested
+2026/10/22 16:46:04 INFO created run run_id=0818550e-cba9-41af-8329-90db1f071a4c task_id=16b2104e-2631-41dd-968d-f7d519a72d02 task_name=ma7-samples
+2026/10/22 16:46:04 INFO executor started run_id=0818550e-cba9-41af-8329-90db1f071a4c epoch=1
+2026/10/22 16:46:04 INFO run state transition run_id=0818550e-cba9-41af-8329-90db1f071a4c from=queued to=running
+2026/10/22 16:46:09 WARN manager: work item kill has no attempt for job revoke run_id=0818550e-cba9-41af-8329-90db1f071a4c work_item_id=5ec60431-e5f7-43bc-97b1-dbfa3b78bc78
+2026/10/22 16:46:11 ERROR engine: planner round failed run_id=0818550e-cba9-41af-8329-90db1f071a4c round=2 error=<nil>
+2026/10/22 16:46:11 INFO executor finished run_id=0818550e-cba9-41af-8329-90db1f071a4c epoch=1
+2026/10/22 16:46:11 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:11 INFO all active workers and retests stop requested
+2026/10/22 16:46:12 INFO created run run_id=ea4adda1-4f47-46af-9587-9c6a239feb45 task_id=5fcbe0af-39ff-4748-8ff1-a1cacfedce23 task_name=ma7-samples
+2026/10/22 16:46:12 INFO executor started run_id=ea4adda1-4f47-46af-9587-9c6a239feb45 epoch=1
+2026/10/22 16:46:12 INFO run state transition run_id=ea4adda1-4f47-46af-9587-9c6a239feb45 from=queued to=running
+2026/10/22 16:46:16 WARN manager: work item kill has no attempt for job revoke run_id=ea4adda1-4f47-46af-9587-9c6a239feb45 work_item_id=104b700c-36e8-4d05-8afa-34ad16c1ead1
+2026/10/22 16:46:18 ERROR engine: planner round failed run_id=ea4adda1-4f47-46af-9587-9c6a239feb45 round=2 error=<nil>
+2026/10/22 16:46:18 INFO executor finished run_id=ea4adda1-4f47-46af-9587-9c6a239feb45 epoch=1
+2026/10/22 16:46:18 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:18 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A07_PlannerSteerAndKillAreRealCommands (151.81s)
+    ma_acceptance_a01_a08_test.go:735: A07 failed 100 assertion(s); evidence /home/hjdssj/project/personal/oma-worktrees/ma-integration/docs/多Agent核心与工作台-实施计划/证据/integration-20round/A07.json; first: {Round:1 Check:planner follow-up Detail:no follow-up planner call while a worker was held}
+2026/10/22 16:46:19 INFO created run run_id=03633122-6434-4ccc-9d57-aa339b12b4a9 task_id=f20de1b1-a90d-4889-b086-0a9a3c522932 task_name=ma7-samples
+2026/10/22 16:46:20 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:20 INFO all active workers and retests stop requested
+2026/10/22 16:46:21 INFO created run run_id=3b3a78d5-92e6-4205-bf68-d8a0595e3f6c task_id=5644eec1-1f1c-456e-b827-ee96bb664ef8 task_name=ma7-samples
+2026/10/22 16:46:21 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:21 INFO all active workers and retests stop requested
+2026/10/22 16:46:22 INFO created run run_id=92262c73-5336-47a9-9a96-ccff14a91005 task_id=727a3e28-faea-4b46-8ab2-9248e4a596b5 task_name=ma7-samples
+2026/10/22 16:46:22 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:22 INFO all active workers and retests stop requested
+2026/10/22 16:46:23 INFO created run run_id=d98ca68f-9cd7-472c-8bb9-32cc7ef98914 task_id=9c2ae2ba-c384-4474-9bb3-fc2ab9dcd4a8 task_name=ma7-samples
+2026/10/22 16:46:23 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:23 INFO all active workers and retests stop requested
+2026/10/22 16:46:24 INFO created run run_id=417b8453-3509-4082-943c-5c89760f734d task_id=654f74ba-558f-4cfd-8f01-c613fdf6eeb3 task_name=ma7-samples
+2026/10/22 16:46:24 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:24 INFO all active workers and retests stop requested
+2026/10/22 16:46:25 INFO created run run_id=1ffe34f5-f485-4a7c-8d3b-1fdd425f41ec task_id=3414bf1a-7c8d-4eeb-8cf4-659e5ef09faf task_name=ma7-samples
+2026/10/22 16:46:25 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:25 INFO all active workers and retests stop requested
+2026/10/22 16:46:26 INFO created run run_id=4776e215-59c7-4ac7-89dd-0e24e0989224 task_id=eb9ba188-1a52-4cb5-af62-8ba5d83dff8b task_name=ma7-samples
+2026/10/22 16:46:26 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:26 INFO all active workers and retests stop requested
+2026/10/22 16:46:27 INFO created run run_id=ed44f0eb-84e7-450d-8812-ee4a6a54f8b3 task_id=937d269a-1a6d-4145-889c-7237ddfdb1fd task_name=ma7-samples
+2026/10/22 16:46:28 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:28 INFO all active workers and retests stop requested
+2026/10/22 16:46:29 INFO created run run_id=231afedb-1d45-45df-a33c-d908a416630c task_id=64172a1c-1246-4609-9a23-c5c0cab30c97 task_name=ma7-samples
+2026/10/22 16:46:29 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:29 INFO all active workers and retests stop requested
+2026/10/22 16:46:30 INFO created run run_id=e31a3461-f3bb-40f4-af16-5181d8f98fb5 task_id=894d7c58-89bd-4681-8444-ba462f6d2165 task_name=ma7-samples
+2026/10/22 16:46:30 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:30 INFO all active workers and retests stop requested
+2026/10/22 16:46:31 INFO created run run_id=29e8e855-2533-4e51-adbf-cd62322252bf task_id=6b8a5063-aabe-4134-af01-b408c940b9e8 task_name=ma7-samples
+2026/10/22 16:46:31 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:31 INFO all active workers and retests stop requested
+2026/10/22 16:46:32 INFO created run run_id=8a74c80a-8800-4f27-90ce-4d1917417c54 task_id=78f81d22-d133-4309-ae09-62c5623923da task_name=ma7-samples
+2026/10/22 16:46:32 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:32 INFO all active workers and retests stop requested
+2026/10/22 16:46:33 INFO created run run_id=d3aae30f-288f-46c2-89bc-d39446a605c0 task_id=c2d82b22-6e18-47b2-bbb2-7459f3ffc54f task_name=ma7-samples
+2026/10/22 16:46:33 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:33 INFO all active workers and retests stop requested
+2026/10/22 16:46:34 INFO created run run_id=354a0569-8f4d-4123-816d-cd138f1889a9 task_id=8cf3fc55-b913-4754-af5a-88cabcf8e927 task_name=ma7-samples
+2026/10/22 16:46:34 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:34 INFO all active workers and retests stop requested
+2026/10/22 16:46:35 INFO created run run_id=32019c0e-5043-4dbc-ad13-647845ffc9f3 task_id=384ba780-a869-4897-8262-c9a3cd977695 task_name=ma7-samples
+2026/10/22 16:46:36 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:36 INFO all active workers and retests stop requested
+2026/10/22 16:46:36 INFO created run run_id=e7425809-1549-463d-91f5-a9b0176781a8 task_id=b74f5601-cc74-43a7-b1e5-8035622569e4 task_name=ma7-samples
+2026/10/22 16:46:37 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:37 INFO all active workers and retests stop requested
+2026/10/22 16:46:38 INFO created run run_id=b2593905-e79d-4332-82df-3e677292292f task_id=e36ba6c2-a727-4e3f-b90a-5ce1f4ab8ac5 task_name=ma7-samples
+2026/10/22 16:46:38 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:38 INFO all active workers and retests stop requested
+2026/10/22 16:46:39 INFO created run run_id=e291ff0e-0248-4358-b1fe-ca85f30f74ec task_id=5a991b3c-755f-4cea-9fba-038625380ecb task_name=ma7-samples
+2026/10/22 16:46:39 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:39 INFO all active workers and retests stop requested
+2026/10/22 16:46:40 INFO created run run_id=f54d9733-f3a7-4aaf-80b0-587390ff3c09 task_id=3846c2ac-725c-4407-a052-c6cb6dd38342 task_name=ma7-samples
+2026/10/22 16:46:40 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:40 INFO all active workers and retests stop requested
+2026/10/22 16:46:41 INFO created run run_id=cff765eb-026d-4eeb-9d55-651e6e20215e task_id=94dc1a03-6174-4729-a162-dbc7374faf54 task_name=ma7-samples
+2026/10/22 16:46:41 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:41 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A08_MainAgentIdempotentBoundary (22.82s)
+    ma_acceptance_a01_a08_test.go:860: A08 failed 20 assertion(s); evidence /home/hjdssj/project/personal/oma-worktrees/ma-integration/docs/多Agent核心与工作台-实施计划/证据/integration-20round/A08.json; first: {Round:1 Check:pause cites command and session Detail:pause_cmds=0 cited=0 session=""}
+2026/10/22 16:46:43 INFO created run run_id=362c1f1c-7d71-4803-8bc0-5f1754483f43 task_id=dcb0df12-9026-4f4b-a3e6-3c16d89107c6 task_name=ma7-seeds-m-76ccab1cb468
+2026/10/22 16:46:43 INFO executor started run_id=362c1f1c-7d71-4803-8bc0-5f1754483f43 epoch=1
+2026/10/22 16:46:43 INFO run state transition run_id=362c1f1c-7d71-4803-8bc0-5f1754483f43 from=queued to=running
+2026/10/22 16:46:44 INFO executor finished run_id=362c1f1c-7d71-4803-8bc0-5f1754483f43 epoch=1
+2026/10/22 16:46:44 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:44 INFO all active workers and retests stop requested
+2026/10/22 16:46:44 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:44 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A09_AuthenticatedHTTPIdentityAndTLS (2.45s)
+    ma_acceptance_a09_a16_test.go:153: A09 failed 4 assertion(s); evidence /home/hjdssj/project/personal/oma-worktrees/ma-integration/docs/多Agent核心与工作台-实施计划/证据/integration-20round/A09.json; first: {Round:1 Check:https seed accepted Detail:status 500 body {"error":"failed to create run: only http scheme is permitted for seed URL"}
+        }
+2026/10/22 16:46:45 INFO created run run_id=e5e1243d-b46a-4807-8e39-b91a735bc996 task_id=6309d481-4f43-4b12-a65e-66c5d45000c5 task_name=ma7-seeds-m-1c96f6c360eb
+2026/10/22 16:46:45 INFO executor started run_id=e5e1243d-b46a-4807-8e39-b91a735bc996 epoch=1
+2026/10/22 16:46:45 INFO run state transition run_id=e5e1243d-b46a-4807-8e39-b91a735bc996 from=queued to=running
+2026/10/22 16:46:45 ERROR session runner: tool execution failed tool=get_endpoint error="scope_denied: origin page limit reached"
+2026/10/22 16:46:45 ERROR session runner: tool execution failed tool=get_endpoint error="scope_denied: origin page limit reached"
+2026/10/22 16:46:49 INFO executor finished run_id=e5e1243d-b46a-4807-8e39-b91a735bc996 epoch=1
+2026/10/22 16:46:49 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:49 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A10_OriginLimitDedupAndNoNetworkInLock (5.30s)
+    ma_acceptance_a09_a16_test.go:263: A10 failed 1 assertion(s); evidence /home/hjdssj/project/personal/oma-worktrees/ma-integration/docs/多Agent核心与工作台-实施计划/证据/integration-20round/A10.json; first: {Round:1 Check:origin overlap Detail:peak in-flight catalog requests=2; completion count is not overlap}
+2026/10/22 16:46:50 INFO created run run_id=f906bbed-4b77-4919-87bc-a51a3ce2b0fc task_id=c7695b95-9d7d-484f-be30-127eba47eb4e task_name=ma7-samples
+2026/10/22 16:46:50 INFO executor started run_id=f906bbed-4b77-4919-87bc-a51a3ce2b0fc epoch=1
+2026/10/22 16:46:50 INFO run state transition run_id=f906bbed-4b77-4919-87bc-a51a3ce2b0fc from=queued to=running
+2026/10/22 16:46:50 ERROR session runner: tool validation failed tool=run_command error="tool not found: unknown tool 'run_command'"
+2026/10/22 16:46:50 ERROR session runner: tool validation failed tool=run_command error="tool not found: unknown tool 'run_command'"
+2026/10/22 16:46:50 ERROR session runner: tool validation failed tool=run_command error="tool not found: unknown tool 'run_command'"
+2026/10/22 16:46:50 INFO executor finished run_id=f906bbed-4b77-4919-87bc-a51a3ce2b0fc epoch=1
+2026/10/22 16:46:51 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:51 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A11_ContainerIsolationAndTrustedCapture (2.16s)
+    ma_acceptance_a09_a16_test.go:326: A11 failed 2 assertion(s); evidence /home/hjdssj/project/personal/oma-worktrees/ma-integration/docs/多Agent核心与工作台-实施计划/证据/integration-20round/A11.json; first: {Round:1 Check:job row Detail:run_command produced no execution_jobs row}
+2026/10/22 16:46:52 INFO created run run_id=7374551b-b0a6-40f4-83e4-535b8140f1bc task_id=9f02208e-bfca-4e96-ad85-65be9ba07113 task_name=ma7-samples
+2026/10/22 16:46:52 INFO executor started run_id=7374551b-b0a6-40f4-83e4-535b8140f1bc epoch=1
+2026/10/22 16:46:52 INFO run state transition run_id=7374551b-b0a6-40f4-83e4-535b8140f1bc from=queued to=running
+2026/10/22 16:46:58 INFO executor finished run_id=7374551b-b0a6-40f4-83e4-535b8140f1bc epoch=1
+2026/10/22 16:46:58 INFO executor started run_id=7374551b-b0a6-40f4-83e4-535b8140f1bc epoch=2
+2026/10/22 16:46:59 INFO executor finished run_id=7374551b-b0a6-40f4-83e4-535b8140f1bc epoch=2
+2026/10/22 16:46:59 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:46:59 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A12_StopKillEpochNoLeak (7.54s)
+    ma_acceptance_a09_a16_test.go:436: A12 failed 2 assertion(s); evidence /home/hjdssj/project/personal/oma-worktrees/ma-integration/docs/多Agent核心与工作台-实施计划/证据/integration-20round/A12.json; first: {Round:1 Check:cancel releases model wait Detail:in_flight=1 after stop}
+2026/10/22 16:47:00 INFO created run run_id=27a63e7f-4dfb-44da-a7da-b423f7232e53 task_id=325e0dac-0d4e-42b4-94d4-3839df0d2b05 task_name=ma7-samples
+2026/10/22 16:47:00 INFO retest executor started retest_id=ce2daa6e-3027-4f1f-a9c5-abe4863ac360 run_id=27a63e7f-4dfb-44da-a7da-b423f7232e53
+2026/10/22 16:47:00 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:47:00 INFO retest stop requested via StopAll retest_id=ce2daa6e-3027-4f1f-a9c5-abe4863ac360
+2026/10/22 16:47:00 INFO all active workers and retests stop requested
+2026/10/22 16:47:00 ERROR retest execution failed retest_id=ce2daa6e-3027-4f1f-a9c5-abe4863ac360 run_id=27a63e7f-4dfb-44da-a7da-b423f7232e53 error="begin transaction: context canceled"
+2026/10/22 16:47:00 INFO retest executor finished retest_id=ce2daa6e-3027-4f1f-a9c5-abe4863ac360 run_id=27a63e7f-4dfb-44da-a7da-b423f7232e53
+--- FAIL: TestMA_A13_ProofRequiresTrustedTargetEvidence (1.03s)
+    ma_acceptance_a09_a16_test.go:567: A13 failed 2 assertion(s); evidence /home/hjdssj/project/personal/oma-worktrees/ma-integration/docs/多Agent核心与工作台-实施计划/证据/integration-20round/A13.json; first: {Round:1 Check:fixed invalidation not observed Detail:finish status 400 body {"error":"invalid evidence for goal proof: structured retest source_tool_call_id is required"}
+        }
+2026/10/22 16:47:01 INFO created run run_id=51a3dd40-5dcf-4ca0-a23f-bc236d48b811 task_id=73bc00a2-b178-4ccc-a900-86937e09e4fb task_name=ma7-seeds-m-1933affd211d
+2026/10/22 16:47:01 INFO executor started run_id=51a3dd40-5dcf-4ca0-a23f-bc236d48b811 epoch=1
+2026/10/22 16:47:01 INFO run state transition run_id=51a3dd40-5dcf-4ca0-a23f-bc236d48b811 from=queued to=running
+2026/10/22 16:47:01 ERROR session runner: tool validation failed tool=http_request error="tool not found: unknown tool 'http_request'"
+2026/10/22 16:47:01 ERROR session runner: tool validation failed tool=run_command error="tool not found: unknown tool 'run_command'"
+2026/10/22 16:47:01 ERROR session runner: tool validation failed tool=http_request error="tool not found: unknown tool 'http_request'"
+2026/10/22 16:47:01 ERROR session runner: tool validation failed tool=run_command error="tool not found: unknown tool 'run_command'"
+2026/10/22 16:47:02 INFO executor finished run_id=51a3dd40-5dcf-4ca0-a23f-bc236d48b811 epoch=1
+2026/10/22 16:47:02 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:47:02 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A14_LabCollaborationIsMaterial (1.83s)
+    ma_acceptance_a09_a16_test.go:701: A14 failed 2 assertion(s); evidence /home/hjdssj/project/personal/oma-worktrees/ma-integration/docs/多Agent核心与工作台-实施计划/证据/integration-20round/A14.json; first: {Round:1 Check:authorized analysis Detail:identities=map[]; workers did not keep materials separate}
+--- FAIL: TestMA_A15_BrowserFlowNotExecutedHere (0.00s)
+    ma_acceptance_a09_a16_test.go:714: A15 failed 1 assertion(s); evidence /home/hjdssj/project/personal/oma-worktrees/ma-integration/docs/多Agent核心与工作台-实施计划/证据/integration-20round/A15.json; first: {Round:1 Check:browser flow Detail:Playwright did not run against an isolated stack; screenshots from another server are not evidence}
+2026/10/22 16:47:03 INFO created run run_id=e9839e97-e7fa-4582-b7d1-5e586d48d528 task_id=5df0d376-012c-4918-9f5b-cdda6f44faf3 task_name=ma7-samples
+2026/10/22 16:47:03 INFO worker manager closed (no new workers accepted)
+2026/10/22 16:47:03 INFO all active workers and retests stop requested
+--- FAIL: TestMA_A16_HistoryAndReleaseGates (0.99s)
+    ma_acceptance_a09_a16_test.go:781: A16 failed 2 assertion(s); evidence /home/hjdssj/project/personal/oma-worktrees/ma-integration/docs/多Agent核心与工作台-实施计划/证据/integration-20round/A16.json; first: {Round:1 Check:old database upgrade Detail:agent_workbench was not migrated or compared; development history was not copied or rewritten}
+FAIL
+EXIT:1
