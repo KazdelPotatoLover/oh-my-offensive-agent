@@ -53,13 +53,19 @@ services:
       # This service must not mount the Docker socket.
     volumes:
       - ${OMA_WORKSPACE_ROOT:-/tmp/oma-workspaces}:${OMA_WORKSPACE_ROOT:-/tmp/oma-workspaces}
+    healthcheck:
+      test: ["CMD", "/app/server", "--healthcheck"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
     depends_on:
       db:
         condition: service_healthy
       fixture:
         condition: service_started
       execution-broker:
-        condition: service_started
+        condition: service_healthy
 
   frontend:
     build:
@@ -72,7 +78,8 @@ services:
       INTERNAL_API_URL: http://127.0.0.1:${BACKEND_PORT:-28080}
       NEXT_PUBLIC_API_URL: http://localhost:${BACKEND_PORT:-28080}
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   # Merged from deploy/execution/compose.fragment.yml.
   # The broker is the only service that mounts the Docker socket.
@@ -80,7 +87,13 @@ services:
     build:
       context: ./backend
       dockerfile: ../deploy/execution/broker.Dockerfile
-    command: ["/oma-broker", "--listen", "0.0.0.0:28184", "--workspace-root", "${OMA_WORKSPACE_ROOT:-/tmp/oma-workspaces}"]
+    command: ["--listen", "0.0.0.0:28184", "--workspace-root", "${OMA_WORKSPACE_ROOT:-/tmp/oma-workspaces}"]
+    healthcheck:
+      test: ["CMD", "/oma-broker", "--healthcheck"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 3s
     environment:
       OMA_BROKER_TOKEN: '${OMA_BROKER_TOKEN:?Run python3 scripts/prepare-runtime.py first}'
     ports:

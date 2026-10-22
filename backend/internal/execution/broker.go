@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/url"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -104,6 +104,7 @@ func (b *Broker) dockerAPI(ctx context.Context) (*dockerAPI, error) {
 
 func (b *Broker) Handler() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
 	mux.HandleFunc("/v1/jobs", b.handleRun)
 	mux.HandleFunc("/v1/jobs/", b.handleJob)
 	mux.HandleFunc("/v1/reconcile", b.handleReconcile)

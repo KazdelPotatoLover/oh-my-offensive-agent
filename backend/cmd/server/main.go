@@ -31,6 +31,18 @@ func main() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
 
 	cfg := config.Load()
+	if len(os.Args) == 2 && os.Args[1] == "--healthcheck" {
+		client := &http.Client{Timeout: 2 * time.Second}
+		resp, err := client.Get("http://127.0.0.1:" + cfg.Port + "/health")
+		if err != nil {
+			os.Exit(1)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			os.Exit(1)
+		}
+		return
+	}
 	if _, err := provider.LoadProcessModelSettings(); err != nil {
 		slog.Error("invalid model process settings", "error", err)
 		os.Exit(1)

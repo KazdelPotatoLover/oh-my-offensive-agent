@@ -7,7 +7,12 @@ services:
     build:
       context: ./backend
       dockerfile: ../deploy/execution/broker.Dockerfile
-    command: ["/oma-broker", "--listen", "0.0.0.0:28184", "--workspace-root", "/var/lib/oma/workspaces"]
+    command: ["--listen", "0.0.0.0:28184", "--workspace-root", "/var/lib/oma/workspaces"]
+    healthcheck:
+      test: ["CMD", "/oma-broker", "--healthcheck"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
     environment:
       OMA_BROKER_TOKEN: ${OMA_BROKER_TOKEN}
     ports:

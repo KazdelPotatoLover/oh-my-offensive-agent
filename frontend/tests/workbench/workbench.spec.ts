@@ -202,3 +202,11 @@ test('narrow layout switches panes without dropping the run', async ({ page }) =
   await expect(page.getByTestId('direction-card')).toHaveCount(4);
   await captionShot(page, 'contract-fixture-narrow');
 });
+
+test('switches to exploration canvas and displays graph nodes', async ({ page }) => {
+  await page.goto(runPath());
+  await expect(page.getByRole('button', { name: /探索链路画板/ })).toBeVisible();
+  await page.getByRole('button', { name: /探索链路画板/ }).click();
+  await expect(page.getByTestId('exploration-canvas')).toBeVisible();
+  await captionShot(page, 'contract-fixture-canvas');
+});

@@ -1038,6 +1038,27 @@ func (s *RunService) GraphOverview(ctx context.Context, runID uuid.UUID) (map[st
 		}
 	}
 
+	edgeRows, err := s.pool.Query(ctx,
+		`SELECT id, src_id, dst_id, rel FROM exploration_edges WHERE run_id = $1 AND valid = true ORDER BY created_at ASC`,
+		runID,
+	)
+	edgesSummary := make([]map[string]any, 0)
+	if err == nil {
+		defer edgeRows.Close()
+		for edgeRows.Next() {
+			var eid, srcID, dstID uuid.UUID
+			var rel string
+			if err := edgeRows.Scan(&eid, &srcID, &dstID, &rel); err == nil {
+				edgesSummary = append(edgesSummary, map[string]any{
+					"id":  eid.String(),
+					"src": srcID.String(),
+					"dst": dstID.String(),
+					"rel": rel,
+				})
+			}
+		}
+	}
+
 	allGoalsMet := totalGoals > 0 && metGoals == totalGoals
 
 	return map[string]any{
@@ -1046,6 +1067,7 @@ func (s *RunService) GraphOverview(ctx context.Context, runID uuid.UUID) (map[st
 		"facts":              factsSummary,
 		"open_intents":       openIntents,
 		"running_intents":    runningIntents,
+		"edges":              edgesSummary,
 		"done_intents_total": doneCount,
 		"total_goals":        totalGoals,
 		"met_goals":          metGoals,

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { EXPLORATION_TEMPLATE, QUICK_TEMPLATE, buildAgentsConfig, buildDiscoveryScope, buildRunBudget, droppedBudgetFields, validateWorkerCount } from './budget';
 import { buildCommand, classifyCommandResponse, commandsPath, mainMessagesPath, readCommandResult, readMainMessages, readSnapshot, workbenchSnapshotPath } from './client';
-import { parseMainMessagePage, parseWorkbenchSnapshot } from './parse';
+import { parseMainMessagePage, parseWorkbenchSnapshot, type WorkbenchSnapshot } from './parse';
 import { workbenchHref, selectionFromPath } from './links';
 import { appendMessages, failLoad, initialLoadState, resetLoad, succeedLoad } from './state';
 
@@ -11,7 +11,7 @@ const WORK = '22222222-2222-4222-8222-222222222222';
 const ATTEMPT = '33333333-3333-4333-8333-333333333333';
 const SESSION = '44444444-4444-4444-8444-444444444444';
 
-function snapshot(overrides: Record<string, unknown> = {}) {
+function snapshot(overrides: Record<string, unknown> = {}): WorkbenchSnapshot {
   return {
     schema_version: 'workbench.v1',
     snapshot_at: '2026-10-22T00:00:00Z',
@@ -74,12 +74,12 @@ test('snapshot and message errors are not rewritten into empty collections', asy
 });
 
 test('load state keeps the last snapshot on failure and drops it when the run changes', () => {
-  const first = succeedLoad(initialLoadState(), 1, snapshot());
+  const first = succeedLoad(initialLoadState<WorkbenchSnapshot>(), 1, snapshot());
   const failed = failLoad(first, 1, { status: 500, code: 'persistence_error', message: 'read failed' });
   assert.equal(failed.data?.directions.length, 1);
   assert.equal(failed.stale, true);
   assert.equal(failed.error?.message, 'read failed');
-  const reset = resetLoad(2);
+  const reset = resetLoad<WorkbenchSnapshot>(2);
   assert.equal(reset.data, null);
   const staleWrite = succeedLoad(reset, 1, snapshot());
   assert.equal(staleWrite.data, null);
