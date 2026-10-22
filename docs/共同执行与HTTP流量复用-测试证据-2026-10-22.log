@@ -1,0 +1,77 @@
+2026-10-22 HTTP 共同执行与材料复用：实跑日志摘要
+所有数据库测试只连独立 oma-shared-http-tests / agent_workbench_ma_integration。
+目标仅本地 httptest，模型仅替身；没有付费模型/用户网站请求。
+GOTMPDIR=/home/hjdssj/.cache/oma-test-tmp
+完整日志目录：/home/hjdssj/.cache/oma-shared-http-evidence/
+以下为保留通过记录和共享材料 IDs 的摘要，省略模拟 panic 的服务端堆栈。
+
+新增回归
+$ go test ./test -run 'TestSharedHTTP|TestToolPanic|TestIntentSummary' -v -count=1 -timeout 60s
+--- PASS: TestIntentSummary_HistoricalPayloads (0.93s)
+    shared_http_test.go:178: run=f9852b90-4f9b-4835-825d-bf13f9d15b80 target=GET http://127.0.0.1:46253/ worker_A=b04e667b-f810-4249-a459-24c06c09d4f2 worker_B=ec238ba1-ee11-4cbd-a64d-1bff2eef69c4 receipt=71b98ccf-81a8-468e-8132-47864d1fee69 artifact=a224dab7-4e00-43d2-a575-edaeced4b46c original_tool_call=40ad0645-7185-404c-90da-b77d588cef4f worker_B_read_call=1728cbfc-3217-40e9-9ff2-c75b30617d0e target_requests=1 reused_bytes=9661 tail="共享末尾证据"
+--- PASS: TestSharedHTTP_TwoWorkersReuseFullCapture (1.59s)
+--- PASS: TestSharedHTTP_TrustFiltersHistoryAndRedaction (1.15s)
+--- PASS: TestToolPanic_WorkerPlannerPersistAndContinue (1.11s)
+    --- PASS: TestToolPanic_WorkerPlannerPersistAndContinue/worker (0.14s)
+    --- PASS: TestToolPanic_WorkerPlannerPersistAndContinue/planner (0.10s)
+--- PASS: TestToolPanic_MainRecordsFailureAndContinues (0.97s)
+PASS
+ok  	agent-workbench/backend/test	5.755s
+
+代表性回归
+$ go test ./test -run 'TestSharedHTTP|TestToolPanic|TestIntentSummary|TestCoreHTTP|TestDiscovery_|TestRunRecovery_|TestMAControl|TestMAHTTP|TestScenario_Stop|TestSession_PersistenceFailure|TestP3_ContractE4|TestAudit_' -count=1 -timeout 180s
+ok  	agent-workbench/backend/test	52.124s
+
+race
+$ go test -race ./test -run 'TestSharedHTTP|TestToolPanic|TestIntentSummary|TestCoreHTTP|TestP3_ContractE4' -v -count=1 -timeout 120s
+--- PASS: TestCoreHTTPReadArtifactObservationAndFact (1.28s)
+--- PASS: TestIntentSummary_HistoricalPayloads (1.10s)
+--- PASS: TestP3_ContractE4_NewFactWakesPlannerToDispatchConcurrently (3.57s)
+    shared_http_test.go:178: run=1388e737-6db2-495b-8b1d-5fe7d4cb0aac worker_A=cedc1509-8907-43b7-815c-e4a88108f8d6 worker_B=633e4969-931b-4937-95b9-b1f4d8e77361 receipt=7d8487a2-1e9f-423b-ba62-58bbaa1bfc22 artifact=441bb103-d6c2-48bc-8090-32001208daea original_tool_call=2e8438ca-45a6-40e8-b409-557ebcf331ac target_requests=1 reused_bytes=9661
+--- PASS: TestSharedHTTP_TwoWorkersReuseFullCapture (2.49s)
+--- PASS: TestSharedHTTP_TrustFiltersHistoryAndRedaction (1.42s)
+--- PASS: TestToolPanic_WorkerPlannerPersistAndContinue (1.44s)
+    --- PASS: TestToolPanic_WorkerPlannerPersistAndContinue/worker (0.23s)
+    --- PASS: TestToolPanic_WorkerPlannerPersistAndContinue/planner (0.16s)
+--- PASS: TestToolPanic_MainRecordsFailureAndContinues (1.23s)
+PASS
+ok  	agent-workbench/backend/test	13.603s
+
+独立提交 checkout
+$ 06b3010: go test ./test -run 'TestSharedHTTP|TestToolPanic|TestIntentSummary|TestCoreHTTP' -count=1 -timeout 60s
+ok  	agent-workbench/backend/test	9.357s
+
+Netcap
+$ go test ./internal/netcap -count=1 -timeout 90s
+ok  	agent-workbench/backend/internal/netcap	4.501s
+
+单元包
+$ go test ./internal/agent ./internal/tools ./internal/controlplane ./internal/service ./internal/model ./internal/orchestration -count=1
+ok  	agent-workbench/backend/internal/agent	0.014s
+ok  	agent-workbench/backend/internal/tools	0.005s
+ok  	agent-workbench/backend/internal/controlplane	0.005s
+ok  	agent-workbench/backend/internal/service	0.004s
+ok  	agent-workbench/backend/internal/model	0.003s
+ok  	agent-workbench/backend/internal/orchestration	0.174s
+
+前端单元
+$ npm run test:unit
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 969.454606
+
+前端生产构建
+$ npm run build
+ ✓ Compiled successfully
+ ✓ Generating static pages (7/7)
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+静态检查
+$ go vet ./...
+退出码 0，无诊断。
