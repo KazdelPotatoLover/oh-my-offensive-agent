@@ -58,7 +58,6 @@ func TestOrchestration_DualWorker_ParallelExecution_Mock(t *testing.T) {
 
 	var currentActive int32
 	var maxActive int32
-	var claimedKeys []string
 
 	engine := orchestration.NewEngine(
 		run.ID, env.runService, mockProv, budget,
@@ -70,9 +69,6 @@ func TestOrchestration_DualWorker_ParallelExecution_Mock(t *testing.T) {
 					break
 				}
 			}
-		}),
-		orchestration.WithOnWorkItemHook(func(key string) {
-			claimedKeys = append(claimedKeys, key)
 		}),
 	)
 
