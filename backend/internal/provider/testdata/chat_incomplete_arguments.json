@@ -1,0 +1,18 @@
+{
+  "id": "chat_incomplete",
+  "choices": [
+    {
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "call_1",
+            "type": "function",
+            "function": {"name": "list_samples", "arguments": "{"}
+          }
+        ]
+      }
+    }
+  ]
+}

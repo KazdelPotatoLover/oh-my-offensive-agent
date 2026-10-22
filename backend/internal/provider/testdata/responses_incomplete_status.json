@@ -1,0 +1,14 @@
+{
+  "id": "resp_incomplete_status",
+  "status": "completed",
+  "output": [
+    {
+      "type": "function_call",
+      "id": "fc_item_not_a_call_id",
+      "call_id": "call_status",
+      "name": "list_samples",
+      "arguments": "{}",
+      "status": "in_progress"
+    }
+  ]
+}

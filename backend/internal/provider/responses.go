@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -101,18 +100,23 @@ func (p *ResponsesProvider) Call(ctx context.Context, messages []ChatMessage, to
 	if model == "" {
 		model = p.defaultModel
 	}
+	maxTokens, err := BoundOutputTokens(opts.MaxOutputTokens)
+	if err != nil {
+		return nil, err
+	}
 	defs := make([]responseTool, 0, len(tools))
 	for _, t := range tools {
 		defs = append(defs, responseTool{Type: "function", Name: t.Name, Description: t.Description, Parameters: t.Parameters, Strict: false})
 	}
 	body, err := json.Marshal(struct {
-		Model   string            `json:"model"`
-		Input   []json.RawMessage `json:"input"`
-		Tools   []responseTool    `json:"tools,omitempty"`
-		Store   bool              `json:"store"`
-		Stream  bool              `json:"stream"`
-		Include []string          `json:"include"`
-	}{model, input, defs, false, false, []string{"reasoning.encrypted_content"}})
+		Model           string            `json:"model"`
+		Input           []json.RawMessage `json:"input"`
+		Tools           []responseTool    `json:"tools,omitempty"`
+		Store           bool              `json:"store"`
+		Stream          bool              `json:"stream"`
+		Include         []string          `json:"include"`
+		MaxOutputTokens int               `json:"max_output_tokens"`
+	}{model, input, defs, false, false, []string{"reasoning.encrypted_content"}, maxTokens})
 	if err != nil {
 		return nil, fmt.Errorf("marshal responses request: %w", err)
 	}
@@ -126,20 +130,17 @@ func (p *ResponsesProvider) Call(ctx context.Context, messages []ChatMessage, to
 	}
 	resp, err := p.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrOpenAIUpstream, err)
+		return nil, transportCallError(err)
 	}
 	defer resp.Body.Close()
-	const maxBody = 16 << 20
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxBody+1))
+	raw, err := readLimitedBody(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("read responses body: %w", err)
+		return nil, err
 	}
-	if len(raw) > maxBody {
-		return nil, fmt.Errorf("%w: response body exceeds limit", ErrProtocol)
-	}
+	requestID := boundRequestID(resp.Header.Get("x-request-id"))
 	// Do not persist upstream error bodies: gateways can echo credentials or prompts.
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return &ModelResponse{RequestID: resp.Header.Get("x-request-id")}, fmt.Errorf("%w: Responses HTTP %d", ErrOpenAIUpstream, resp.StatusCode)
+		return &ModelResponse{RequestID: requestID}, httpCallError(resp.StatusCode, requestID, resp.Header.Get("Retry-After"), raw, messageSecrets(p.apiKey, messages))
 	}
 	result, err := parseResponse(raw)
 	if result == nil {
@@ -149,7 +150,10 @@ func (p *ResponsesProvider) Call(ctx context.Context, messages []ChatMessage, to
 		_ = json.Unmarshal(raw, &metadata)
 		result = &ModelResponse{ResponseID: metadata.ID}
 	}
-	result.RequestID = resp.Header.Get("x-request-id")
+	result.RequestID = requestID
+	if err != nil {
+		err = annotateDiagnosis(err, resp.StatusCode, requestID, raw)
+	}
 	return result, err
 }
 
@@ -172,46 +176,42 @@ func parseResponse(raw []byte) (*ModelResponse, error) {
 		return nil, fmt.Errorf("%w: invalid Responses JSON", ErrProtocol)
 	}
 	if len(wire.Error) > 0 && string(wire.Error) != "null" {
-		return nil, fmt.Errorf("%w: Responses reported an error", ErrOpenAIUpstream)
+		return nil, &CallError{Class: ClassUpstream, Retryable: true, Summary: ErrOpenAIUpstream.Error() + ": Responses reported an error", unwrap: []error{ErrOpenAIUpstream}}
 	}
 	if wire.Status != "completed" && wire.Status != "incomplete" {
-		return nil, fmt.Errorf("%w: unexpected Responses status %q", ErrProtocol, wire.Status)
+		return nil, protocolCallError(ClassBadSchema, fmt.Sprintf("unexpected Responses status %q", wire.Status), false)
 	}
 	r := &ModelResponse{ResponseID: wire.ID, FinishReason: "stop", NativePayload: &NativePayload{Format: FormatResponses, Output: wire.Output}}
 	if wire.Usage != nil {
 		r.Usage = &ModelUsage{wire.Usage.Input, wire.Usage.Output, wire.Usage.Total}
 	}
-	seen := map[string]bool{}
 	var text strings.Builder
+	var parsedCalls []parsedFunctionCall
 	refused, finalText := false, false
 	for _, rawItem := range wire.Output {
 		var item struct {
-			Type      string `json:"type"`
-			Role      string `json:"role"`
-			CallID    string `json:"call_id"`
-			Name      string `json:"name"`
-			Arguments string `json:"arguments"`
-			Phase     string `json:"phase"`
-			Status    string `json:"status"`
+			Type      string          `json:"type"`
+			Role      string          `json:"role"`
+			CallID    string          `json:"call_id"`
+			Name      string          `json:"name"`
+			Arguments json.RawMessage `json:"arguments"`
+			Phase     string          `json:"phase"`
+			Status    string          `json:"status"`
 			Content   []struct {
 				Type string `json:"type"`
 				Text string `json:"text"`
 			} `json:"content"`
 		}
 		if err := json.Unmarshal(rawItem, &item); err != nil {
-			return nil, fmt.Errorf("%w: invalid output item", ErrProtocol)
+			return nil, protocolCallError(ClassBadSchema, "invalid output item", false)
 		}
 		switch item.Type {
 		case "reasoning": // Preserve opaque encrypted reasoning for the next round.
 		case "function_call":
-			if item.CallID == "" || item.Name == "" || seen[item.CallID] {
-				return nil, fmt.Errorf("%w: missing or duplicate function call_id/name", ErrProtocol)
-			}
-			if wire.Status == "completed" && (!json.Valid([]byte(item.Arguments)) || (item.Status != "" && item.Status != "completed")) {
-				return nil, fmt.Errorf("%w: incomplete function arguments or status", ErrProtocol)
-			}
-			seen[item.CallID] = true
-			r.ToolCalls = append(r.ToolCalls, ToolCall{ID: item.CallID, Type: "function", Function: FunctionCall{Name: item.Name, Arguments: item.Arguments}})
+			args, argsErr := NormalizeArguments(item.Arguments)
+			parsedCalls = append(parsedCalls, parsedFunctionCall{
+				ID: item.CallID, Name: item.Name, Arguments: args, Status: item.Status, ArgsOK: argsErr == nil,
+			})
 		case "message":
 			if item.Role != "assistant" {
 				return nil, fmt.Errorf("%w: output message must be assistant", ErrProtocol)
@@ -226,26 +226,35 @@ func parseResponse(raw []byte) (*ModelResponse, error) {
 				case "refusal":
 					refused = true
 				default:
-					return nil, fmt.Errorf("%w: unsupported message content %q", ErrProtocol, c.Type)
+					return nil, protocolCallError(ClassBadSchema, fmt.Sprintf("unsupported message content %q", c.Type), false)
 				}
 			}
 		default:
-			return nil, fmt.Errorf("%w: unsupported output type %q", ErrProtocol, item.Type)
+			return nil, protocolCallError(ClassBadSchema, fmt.Sprintf("unsupported output type %q", item.Type), false)
 		}
 	}
 	r.Content = text.String()
 	switch {
 	case refused:
 		r.FinishReason = "refusal"
+		r.ToolCalls = nil
 	case wire.Status == "incomplete":
 		if wire.Incomplete.Reason != "max_output_tokens" {
-			return nil, fmt.Errorf("%w: incomplete Responses output", ErrProtocol)
+			return nil, protocolCallError(ClassBadSchema, "incomplete Responses output", false)
 		}
 		r.FinishReason = "length"
-	case len(r.ToolCalls) > 0:
-		r.FinishReason = "tool_calls"
-	case !finalText:
-		return nil, fmt.Errorf("%w: completed response has no final answer or function calls", ErrProtocol)
+		r.ToolCalls = nil
+	default:
+		calls, err := ExecutableToolCalls(parsedCalls)
+		if err != nil {
+			return nil, err
+		}
+		r.ToolCalls = calls
+		if len(calls) > 0 {
+			r.FinishReason = "tool_calls"
+		} else if !finalText {
+			return nil, protocolCallError(ClassBadSchema, "completed response has no final answer or function calls", false)
+		}
 	}
 	return r, nil
 }

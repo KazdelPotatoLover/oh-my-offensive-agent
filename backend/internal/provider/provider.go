@@ -66,8 +66,9 @@ type ModelResponse struct {
 }
 
 type ModelOpts struct {
-	ModelName string
-	Timeout   time.Duration
+	ModelName       string
+	Timeout         time.Duration
+	MaxOutputTokens int
 }
 
 type Provider interface {

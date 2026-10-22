@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "epoch_number": 1,
+  "provider_alias": "historical",
+  "protocol": "chat_completions",
+  "model_alias": "configured-model",
+  "roles": {
+    "mainagent": {"budget_source": "main_reserved", "pause_cancels": true, "stop_cancels": true, "deadline_cancels": true},
+    "planner": {"budget_source": "planner_reserved", "pause_cancels": true, "stop_cancels": true, "deadline_cancels": true},
+    "worker": {"budget_source": "worker_local_then_run", "pause_cancels": true, "stop_cancels": true, "deadline_cancels": true},
+    "verifier": {"budget_source": "run_global", "pause_cancels": true, "stop_cancels": true, "deadline_cancels": true}
+  }
+}
