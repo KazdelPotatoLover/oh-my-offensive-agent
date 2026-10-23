@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Activity,
+  AlertTriangle,
   Brain,
   ChevronDown,
   ChevronRight,
@@ -21,6 +22,7 @@ import {
   Play,
   Radio,
   Send,
+  Settings2,
   Sliders,
   Square,
 } from 'lucide-react';
@@ -426,25 +428,25 @@ function WorkbenchSession() {
     <div lang="zh-CN" data-testid="workbench-shell" className="fixed inset-x-0 bottom-0 top-16 z-40 flex flex-col overflow-y-auto bg-gray-950 text-gray-100">
       <h1 className="sr-only">统一工作台</h1>
 
-      {/* Sleek Modern Header */}
-      {runId && !creating && <header className="shrink-0 border-b border-gray-800 bg-gray-950/80 px-4 py-2 backdrop-blur">
-        {/* Top row: Status & Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Sleek Modern Header (Compact ARTEX-style) */}
+      {runId && !creating && <header className="shrink-0 border-b border-gray-800 bg-gray-950/90 px-3 py-1.5 backdrop-blur">
+        {/* Top row: Status, Badges & Actions */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
           {/* Status Pills */}
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-gray-800 bg-gray-900/90 px-2.5 py-1">
-              <span className={`inline-block size-2 rounded-full ${runStatus === 'running' ? 'bg-emerald-400 animate-pulse' : runStatus === 'paused' ? 'bg-amber-400' : 'bg-gray-400'}`} />
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-gray-800 bg-gray-900/90 px-2.5 py-0.5 shadow-sm">
+              <span className={`inline-block size-2 rounded-full ${runStatus === 'running' ? 'bg-emerald-400 animate-pulse' : runStatus === 'paused' ? 'bg-amber-400' : 'bg-rose-400'}`} />
               <span data-testid="run-status" className="font-semibold text-gray-200">
                 Run 状态 {snap ? snap.run.status : '无 workbench.v1 快照'}
               </span>
             </div>
 
-            <div className="inline-flex items-center gap-1 rounded-md border border-gray-800 bg-gray-900 px-2 py-1 font-mono text-[11px] text-gray-300">
+            <div className="inline-flex items-center gap-1 rounded-md border border-gray-800 bg-gray-900/80 px-2 py-0.5 font-mono text-[11px] text-gray-300">
               <span data-testid="run-epoch">Epoch {snap ? snap.run.epoch_number : '无'}{snap ? ` · 快照 ${snap.snapshot_at}` : ''}</span>
             </div>
 
             {snap && (
-              <div className="inline-flex items-center gap-1 rounded-md border border-gray-800 bg-gray-900 px-2 py-1 text-[11px] text-gray-300">
+              <div className="inline-flex items-center gap-1 rounded-md border border-gray-800 bg-gray-900/80 px-2 py-0.5 text-[11px] text-gray-300">
                 <Brain className="size-3 text-purple-400" />
                 <span data-testid="planner-status">
                   Planner {snap.planner.status}{snap.planner.reason ? ` · ${snap.planner.reason}` : ''}{snap.planner.session_id ? ` · session ${snap.planner.session_id}` : ''}
@@ -453,13 +455,13 @@ function WorkbenchSession() {
             )}
 
             {runRecord.data && (
-              <span data-testid="legacy-epoch" className="text-[11px] text-gray-500">
+              <span data-testid="legacy-epoch" className="text-[10px] text-gray-500">
                 记录 current_epoch {runRecord.data.current_epoch}。命令只使用快照 Epoch。
               </span>
             )}
           </div>
 
-          {/* Action buttons */}
+          {/* Action buttons & Settings Toggle */}
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center rounded-lg border border-gray-800 bg-gray-900 p-0.5 shadow-sm">
               <button
@@ -467,7 +469,7 @@ function WorkbenchSession() {
                 data-testid="pause-run"
                 disabled={!canPause}
                 onClick={() => { const body = commandFor('pause_run'); if (body) void sendCommand(body); }}
-                className="flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium text-amber-300 hover:bg-amber-500/10 disabled:opacity-40"
+                className="flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium text-amber-300 hover:bg-amber-500/10 disabled:opacity-40 transition-colors"
               >
                 <Pause className="size-3" />
                 暂停
@@ -477,7 +479,7 @@ function WorkbenchSession() {
                 data-testid="resume-run"
                 disabled={!canResume}
                 onClick={() => { const body = commandFor('resume_run'); if (body) void sendCommand(body); }}
-                className="flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium text-blue-300 hover:bg-blue-500/10 disabled:opacity-40"
+                className="flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium text-blue-300 hover:bg-blue-500/10 disabled:opacity-40 transition-colors"
               >
                 <Play className="size-3" />
                 恢复
@@ -487,155 +489,218 @@ function WorkbenchSession() {
                 data-testid="stop-run"
                 disabled={!canStop}
                 onClick={() => { const body = commandFor('stop_run'); if (body) void sendCommand(body); }}
-                className="flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium text-rose-300 hover:bg-rose-500/10 disabled:opacity-40"
+                className="flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium text-rose-300 hover:bg-rose-500/10 disabled:opacity-40 transition-colors"
               >
                 <Square className="size-3" />
                 停止
               </button>
             </div>
-          </div>
-        </div>
 
-        {terminationNotice && (
-          <div role="status" data-testid="run-termination-notice" className="mt-2 rounded border border-amber-800/60 bg-amber-950/30 p-2 text-xs text-amber-100">
-            <p className="font-medium">{terminationNotice.title}</p>
-            <p className="mt-1 whitespace-pre-wrap break-words">{terminationNotice.detail}</p>
-          </div>
-        )}
-
-        {/* Structured Advanced Controls Tray (Compact) */}
-        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-gray-800/80 bg-gray-900/60 p-2 text-xs">
-          <div className="flex flex-wrap items-center gap-1.5 border-r border-gray-800 pr-3">
-            <span className="font-semibold text-gray-300">代次控制:</span>
-            <label className="text-gray-400">原因
-              <input
-                data-testid="epoch-reason"
-                placeholder="例如: 停止后继续探索"
-                value={epochReason}
-                onChange={(event) => setEpochReason(event.target.value)}
-                className={`${fieldClass} ml-1`}
-              />
-            </label>
-            <label className="text-gray-400">摘要
-              <input
-                aria-label="代次摘要"
-                placeholder="可选摘要"
-                value={epochSummary}
-                onChange={(event) => setEpochSummary(event.target.value)}
-                className={`${fieldClass} ml-1`}
-              />
-            </label>
             <button
               type="button"
-              data-testid="start-epoch"
-              disabled={!canEpoch || epochReason.trim() === ''}
-              onClick={() => {
-                const body = commandFor('start_epoch', { reason: epochReason.trim(), ...(epochSummary.trim() ? { summary: epochSummary.trim() } : {}) });
-                if (body) void sendCommand(body);
-              }}
-              className="rounded bg-indigo-600 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-40"
+              onClick={() => setShowAdvancedControls(!showAdvancedControls)}
+              className={cn(
+                'flex items-center gap-1.5 rounded-lg border px-2.5 py-0.5 text-xs font-medium transition-all shadow-sm',
+                showAdvancedControls
+                  ? 'border-indigo-500/50 bg-indigo-950/40 text-indigo-300'
+                  : 'border-gray-800 bg-gray-900 text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+              )}
+              title="展开或折叠运行资源与预算设置"
             >
-              继续任务（新 Epoch）
+              <Settings2 className="size-3 text-gray-400" />
+              <span>设置与指标</span>
+              {showAdvancedControls ? <ChevronUp className="size-3 text-gray-400" /> : <ChevronDown className="size-3 text-gray-400" />}
             </button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="font-semibold text-gray-300">追加授权:</span>
-            {(() => {
-              const flags = limitFlags(snap?.budget);
-              if (flags.known && !flags.model && !flags.tool && !flags.seconds) {
-                return <span data-testid="grant-unneeded" className="text-gray-400">无需追加授权</span>;
-              }
-              const model = flags.model ? grant.model : 0;
-              const tool = flags.tool ? grant.tool : 0;
-              const seconds = flags.seconds ? grant.seconds : 0;
-              return (
-                <>
-                  {flags.model && <label className="text-gray-400">模型
-                    <input
-                      data-testid="grant-model-calls"
-                      type="number"
-                      value={grant.model}
-                      onChange={(event) => setGrant((c) => ({ ...c, model: Number(event.target.value) }))}
-                      className={`${fieldClass} ml-1 w-14`}
-                    />
-                  </label>}
-                  {flags.tool && <label className="text-gray-400">工具
-                    <input
-                      aria-label="追加工具次数"
-                      type="number"
-                      value={grant.tool}
-                      onChange={(event) => setGrant((c) => ({ ...c, tool: Number(event.target.value) }))}
-                      className={`${fieldClass} ml-1 w-14`}
-                    />
-                  </label>}
-                  {flags.seconds && <label className="text-gray-400">秒数
-                    <input
-                      aria-label="追加秒数"
-                      type="number"
-                      value={grant.seconds}
-                      onChange={(event) => setGrant((c) => ({ ...c, seconds: Number(event.target.value) }))}
-                      className={`${fieldClass} ml-1 w-14`}
-                    />
-                  </label>}
-                  <button
-                    type="button"
-                    data-testid="grant-budget"
-                    disabled={!canCommand || runStatus === 'completed' || runStatus === 'stopping' || (model <= 0 && tool <= 0 && seconds <= 0)}
-                    onClick={() => {
-                      const body = commandFor('grant_budget', {
-                        additional_model_calls: model,
-                        additional_tool_calls: tool,
-                        additional_seconds: seconds,
-                      });
-                      if (body) void sendCommand(body);
-                    }}
-                    className="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-40"
-                  >
-                    追加授权
-                  </button>
-                </>
-              );
-            })()}
           </div>
         </div>
 
-        {/* Structured Metric Cards Row (Compact) */}
-        {snap && (
-          <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-            <div className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-1.5">
-              <p className="text-[11px] text-gray-400">Worker 容量池</p>
-              <p data-testid="worker-capacity" className="mt-0.5 font-mono text-[11px] text-gray-200">
-                requested {snap.worker_capacity.requested} / effective {snap.worker_capacity.effective} / active {snap.worker_capacity.active} / queued {snap.worker_capacity.queued}
-              </p>
-              <p data-testid="worker-count" className="text-[10px] text-gray-500">方向 {snap.directions.length}</p>
-            </div>
-
-            <div className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-1.5">
-              <p className="text-[11px] text-gray-400">模型并发与记录</p>
-              <p data-testid="model-capacity" className="mt-0.5 font-mono text-[11px] text-gray-200">
-                limit {snap.model_capacity.limit} / in_flight {snap.model_capacity.in_flight} / queued {snap.model_capacity.queued}
-              </p>
-              <p data-testid="model-call-count" className="text-[10px] text-gray-500">
-                {modelCalls.error ? `读取失败：${modelCalls.error}` : `模型调用记录 ${modelCalls.count == null ? '未知' : modelCalls.count} 条`}
-              </p>
-            </div>
-
-            <div className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-1.5">
-              <p className="text-[11px] text-gray-400">源站控制</p>
-              <p data-testid="origin-pacing" className="mt-0.5 font-mono text-[11px] text-gray-200">
-                源站等待 {snap.origin_pacing?.waiting ? '是' : '否'}{snap.origin_pacing?.reason ? ` · ${snap.origin_pacing.reason}` : ''}
-              </p>
-            </div>
-
-            <div className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-1.5">
-              <p className="text-[11px] text-gray-400">全局预算配额</p>
-              <p data-testid="budget-summary" className="mt-0.5 font-mono text-[10px] text-gray-300">
-                {budgetSummaryText(snap.budget)}
-              </p>
+        {/* Compact Termination / Recovery Notice */}
+        {terminationNotice && (
+          <div role="status" data-testid="run-termination-notice" className="mt-1.5 rounded-md border border-amber-800/60 bg-amber-950/40 px-3 py-1.5 text-xs text-amber-200">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="size-4 text-amber-400 shrink-0" />
+                <div>
+                  <span className="font-semibold text-amber-300">{terminationNotice.title}</span>
+                  {terminationNotice.detail && (
+                    <span className="ml-2 text-amber-200/90">{terminationNotice.detail}</span>
+                  )}
+                </div>
+              </div>
+              {canEpoch && (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    data-testid="epoch-reason"
+                    placeholder="继续原因..."
+                    value={epochReason}
+                    onChange={(event) => setEpochReason(event.target.value)}
+                    className={`${fieldClass} w-44 text-xs`}
+                  />
+                  <button
+                    type="button"
+                    data-testid="start-epoch"
+                    disabled={!canEpoch || epochReason.trim() === ''}
+                    onClick={() => {
+                      const body = commandFor('start_epoch', { reason: epochReason.trim(), ...(epochSummary.trim() ? { summary: epochSummary.trim() } : {}) });
+                      if (body) void sendCommand(body);
+                    }}
+                    className="rounded bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-40 transition-colors shadow-sm shrink-0"
+                  >
+                    继续任务（新 Epoch）
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
+
+        {/* Compact Stopped / Continuation Row (when stopped without notice) */}
+        {!terminationNotice && canEpoch && (
+          <div className="mt-1.5 rounded-md border border-gray-800 bg-gray-900/60 px-3 py-1.5 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-gray-300">
+                <span className="inline-block size-2 rounded-full bg-rose-400" />
+                <span>任务当前已停止。填写原因以启动新 Epoch 继续执行:</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <input
+                  data-testid="epoch-reason"
+                  placeholder="例如: 停止后继续探索"
+                  value={epochReason}
+                  onChange={(event) => setEpochReason(event.target.value)}
+                  className={`${fieldClass} w-48 text-xs`}
+                />
+                <button
+                  type="button"
+                  data-testid="start-epoch"
+                  disabled={!canEpoch || epochReason.trim() === ''}
+                  onClick={() => {
+                    const body = commandFor('start_epoch', { reason: epochReason.trim(), ...(epochSummary.trim() ? { summary: epochSummary.trim() } : {}) });
+                    if (body) void sendCommand(body);
+                  }}
+                  className="rounded bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-40 transition-colors shadow-sm shrink-0"
+                >
+                  继续任务（新 Epoch）
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Collapsible Section: Metrics & Budget Grants (hidden by default) */}
+        <div className={cn('transition-all', !showAdvancedControls && 'hidden')}>
+          {/* Grant budget row */}
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-800/80 bg-gray-900/60 p-2 text-xs">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="font-semibold text-gray-300">追加授权:</span>
+              {(() => {
+                const flags = limitFlags(snap?.budget);
+                if (flags.known && !flags.model && !flags.tool && !flags.seconds) {
+                  return <span data-testid="grant-unneeded" className="text-gray-400">无需追加授权</span>;
+                }
+                const model = flags.model ? grant.model : 0;
+                const tool = flags.tool ? grant.tool : 0;
+                const seconds = flags.seconds ? grant.seconds : 0;
+                return (
+                  <>
+                    {flags.model && <label className="text-gray-400">模型
+                      <input
+                        data-testid="grant-model-calls"
+                        type="number"
+                        value={grant.model}
+                        onChange={(event) => setGrant((c) => ({ ...c, model: Number(event.target.value) }))}
+                        className={`${fieldClass} ml-1 w-14`}
+                      />
+                    </label>}
+                    {flags.tool && <label className="text-gray-400">工具
+                      <input
+                        aria-label="追加工具次数"
+                        type="number"
+                        value={grant.tool}
+                        onChange={(event) => setGrant((c) => ({ ...c, tool: Number(event.target.value) }))}
+                        className={`${fieldClass} ml-1 w-14`}
+                      />
+                    </label>}
+                    {flags.seconds && <label className="text-gray-400">秒数
+                      <input
+                        aria-label="追加秒数"
+                        type="number"
+                        value={grant.seconds}
+                        onChange={(event) => setGrant((c) => ({ ...c, seconds: Number(event.target.value) }))}
+                        className={`${fieldClass} ml-1 w-14`}
+                      />
+                    </label>}
+                    <button
+                      type="button"
+                      data-testid="grant-budget"
+                      disabled={!canCommand || runStatus === 'completed' || runStatus === 'stopping' || (model <= 0 && tool <= 0 && seconds <= 0)}
+                      onClick={() => {
+                        const body = commandFor('grant_budget', {
+                          additional_model_calls: model,
+                          additional_tool_calls: tool,
+                          additional_seconds: seconds,
+                        });
+                        if (body) void sendCommand(body);
+                      }}
+                      className="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-40"
+                    >
+                      追加授权
+                    </button>
+                  </>
+                );
+              })()}
+            </div>
+
+            {canEpoch && (
+              <label className="text-gray-400 flex items-center gap-1">可选摘要
+                <input
+                  aria-label="代次摘要"
+                  placeholder="代次补充描述..."
+                  value={epochSummary}
+                  onChange={(event) => setEpochSummary(event.target.value)}
+                  className={`${fieldClass} w-40 text-xs`}
+                />
+              </label>
+            )}
+          </div>
+
+          {/* Structured Metric Cards Row */}
+          {snap && (
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+              <div className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-2">
+                <p className="text-[11px] text-gray-400">Worker 容量池</p>
+                <p data-testid="worker-capacity" className="mt-0.5 font-mono text-[11px] text-gray-200">
+                  requested {snap.worker_capacity.requested} / effective {snap.worker_capacity.effective} / active {snap.worker_capacity.active} / queued {snap.worker_capacity.queued}
+                </p>
+                <p data-testid="worker-count" className="text-[10px] text-gray-500">方向 {snap.directions.length}</p>
+              </div>
+
+              <div className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-2">
+                <p className="text-[11px] text-gray-400">模型并发与记录</p>
+                <p data-testid="model-capacity" className="mt-0.5 font-mono text-[11px] text-gray-200">
+                  limit {snap.model_capacity.limit} / in_flight {snap.model_capacity.in_flight} / queued {snap.model_capacity.queued}
+                </p>
+                <p data-testid="model-call-count" className="text-[10px] text-gray-500">
+                  {modelCalls.error ? `读取失败：${modelCalls.error}` : `模型调用记录 ${modelCalls.count == null ? '未知' : modelCalls.count} 条`}
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-2">
+                <p className="text-[11px] text-gray-400">源站控制</p>
+                <p data-testid="origin-pacing" className="mt-0.5 font-mono text-[11px] text-gray-200">
+                  源站等待 {snap.origin_pacing?.waiting ? '是' : '否'}{snap.origin_pacing?.reason ? ` · ${snap.origin_pacing.reason}` : ''}
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-2">
+                <p className="text-[11px] text-gray-400">全局预算配额</p>
+                <p data-testid="budget-summary" className="mt-0.5 font-mono text-[10px] text-gray-300">
+                  {budgetSummaryText(snap.budget)}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Alerts & feedback */}
         {snapshot.stale && <p role="alert" data-testid="stale-snapshot" className="mt-1 text-xs text-amber-200">上次快照仍保留。{snapshot.error?.message}</p>}
