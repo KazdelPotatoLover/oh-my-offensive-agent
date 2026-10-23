@@ -44,7 +44,7 @@ func (s *RunService) SaveContextCheckpoint(ctx context.Context, runID, sessionID
 		return err
 	}
 	_, err = tx.Exec(ctx, `INSERT INTO context_checkpoints(run_id,work_item_id,session_id,covered_messages,source_sha256,strategy,summary,view_messages)
-		VALUES($1,$2,$3,$4,$5,'extractive_protocol_blocks_v1',$6,$7) ON CONFLICT(session_id,covered_messages,source_sha256) DO NOTHING`, runID, workID, sessionID, len(raw), provider.ConversationHash(raw), summary, json.RawMessage(encoded))
+		VALUES($1,$2,$3,$4,$5,'extractive_protocol_blocks_v2',$6,$7) ON CONFLICT(session_id,covered_messages,source_sha256) DO NOTHING`, runID, workID, sessionID, len(raw), provider.ConversationHash(raw), summary, json.RawMessage(encoded))
 	if err != nil {
 		return err
 	}

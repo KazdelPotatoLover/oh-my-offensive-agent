@@ -268,16 +268,24 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 		view, summary, compacted, compactErr := provider.CompactConversation(messages, sr.budget.ContextWindowBytes)
 		if compactErr != nil {
 			sr.insertSessionEvent("context_compaction_failed", map[string]any{"error": compactErr.Error()})
+			if errors.Is(compactErr, provider.ErrContextLimit) {
+				sr.updateSessionTerminal("stopped", "context_limit_exceeded")
+				return &SessionResult{SessionID: sr.sessionID, FinishReason: "context_limit_exceeded", ModelCallsCount: modelCallCount, ToolCallsCount: toolCallCount, TotalTokens: totalTokens}, compactErr
+			}
 			sr.updateSessionTerminal("failed", "context_compaction_failed")
 			return nil, compactErr
 		}
 		if compacted {
 			if err := sr.runService.SaveContextCheckpoint(ctx, sr.runID, sr.sessionID, view, summary); err != nil {
+				if ctx.Err() != nil {
+					sr.updateSessionTerminal(cancellationSessionStatus(ctx), string(model.ResolveCancelCause(ctx)))
+					return nil, ctx.Err()
+				}
 				sr.updateSessionTerminal("failed", "checkpoint_persistence_error")
-				return nil, err
+				return nil, fmt.Errorf("%w: save context checkpoint: %v", ErrPersistenceFailure, err)
 			}
 			messages = view
-			sr.insertSessionEvent("context_compacted", map[string]any{"strategy": "extractive_protocol_blocks_v1"})
+			sr.insertSessionEvent("context_compacted", map[string]any{"strategy": "extractive_protocol_blocks_v2"})
 		}
 
 		// Admission, limiter, record, and one Provider.Call. Retries stay in this loop.

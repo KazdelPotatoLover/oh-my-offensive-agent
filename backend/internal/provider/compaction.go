@@ -4,8 +4,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 // CheckpointMessage keeps provider-native reasoning/response items alongside
@@ -40,9 +42,13 @@ func ConversationHash(messages []ChatMessage) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// CompactConversation replaces only complete historical protocol blocks. It
-// preserves all system instructions and the current exchange, and never splits
-// a tool batch or its native Responses items. The digest is an index, not proof.
+// ErrContextLimit means local history cannot fit without dropping protected
+// instructions or splitting the latest protocol block. It is not a provider error.
+var ErrContextLimit = errors.New("context cannot be safely compacted")
+
+// CompactConversation replaces complete historical protocol blocks, preserving
+// system instructions, the original user request and the latest exchange. Native
+// reasoning and tool-call payloads in the retained suffix remain byte-for-byte.
 func CompactConversation(messages []ChatMessage, limit int) ([]ChatMessage, string, bool, error) {
 	if limit <= 0 {
 		limit = 98304
@@ -54,11 +60,26 @@ func CompactConversation(messages []ChatMessage, limit int) ([]ChatMessage, stri
 	if len(raw) <= limit {
 		return messages, "", false, nil
 	}
-	pending := map[string]bool{}
-	cut := 0
+	firstUser := -1
 	for i, m := range messages {
-		if i >= len(messages)-8 {
+		if m.Role == RoleUser {
+			firstUser = i
 			break
+		}
+	}
+	// Skip impossible candidates before building indexes or re-encoding a long
+	// restored transcript. Each message's serialized size is additive in JSON.
+	suffixBytes := make([]int, len(messages)+1)
+	for i := len(messages) - 1; i >= 0; i-- {
+		encoded, _ := EncodeCheckpoint(messages[i : i+1])
+		suffixBytes[i] = suffixBytes[i+1] + len(encoded) - 2
+	}
+	protectedBytes, protectedCount := 0, 0
+	pending := map[string]bool{}
+	for i, m := range messages {
+		if m.Role == RoleSystem || i == firstUser {
+			protectedBytes += suffixBytes[i] - suffixBytes[i+1]
+			protectedCount++
 		}
 		if m.Role == RoleAssistant {
 			for _, call := range m.ToolCalls {
@@ -68,43 +89,67 @@ func CompactConversation(messages []ChatMessage, limit int) ([]ChatMessage, stri
 		if m.Role == RoleTool {
 			delete(pending, m.ToolCallID)
 		}
-		if len(pending) == 0 && m.Role != RoleSystem {
-			cut = i + 1
-		}
-	}
-	if cut == 0 {
-		return nil, "", false, fmt.Errorf("context limit exceeded within an indivisible protocol block; full transcript retained")
-	}
-	var digest strings.Builder
-	digest.WriteString("Historical context index (not new evidence). Original messages and native payloads remain available through traces and artifacts.\n")
-	view := []ChatMessage{}
-	for i, m := range messages[:cut] {
-		if m.Role == RoleSystem {
-			view = append(view, m)
+		// Try progressively shorter complete suffixes instead of retaining an
+		// arbitrary message count. Never remove the current (possibly open) batch.
+		if len(pending) != 0 || m.Role == RoleSystem || i+1 == len(messages) {
 			continue
 		}
-		text := m.Content
-		// Store references and excerpts rather than fabricate a model summary.
-		if len(text) > 200 {
-			text = string([]rune(text)[:min(100, len([]rune(text)))]) + "…"
+		cut := i + 1
+		lowerBound := 2 + protectedBytes + suffixBytes[cut] + max(0, protectedCount+len(messages)-cut-1)
+		if lowerBound > limit {
+			continue
 		}
-		if digest.Len() < 5000 {
-			fmt.Fprintf(&digest, "[%d %s] %s", i, m.Role, text)
-			for _, call := range m.ToolCalls {
-				fmt.Fprintf(&digest, " tool=%s call=%s", call.Function.Name, call.ID)
+		view := make([]ChatMessage, 0, len(messages))
+		history := make([]string, 0, cut)
+		for j, old := range messages[:cut] {
+			if old.Role == RoleSystem || j == firstUser {
+				view = append(view, old)
+				continue
 			}
-			if m.ToolCallID != "" {
-				fmt.Fprintf(&digest, " result_of=%s", m.ToolCallID)
+			entry := fmt.Sprintf("[%d %s] %s", j, old.Role, contextExcerpt(old.Content, 200))
+			for _, call := range old.ToolCalls {
+				entry += fmt.Sprintf(" tool=%s call=%s", contextExcerpt(call.Function.Name, 80), contextExcerpt(call.ID, 100))
+				if len(entry) > 600 {
+					break
+				}
 			}
-			digest.WriteByte('\n')
+			if old.ToolCallID != "" {
+				entry += " result_of=" + contextExcerpt(old.ToolCallID, 100)
+			}
+			history = append(history, contextExcerpt(entry, 800)+"\n")
+		}
+		if len(history) == 0 {
+			continue
+		}
+		header := "Historical context index (not new evidence). Full original messages and native payloads remain in traces/artifacts.\n"
+		remaining := max(0, min(4096, limit/8)-len(header))
+		start := len(history)
+		// Prefer recent outcomes and references when the index itself is bounded.
+		for start > 0 && len(history[start-1]) <= remaining {
+			start--
+			remaining -= len(history[start])
+		}
+		summary := header + strings.Join(history[start:], "")
+		view = append(view, ChatMessage{Role: RoleUser, Content: summary})
+		view = append(view, messages[cut:]...)
+		packed, packErr := EncodeCheckpoint(view)
+		if packErr != nil {
+			return nil, "", false, packErr
+		}
+		if len(packed) < len(raw) && len(packed) <= limit {
+			return view, summary, true, nil
 		}
 	}
-	summary := digest.String()
-	view = append(view, ChatMessage{Role: RoleUser, Content: summary})
-	view = append(view, messages[cut:]...)
-	packed, _ := EncodeCheckpoint(view)
-	if len(packed) >= len(raw) || len(packed) > limit {
-		return nil, "", false, fmt.Errorf("context cannot be safely compacted below the configured limit; raw transcript retained")
+	return nil, "", false, fmt.Errorf("%w: %d bytes exceeds limit %d; original request, system instructions and latest protocol block retained in full transcript", ErrContextLimit, len(raw), limit)
+}
+
+func contextExcerpt(s string, limit int) string {
+	if len(s) <= limit {
+		return s
 	}
-	return view, summary, true, nil
+	end := limit - len("…")
+	for end > 0 && !utf8.RuneStart(s[end]) {
+		end--
+	}
+	return s[:max(0, end)] + "…"
 }

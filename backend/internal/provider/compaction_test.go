@@ -52,4 +52,63 @@ func TestCompactionRefusesToSplitOpenToolBatch(t *testing.T) {
 	}
 	_, _, _, err := CompactConversation(messages, 4000)
 	require.Error(t, err)
+	require.ErrorIs(t, err, ErrContextLimit)
+}
+
+// Regression: real Planner failures had only 7-8 messages. Message count must
+// not prevent compaction of otherwise complete protocol blocks.
+func TestCompactionShortConversationRetainsRequestAndLatestBatch(t *testing.T) {
+	for _, turns := range []int{2, 3} {
+		t.Run(fmt.Sprintf("%d_messages", 2+turns*2), func(t *testing.T) {
+			messages := []ChatMessage{{Role: RoleSystem, Content: "Scope is immutable"}, {Role: RoleUser, Content: strings.Repeat("Current task and authorized scope. ", 150)}}
+			for i := 0; i < turns; i++ {
+				id := fmt.Sprintf("read-%d", i)
+				messages = append(messages,
+					ChatMessage{Role: RoleAssistant, ToolCalls: []ToolCall{{ID: id, Function: FunctionCall{Name: "read_artifact", Arguments: `{}`}}}, NativePayload: &NativePayload{Format: "responses", Output: []json.RawMessage{json.RawMessage(fmt.Sprintf(`{"type":"reasoning","encrypted_content":"native-%d"}`, i))}}},
+					ChatMessage{Role: RoleTool, ToolCallID: id, Content: strings.Repeat("saved evidence ", 250)})
+			}
+			original := ConversationHash(messages)
+			view, _, changed, err := CompactConversation(messages, 11000)
+			require.NoError(t, err)
+			require.True(t, changed)
+			require.Equal(t, messages[:2], view[:2], "never replace the user's actual task with an excerpt")
+			require.Equal(t, messages[len(messages)-2:], view[len(view)-2:])
+			require.Equal(t, original, ConversationHash(messages))
+			packed, err := EncodeCheckpoint(view)
+			require.NoError(t, err)
+			require.LessOrEqual(t, len(packed), 11000)
+		})
+	}
+}
+
+func TestCompactionAdaptiveTailKeepsWholeMultiToolBatch(t *testing.T) {
+	messages := []ChatMessage{{Role: RoleSystem, Content: "Scope"}, {Role: RoleUser, Content: "Task"}}
+	for batch := 0; batch < 3; batch++ {
+		calls := []ToolCall{}
+		for i := 0; i < 3; i++ {
+			calls = append(calls, ToolCall{ID: fmt.Sprintf("%d-%d", batch, i), Function: FunctionCall{Name: "read_artifact"}})
+		}
+		messages = append(messages, ChatMessage{Role: RoleAssistant, ToolCalls: calls})
+		for _, call := range calls {
+			messages = append(messages, ChatMessage{Role: RoleTool, ToolCallID: call.ID, Content: strings.Repeat("中", 650)})
+		}
+	}
+	view, _, changed, err := CompactConversation(messages, 8500)
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.Equal(t, messages[len(messages)-4:], view[len(view)-4:])
+	require.Len(t, view, 7, "must compact beyond an eight-message suffix when needed")
+}
+
+func TestCompactionDoesNotDiscardOversizedTaskOrLatestNativePayload(t *testing.T) {
+	for _, messages := range [][]ChatMessage{
+		{{Role: RoleSystem, Content: "Scope"}, {Role: RoleUser, Content: strings.Repeat("task", 1500)}, {Role: RoleAssistant, Content: "done"}},
+		{{Role: RoleSystem, Content: "Scope"}, {Role: RoleUser, Content: "Task"}, {Role: RoleAssistant, Content: strings.Repeat("history", 1000)}, {Role: RoleAssistant, NativePayload: &NativePayload{Format: "responses", Output: []json.RawMessage{json.RawMessage(`{"type":"reasoning","encrypted_content":"` + strings.Repeat("x", 5000) + `"}`)}}}},
+	} {
+		original := ConversationHash(messages)
+		_, _, changed, err := CompactConversation(messages, 4000)
+		require.ErrorIs(t, err, ErrContextLimit)
+		require.False(t, changed)
+		require.Equal(t, original, ConversationHash(messages))
+	}
 }

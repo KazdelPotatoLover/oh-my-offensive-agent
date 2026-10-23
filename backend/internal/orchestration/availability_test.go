@@ -25,6 +25,7 @@ func TestPlannerAvailabilityClassification(t *testing.T) {
 		{"401", &provider.CallError{Class: provider.ClassClientHTTP, HTTPStatus: 401}, model.TerminationCause("provider_error")},
 		{"unknown", fmt.Errorf("unknown provider failure"), model.TerminationCause("provider_error")},
 		{"protocol", provider.ErrProtocol, model.TerminationCause("protocol_error")},
+		{"local context limit", provider.ErrContextLimit, model.CauseNeedsInput},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			err := fmt.Errorf("provider error: %w", tt.err)
@@ -32,9 +33,24 @@ func TestPlannerAvailabilityClassification(t *testing.T) {
 				t.Fatalf("got %s want %s", got, tt.want)
 			}
 			if (plannerFailureSummary(err) != nil) != (tt.want == model.CauseNeedsInput) {
-				t.Fatal("only temporary provider failures should receive recovery guidance")
+				t.Fatal("recoverable stops should receive specific recovery guidance")
 			}
 		})
+	}
+}
+
+func TestWorkerSetupCancellationPreservesStopReason(t *testing.T) {
+	for _, cause := range []model.TerminationCause{model.CauseUserStop, model.CauseShutdown, model.CauseTimeout, model.CauseNeedsInput} {
+		ctx, cancel := context.WithCancelCause(context.Background())
+		cancel(cause)
+		for _, fallback := range []string{"profile_load_failed", "workspace_unavailable", "context_restore_failed"} {
+			if got := workerSetupFailureReason(ctx, fallback); got != string(cause) {
+				t.Fatalf("got %s want %s", got, cause)
+			}
+		}
+	}
+	if got := workerSetupFailureReason(context.Background(), "profile_load_failed"); got != "profile_load_failed" {
+		t.Fatal("actual profile errors must remain diagnosable")
 	}
 }
 

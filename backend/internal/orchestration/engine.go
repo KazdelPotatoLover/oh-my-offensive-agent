@@ -708,14 +708,13 @@ func (e *Engine) Run(ctx context.Context) {
 
 		plannerPrompt := fmt.Sprintf(
 			"You are the Lead Security Planner. Break down the task into discrete work items and submit a plan.\nObjective: %s\nScope: %s%s%s\nRemember to write all work item titles, objectives, and plan summaries in Simplified Chinese (简体中文) so that the exploration chain canvas (探索链路画板) displays in Chinese.",
-			objective, string(scopeBytes), assetInfo.String(), todoInfo.String())
+			objective, string(scopeBytes), prefetchText(assetInfo.String(), prefetchBudget(e.budgetConfig().ContextWindowBytes)), prefetchText(todoInfo.String(), prefetchBudget(e.budgetConfig().ContextWindowBytes)))
 		graph, graphErr := e.runService.GraphOverview(runCtx, e.runID)
 		if graphErr != nil {
 			e.coordinateWrapup(runCtx, model.CauseInternalError, nil, cancelWorkers, &e.workers)
 			return
 		}
-		graphBytes, _ := json.Marshal(graph)
-		plannerPrompt += "\nCurrent exploration graph (prefetched; query details only when missing):\n" + string(graphBytes)
+		plannerPrompt += "\nCurrent exploration graph (prefetched; query details only when missing):\n" + renderGraphPrefetch(graph, prefetchBudget(e.budgetConfig().ContextWindowBytes))
 		plannerMessages := []provider.ChatMessage{
 			{Role: provider.RoleSystem, Content: plannerContract + fmt.Sprintf("\nRun budget: %+v\nBudget snapshot: %+v", e.budgetConfig(), e.budgetSummary())},
 			{Role: provider.RoleUser, Content: plannerPrompt},
@@ -827,8 +826,7 @@ func (e *Engine) Run(ctx context.Context) {
 			e.coordinateWrapup(runCtx, model.CauseInternalError, nil, cancelWorkers, &e.workers)
 			return
 		}
-		graphBytes, _ := json.Marshal(graph)
-		obsInfo.WriteString("Current exploration graph (use node_detail/traces/artifacts for full evidence):\n" + string(graphBytes) + "\n")
+		obsInfo.WriteString("Current exploration graph (use node_detail/traces/artifacts for full evidence):\n" + renderGraphPrefetch(graph, prefetchBudget(e.budgetConfig().ContextWindowBytes)) + "\n")
 
 		obsInfo.WriteString("Current execution progress:\n")
 		completedCount, exhaustedCount, pendingCount := 0, 0, 0
@@ -858,26 +856,37 @@ func (e *Engine) Run(ctx context.Context) {
 		}
 		obsInfo.WriteString(fmt.Sprintf("Work items: completed=%d, worker_exhausted=%d, pending_or_running=%d; observations=%d; assets discovered=%d, planned=%d, visited=%d, unvisited=%d. These are current persisted snapshots and do not imply complete coverage. Visits come from successful reads, independently of observations and work completion.\n", completedCount, exhaustedCount, pendingCount, len(obsList), len(coverage), planned, visited, len(coverage)-visited))
 		obsInfo.WriteString(e.plannerBudgetLine(len(items)))
+		// Cross-round instructions must not be crowded out by raw observations.
+		evalTodos, _ := e.runService.ListPlannerTodos(ctx, e.runID)
+		if len(evalTodos) > 0 {
+			var todoInfo strings.Builder
+			todoInfo.WriteString("\nCross-Round Persistent Todos (ARTEX TodoStore):\n")
+			for _, td := range evalTodos {
+				todoInfo.WriteString(fmt.Sprintf("- [%s] (status: %s, version: %d) %s\n", td.ItemKey, td.Status, td.Version, td.Description))
+			}
+			obsInfo.WriteString(prefetchText(todoInfo.String(), prefetchBudget(e.budgetConfig().ContextWindowBytes)/4))
+		}
 		for _, a := range coverage[:min(50, len(coverage))] {
 			obsInfo.WriteString(fmt.Sprintf("- Asset coverage: %s [id: %s] planned=%t visited=%t\n", a.ExternalKey, a.AssetID, a.Planned, a.Visited))
 		}
 		if len(items) > 0 {
 			obsInfo.WriteString("Existing Work Items:\n")
-			for _, it := range items {
+			for _, it := range items[:min(50, len(items))] {
 				obsInfo.WriteString(fmt.Sprintf("- WorkItem: %s [id: %s] status: %s (type: %s) current_attempt_id=%v\n", it.Key, it.ID.String(), it.Status, it.WorkType, it.CurrentAttemptID))
 			}
 		}
-		for _, obs := range obsList {
+		for _, obs := range obsList[max(0, len(obsList)-20):] {
 			assetRef := ""
 			if obs.AssetID != nil {
 				assetRef = fmt.Sprintf(" asset_id: %s", obs.AssetID.String())
 			}
 			obsInfo.WriteString(fmt.Sprintf("- [obs_id: %s] [%s]%s content: %s data: %s\n",
-				obs.ID.String(), obs.ObsType, assetRef, obs.Content, string(obs.Data)))
+				obs.ID.String(), obs.ObsType, assetRef, prefetchExcerpt(obs.Content, 512), prefetchExcerpt(string(obs.Data), 512)))
 		}
+		obsInfo.WriteString("Observation excerpts show at most the latest 20 records; use read_artifact / worker traces for full evidence. Work item listings show at most 50 records; the overview counts include omitted entries.\n")
 		if len(assets) > 0 {
 			obsInfo.WriteString("\nAvailable Assets in Scope:\n")
-			for _, a := range assets {
+			for _, a := range assets[:min(50, len(assets))] {
 				obsInfo.WriteString(fmt.Sprintf("- Asset: %s [id: %s] (kind: %s, name: %s)\n", a.ExternalKey, a.ID.String(), a.Kind, a.Name))
 			}
 		}
@@ -920,14 +929,6 @@ func (e *Engine) Run(ctx context.Context) {
 		})
 		evalRegistry.Register(tools.NewManagePlannerTodosTool(e.runID, e.runService))
 
-		evalTodos, _ := e.runService.ListPlannerTodos(ctx, e.runID)
-		if len(evalTodos) > 0 {
-			obsInfo.WriteString("\nCross-Round Persistent Todos (ARTEX TodoStore):\n")
-			for _, td := range evalTodos {
-				obsInfo.WriteString(fmt.Sprintf("- [%s] (status: %s, version: %d) %s\n", td.ItemKey, td.Status, td.Version, td.Description))
-			}
-		}
-
 		if exhaustedCount > 0 {
 			obsInfo.WriteString("\nExhausted Work Items (Available for Continuation):\n")
 			for _, it := range items {
@@ -939,7 +940,7 @@ func (e *Engine) Run(ctx context.Context) {
 
 		evalPrompt := fmt.Sprintf(
 			"Review current execution progress and observations. You can either call submit_plan to schedule additional follow-up work items, continue_work to resume an exhausted worker, or call suggest_completion to finish the run.\n%s\nRemember to write all titles, objectives, intent summaries, and completion summaries in Simplified Chinese (简体中文).",
-			obsInfo.String())
+			prefetchText(obsInfo.String(), 2*prefetchBudget(e.budgetConfig().ContextWindowBytes)))
 		evalMessages := []provider.ChatMessage{
 			{Role: provider.RoleSystem, Content: plannerContract + fmt.Sprintf("\nObjective: %s\nScope: %s\nRun budget: %+v; budget snapshot=%+v. Work item statuses and asset coverage are current snapshots, not proof of full coverage. Budget must include the model turn after tool calls. An exhausted worker has not completed its work; decide any bounded follow-up from existing evidence, never automatically replay external operations.", objective, scopeBytes, e.budgetConfig(), e.budgetSummary())},
 			{Role: provider.RoleUser, Content: evalPrompt},
@@ -1037,6 +1038,9 @@ func (e *Engine) executeWorkerSession(
 	workerErr *atomic.Value,
 ) {
 	finish := func(success bool, output json.RawMessage, reason string) {
+		if !success && reason != "persistence_error" {
+			reason = workerSetupFailureReason(ctx, reason)
+		}
 		finishCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := e.runService.FinishWorkItem(finishCtx, wi.ID, att.ID, sess.ID, success, output, reason); err != nil {
@@ -1083,6 +1087,9 @@ func (e *Engine) executeWorkerSession(
 	case "intent":
 		run, err := e.runService.Get(ctx, e.runID)
 		if err != nil {
+			if ctx.Err() == nil {
+				slog.Error("engine: failed to load worker execution profile", "run_id", e.runID, "work_item_id", wi.ID, "session_id", sess.ID, "error", err)
+			}
 			finish(false, nil, "profile_load_failed")
 			return
 		}
@@ -1142,8 +1149,7 @@ func (e *Engine) executeWorkerSession(
 		return
 	}
 	// Awareness of peers' results does not assign their work or extend scope.
-	graphBytes, _ := json.Marshal(graph)
-	workerPrompt += "\nShared situational overview (awareness only; advance only your assigned objective, reuse existing results and report lateral clues as facts):\n" + string(graphBytes)
+	workerPrompt += "\nShared situational overview (awareness only; advance only your assigned objective, reuse existing results and report lateral clues as facts):\n" + renderGraphPrefetch(graph, prefetchBudget(workerBudget.ContextWindowBytes))
 
 	var workerMessages []provider.ChatMessage
 	initialPersisted := false
@@ -1437,6 +1443,9 @@ func plannerFailureCause(result *agent.SessionResult, err error) model.Terminati
 	if errors.Is(err, provider.ErrProtocol) {
 		return model.TerminationCause("protocol_error")
 	}
+	if errors.Is(err, provider.ErrContextLimit) {
+		return model.CauseNeedsInput
+	}
 	if isTemporaryProviderFailure(err) {
 		return model.CauseNeedsInput
 	}
@@ -1463,10 +1472,21 @@ func isTemporaryProviderFailure(err error) bool {
 }
 
 func plannerFailureSummary(err error) *string {
+	if errors.Is(err, provider.ErrContextLimit) {
+		summary := "上下文超过当前保护窗口，无法在保留任务要求和完整工具调用的前提下继续压缩。原始对话、证据和已完成结果已保留；请先检查任务输入与 context_window_bytes 配置，再决定恢复；不应反复重试同一份超大输入。\n" + err.Error()
+		return &summary
+	}
 	if !isTemporaryProviderFailure(err) {
 		return nil
 	}
 	// CallError contains only the provider's sanitized diagnosis and source ID.
 	summary := "模型服务暂时不可用，已完成有界重试并保留当前结果。可在服务恢复后显式开启新 Epoch 继续；预算不足时需先追加授权。\nPlanner unavailable after bounded recovery: " + err.Error()
 	return &summary
+}
+
+func workerSetupFailureReason(ctx context.Context, fallback string) string {
+	if ctx.Err() != nil {
+		return string(model.ResolveCancelCause(ctx))
+	}
+	return fallback
 }
