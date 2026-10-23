@@ -456,6 +456,9 @@ type CreateRunRequest struct {
 	Provider     *string       `json:"provider,omitempty"`      // "mock" or "openai"
 	MockScenario *string       `json:"mock_scenario,omitempty"` // e.g. "normal", "multi_tool", "orchestration", "traceability"
 	Budget       *BudgetConfig `json:"budget,omitempty"`
+	// ExecutionPolicy distinguishes omit (inherit) from explicit 0 (unlimited)
+	// on new exploration runs. It is ignored for legacy non-exploration creates.
+	ExecutionPolicy *PolicyOverride `json:"execution_policy,omitempty"`
 }
 
 // --- Phase 4: Assets & Traceability Models ---

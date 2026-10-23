@@ -56,7 +56,7 @@ func (sr *SessionRunner) admitModelCall(ctx context.Context, modelCallCount, att
 		}
 		return modelAdmission{allowed: true}
 	}
-	if modelCallCount+attemptIndex >= sr.budget.MaxModelCalls {
+	if sr.budget.MaxModelCalls > 0 && modelCallCount+attemptIndex >= sr.budget.MaxModelCalls {
 		return modelAdmission{denyReason: "model_calls_exhausted"}
 	}
 	return modelAdmission{allowed: true}

@@ -19,7 +19,7 @@ import { api, newRequestID } from '@/lib/api';
 import type { Run, Task } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { runNotice } from '@/lib/workbench/run-notice';
-import { executionGaps } from '@/lib/workbench/budget';
+import { budgetSummaryText, executionGaps, limitFlags } from '@/lib/workbench/budget';
 import {
   WorkbenchRequestError,
   buildCommand,
@@ -102,7 +102,8 @@ export function WorkbenchApp() {
   const pathname = usePathname() || '/workbench';
   const searchParams = useSearchParams();
   const selection = selectionFromPath(pathname, searchParams?.toString() || '');
-  return <WorkbenchSession key={selection.runId || 'none'} />;
+  const sessionKey = `${selection.taskId || 'none'}:${selection.runId || 'none'}`;
+  return <WorkbenchSession key={sessionKey} />;
 }
 
 function WorkbenchSession() {
@@ -140,6 +141,8 @@ function WorkbenchSession() {
   const [intent, setIntent] = useState('');
   const [graph, setGraph] = useState<ExplorationGraph | null>(null);
   const [graphError, setGraphError] = useState<string | null>(null);
+  const [startingRun, setStartingRun] = useState(false);
+  const [startRunError, setStartRunError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -173,6 +176,31 @@ function WorkbenchSession() {
       .catch((err: unknown) => { if (!cancelled) setRuns({ data: null, error: err instanceof Error ? err.message : '运行列表读取失败' }); });
     return () => { cancelled = true; };
   }, [taskId]);
+
+  useEffect(() => {
+    if (!taskId || runId) return;
+    if (runs.data && runs.data.length > 0) {
+      const latest = runs.data[0];
+      router.replace(workbenchHref({ taskId, runId: latest.id }));
+    }
+  }, [taskId, runId, runs.data, router]);
+
+  const handleStartRun = async () => {
+    if (!taskId || startingRun) return;
+    setStartingRun(true);
+    setStartRunError(null);
+    try {
+      const run = await api.createRun(taskId, {
+        idempotency_key: newRequestID(),
+        executor: 'orchestrator',
+      });
+      router.push(workbenchHref({ taskId, runId: run.id }));
+    } catch (err: unknown) {
+      setStartRunError(err instanceof Error ? err.message : '启动运行失败');
+    } finally {
+      setStartingRun(false);
+    }
+  };
 
   useEffect(() => {
     if (!runId) return;
@@ -482,49 +510,62 @@ function WorkbenchSession() {
 
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="font-semibold text-gray-300">追加授权:</span>
-              <label className="text-gray-400">模型
-                <input
-                  data-testid="grant-model-calls"
-                  type="number"
-                  value={grant.model}
-                  onChange={(event) => setGrant((c) => ({ ...c, model: Number(event.target.value) }))}
-                  className={`${fieldClass} ml-1 w-14`}
-                />
-              </label>
-              <label className="text-gray-400">工具
-                <input
-                  aria-label="追加工具次数"
-                  type="number"
-                  value={grant.tool}
-                  onChange={(event) => setGrant((c) => ({ ...c, tool: Number(event.target.value) }))}
-                  className={`${fieldClass} ml-1 w-14`}
-                />
-              </label>
-              <label className="text-gray-400">秒数
-                <input
-                  aria-label="追加秒数"
-                  type="number"
-                  value={grant.seconds}
-                  onChange={(event) => setGrant((c) => ({ ...c, seconds: Number(event.target.value) }))}
-                  className={`${fieldClass} ml-1 w-14`}
-                />
-              </label>
-              <button
-                type="button"
-                data-testid="grant-budget"
-                disabled={!canCommand || runStatus === 'completed' || runStatus === 'stopping' || (grant.model <= 0 && grant.tool <= 0 && grant.seconds <= 0)}
-                onClick={() => {
-                  const body = commandFor('grant_budget', {
-                    additional_model_calls: grant.model,
-                    additional_tool_calls: grant.tool,
-                    additional_seconds: grant.seconds,
-                  });
-                  if (body) void sendCommand(body);
-                }}
-                className="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-40"
-              >
-                追加授权
-              </button>
+              {(() => {
+                const flags = limitFlags(snap?.budget);
+                if (flags.known && !flags.model && !flags.tool && !flags.seconds) {
+                  return <span data-testid="grant-unneeded" className="text-gray-400">无需追加授权</span>;
+                }
+                const model = flags.model ? grant.model : 0;
+                const tool = flags.tool ? grant.tool : 0;
+                const seconds = flags.seconds ? grant.seconds : 0;
+                return (
+                  <>
+                    {flags.model && <label className="text-gray-400">模型
+                      <input
+                        data-testid="grant-model-calls"
+                        type="number"
+                        value={grant.model}
+                        onChange={(event) => setGrant((c) => ({ ...c, model: Number(event.target.value) }))}
+                        className={`${fieldClass} ml-1 w-14`}
+                      />
+                    </label>}
+                    {flags.tool && <label className="text-gray-400">工具
+                      <input
+                        aria-label="追加工具次数"
+                        type="number"
+                        value={grant.tool}
+                        onChange={(event) => setGrant((c) => ({ ...c, tool: Number(event.target.value) }))}
+                        className={`${fieldClass} ml-1 w-14`}
+                      />
+                    </label>}
+                    {flags.seconds && <label className="text-gray-400">秒数
+                      <input
+                        aria-label="追加秒数"
+                        type="number"
+                        value={grant.seconds}
+                        onChange={(event) => setGrant((c) => ({ ...c, seconds: Number(event.target.value) }))}
+                        className={`${fieldClass} ml-1 w-14`}
+                      />
+                    </label>}
+                    <button
+                      type="button"
+                      data-testid="grant-budget"
+                      disabled={!canCommand || runStatus === 'completed' || runStatus === 'stopping' || (model <= 0 && tool <= 0 && seconds <= 0)}
+                      onClick={() => {
+                        const body = commandFor('grant_budget', {
+                          additional_model_calls: model,
+                          additional_tool_calls: tool,
+                          additional_seconds: seconds,
+                        });
+                        if (body) void sendCommand(body);
+                      }}
+                      className="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-40"
+                    >
+                      追加授权
+                    </button>
+                  </>
+                );
+              })()}
             </div>
           </div>
 
@@ -558,9 +599,9 @@ function WorkbenchSession() {
 
             <div className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-2">
               <p className="text-[11px] text-gray-400">全局预算配额</p>
-              <pre data-testid="budget-summary" className="mt-0.5 max-h-8 overflow-auto font-mono text-[10px] text-gray-300 whitespace-pre-wrap">
-                {JSON.stringify(snap.budget)}
-              </pre>
+              <p data-testid="budget-summary" className="mt-0.5 font-mono text-[10px] text-gray-300">
+                {budgetSummaryText(snap.budget)}
+              </p>
             </div>
           </div>
         )}
@@ -609,7 +650,17 @@ function WorkbenchSession() {
           <ul className="space-y-1 px-2">
             {(tasks.data || []).map((task) => (
               <li key={task.id}>
-                <Link data-testid="task-link" href={workbenchHref({ taskId: task.id })} className={`block rounded px-2 py-1 text-xs ${task.id === taskId ? 'bg-gray-800 text-white' : 'text-gray-300'}`}>{task.name}</Link>
+                <Link
+                  data-testid="task-link"
+                  href={workbenchHref({ taskId: task.id })}
+                  onClick={() => {
+                    setCreating(false);
+                    setPane('execute');
+                  }}
+                  className={`block rounded px-2 py-1 text-xs ${task.id === taskId ? 'bg-gray-800 text-white' : 'text-gray-300'}`}
+                >
+                  {task.name}
+                </Link>
               </li>
             ))}
           </ul>
@@ -619,7 +670,15 @@ function WorkbenchSession() {
           <ul className="space-y-1 px-2">
             {(runs.data || []).map((run) => (
               <li key={run.id}>
-                <Link data-testid="run-link" href={workbenchHref({ taskId: run.task_id, runId: run.id })} className={`block rounded px-2 py-1 text-xs ${run.id === runId ? 'bg-gray-800 text-white' : 'text-gray-300'}`}>
+                <Link
+                  data-testid="run-link"
+                  href={workbenchHref({ taskId: run.task_id, runId: run.id })}
+                  onClick={() => {
+                    setCreating(false);
+                    setPane('execute');
+                  }}
+                  className={`block rounded px-2 py-1 text-xs ${run.id === runId ? 'bg-gray-800 text-white' : 'text-gray-300'}`}
+                >
                   {run.id.slice(0, 8)} · 记录 {run.status}
                 </Link>
               </li>
@@ -636,10 +695,134 @@ function WorkbenchSession() {
           {creating ? (
             <div data-testid="create-task-scroll" className="min-h-0 flex-1 overflow-y-auto p-3"><CreateTaskForm onCancel={() => setCreating(false)} /></div>
           ) : !runId ? (
-            <div className="p-4 text-sm text-gray-300">
-              <p>选择任务和 Run，或创建新的探索任务。</p>
-              <button type="button" onClick={() => setCreating(true)} className="mt-2 rounded bg-blue-600 px-3 py-1.5 text-xs">新任务</button>
-            </div>
+            taskId ? (
+              <div data-testid="task-overview" className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 space-y-4">
+                {/* Task Header */}
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-800 pb-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-base font-semibold text-white">
+                        {taskRecord.data?.name || '任务详情'}
+                      </h2>
+                      <span className="font-mono text-xs text-gray-500">ID: {taskId.slice(0, 8)}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-400">
+                      {taskRecord.data?.created_at ? `创建于 ${new Date(taskRecord.data.created_at).toLocaleString()}` : '正在加载任务元数据...'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/tasks/${taskId}`}
+                      className="rounded border border-gray-700 bg-gray-900 px-2.5 py-1 text-xs text-gray-300 hover:bg-gray-800"
+                    >
+                      旧任务管理页
+                    </Link>
+                    <button
+                      type="button"
+                      data-testid="start-new-run"
+                      disabled={startingRun}
+                      onClick={() => void handleStartRun()}
+                      className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-40"
+                    >
+                      {startingRun ? '正在启动...' : '启动新运行'}
+                    </button>
+                  </div>
+                </div>
+
+                {startRunError && (
+                  <div role="alert" className="rounded border border-red-500/30 bg-red-950/30 p-2.5 text-xs text-red-300">
+                    启动运行失败：{startRunError}
+                  </div>
+                )}
+
+                {/* Objective Card */}
+                <div className="rounded-lg border border-gray-800 bg-gray-900/60 p-3">
+                  <h3 className="text-xs font-semibold text-gray-300">任务目标 (Objective)</h3>
+                  <p className="mt-1.5 text-xs text-gray-200 whitespace-pre-wrap leading-relaxed">
+                    {taskRecord.data?.objective || (taskRecord.error ? `加载失败：${taskRecord.error}` : '正在读取目标...')}
+                  </p>
+                </div>
+
+                {/* Scope & Config Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-lg border border-gray-800 bg-gray-900/40 p-3">
+                    <h3 className="font-semibold text-gray-300">目标范围 (Scope)</h3>
+                    <pre className="mt-1 max-h-36 overflow-auto font-mono text-[11px] text-gray-300 whitespace-pre-wrap break-all">
+                      {taskRecord.data?.scope ? JSON.stringify(taskRecord.data.scope, null, 2) : '加载中...'}
+                    </pre>
+                  </div>
+                  <div className="rounded-lg border border-gray-800 bg-gray-900/40 p-3">
+                    <h3 className="font-semibold text-gray-300">执行配置 (Configuration)</h3>
+                    <pre className="mt-1 max-h-36 overflow-auto font-mono text-[11px] text-gray-300 whitespace-pre-wrap break-all">
+                      {taskRecord.data?.config ? JSON.stringify(taskRecord.data.config, null, 2) : '加载中...'}
+                    </pre>
+                  </div>
+                </div>
+
+                {/* Runs List Card */}
+                <div className="rounded-lg border border-gray-800 bg-gray-900/40 p-3">
+                  <div className="flex items-center justify-between border-b border-gray-800/80 pb-2">
+                    <h3 className="text-xs font-semibold text-gray-300">
+                      执行运行记录 (Runs) {runs.data ? `(${runs.data.length})` : ''}
+                    </h3>
+                    {runs.data && runs.data.length > 0 && (
+                      <span className="text-[11px] text-blue-400">正在进入最新运行现场...</span>
+                    )}
+                  </div>
+
+                  {runs.error && (
+                    <p role="alert" className="mt-2 text-xs text-red-300">运行记录读取失败：{runs.error}</p>
+                  )}
+
+                  {runs.data === null && !runs.error && (
+                    <p className="mt-2 text-xs text-gray-400 animate-pulse">正在读取运行列表...</p>
+                  )}
+
+                  {runs.data && runs.data.length === 0 && (
+                    <div className="py-4 text-center text-xs text-gray-400">
+                      <p>此任务暂未创建执行运行。</p>
+                      <p className="mt-1 text-gray-500">点击上方“启动新运行”即可开始自动化探索与分析。</p>
+                    </div>
+                  )}
+
+                  {runs.data && runs.data.length > 0 && (
+                    <div className="mt-2 space-y-1.5">
+                      {runs.data.map((r) => (
+                        <div
+                          key={r.id}
+                          className="flex items-center justify-between rounded border border-gray-800/80 bg-gray-950/60 px-3 py-2 text-xs"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-block size-2 rounded-full ${r.status === 'running' ? 'bg-emerald-400 animate-pulse' : r.status === 'paused' ? 'bg-amber-400' : 'bg-gray-400'}`} />
+                            <span className="font-mono text-gray-200">{r.id.slice(0, 8)}</span>
+                            <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-300">状态 {r.status}</span>
+                            <span className="font-mono text-[11px] text-gray-400">Epoch {r.current_epoch}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-[11px] text-gray-500">{new Date(r.created_at).toLocaleString()}</span>
+                            <Link
+                              href={workbenchHref({ taskId: r.task_id, runId: r.id })}
+                              onClick={() => {
+                                setCreating(false);
+                                setPane('execute');
+                              }}
+                              className="rounded bg-blue-600/20 px-2 py-0.5 text-[11px] font-medium text-blue-300 hover:bg-blue-600/30"
+                            >
+                              查看运行
+                            </Link>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 text-sm text-gray-300">
+                <p>选择任务和 Run，或创建新的探索任务。</p>
+                <button type="button" onClick={() => setCreating(true)} className="mt-2 rounded bg-blue-600 px-3 py-1.5 text-xs">新任务</button>
+              </div>
+            )
           ) : (
             <div className="flex min-h-0 flex-1 flex-col">
               {/* View Switcher Bar */}
@@ -898,8 +1081,28 @@ function WorkbenchSession() {
                 <ExplorationResources runId={runId} />
               </div>
             </>
+          ) : taskId && taskRecord.data ? (
+            <div className="p-3 text-xs space-y-3 overflow-y-auto">
+              <h3 className="font-semibold text-gray-200">任务配置与入口</h3>
+              <div className="rounded border border-gray-800 bg-gray-900/50 p-2.5 space-y-1.5">
+                <p className="text-gray-400">任务 ID: <span className="font-mono text-gray-200">{taskRecord.data.id}</span></p>
+                <p className="text-gray-400">创建时间: <span className="text-gray-200">{new Date(taskRecord.data.created_at).toLocaleString()}</span></p>
+              </div>
+              <div className="rounded border border-gray-800 bg-gray-900/50 p-2.5">
+                <p className="font-medium text-gray-300 mb-1">范围配置 (Scope)</p>
+                <pre className="font-mono text-[11px] text-gray-400 whitespace-pre-wrap break-all">
+                  {JSON.stringify(taskRecord.data.scope, null, 2)}
+                </pre>
+              </div>
+              <div className="rounded border border-gray-800 bg-gray-900/50 p-2.5">
+                <p className="font-medium text-gray-300 mb-1">执行配置 (Config)</p>
+                <pre className="font-mono text-[11px] text-gray-400 whitespace-pre-wrap break-all">
+                  {JSON.stringify(taskRecord.data.config, null, 2)}
+                </pre>
+              </div>
+            </div>
           ) : (
-            <p className="p-3 text-xs text-gray-400">选择 Run 后查看检查器。</p>
+            <p className="p-3 text-xs text-gray-400">选择任务和 Run 后查看检查器。</p>
           )}
         </aside>
       </div>

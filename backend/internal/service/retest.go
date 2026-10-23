@@ -33,6 +33,9 @@ type ReportFindingInput struct {
 	ReproduceSteps   string               `json:"reproduce_steps"`
 	SourceToolCallID *uuid.UUID           `json:"source_tool_call_id,omitempty"`
 	Verification     *FindingVerification `json:"verification,omitempty"`
+	// TrustedWorkItemID is set by the worker tool from server context.
+	// Clients and model JSON cannot claim another direction's output.
+	TrustedWorkItemID *uuid.UUID `json:"-"`
 }
 
 // ReportFinding creates a first-class finding with full evidence and exploration node linkage.
@@ -183,6 +186,20 @@ func (s *RunService) ReportFinding(ctx context.Context, runID uuid.UUID, in Repo
 	).Scan(&nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("link finding into exploration_nodes: %w", err)
+	}
+	if in.TrustedWorkItemID != nil && *in.TrustedWorkItemID != uuid.Nil {
+		var intentID uuid.UUID
+		err = tx.QueryRow(ctx, `SELECT id FROM exploration_nodes
+			WHERE run_id=$1 AND work_item_id=$2 AND kind='intent' AND delete_reason IS NULL`, runID, *in.TrustedWorkItemID).Scan(&intentID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, fmt.Errorf("%w: trusted work item has no intent node", ErrInvalidEvidence)
+			}
+			return nil, err
+		}
+		if err := insertExplorationEdgeTx(ctx, tx, runID, intentID, nodeID, "yields", "trusted_work_item"); err != nil {
+			return nil, err
+		}
 	}
 
 	// Link anchor to target asset

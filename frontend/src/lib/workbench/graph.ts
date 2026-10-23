@@ -39,6 +39,7 @@ export interface CanvasNodeData {
   finding_id?: string;
   finding?: GraphFinding;
   is_live: boolean;
+  label?: string;
 }
 
 export interface CanvasEdgeData {
@@ -98,6 +99,7 @@ export function buildExplorationGraph(graph: ExplorationGraph | null): { graphNo
         created_at: n.created_at, work_item_id: n.work_item_id ?? undefined,
         finding_id: n.finding_id ?? undefined, finding: n.finding ?? undefined,
         is_live: n.kind === 'intent' && state === 'running',
+        label: n.kind === 'fact' && n.state === 'origin' ? '任务起点' : undefined,
       };
     }),
     graphEdges: graph?.edges ?? [],

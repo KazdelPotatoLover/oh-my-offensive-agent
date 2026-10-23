@@ -131,6 +131,12 @@ func setupTestEnv(t *testing.T, execute ...bool) *TestEnv {
 	if err != nil {
 		t.Fatalf("failed truncate: %v", err)
 	}
+	// Seeded stdio MCP servers are product defaults. Execution tests must not
+	// dial them: a blocked connect holds the worker before its model call and
+	// changes budget accounting. MCP API tests still see the seed rows.
+	if _, err = pool.Exec(ctx, `UPDATE mcp_servers SET enabled=false WHERE transport='stdio'`); err != nil {
+		t.Fatalf("disable seeded stdio MCP: %v", err)
+	}
 
 	taskService := service.NewTaskService(pool)
 	runService := service.NewRunService(pool)
@@ -155,6 +161,7 @@ func setupTestEnv(t *testing.T, execute ...bool) *TestEnv {
 	mainAgent := controlplane.NewMainAgent(runService, controller, workbench, nil, nil)
 	mcpManager := mcp.NewManager(pool)
 	mcpHandler := handler.NewMCPHandler(mcpManager)
+	toolHandler := handler.NewToolHandler()
 
 	r := chi.NewRouter()
 	r.Route("/api", func(r chi.Router) {
@@ -214,6 +221,7 @@ func setupTestEnv(t *testing.T, execute ...bool) *TestEnv {
 		r.Get("/runs/{runID}/findings/{findingID}/retests", runHandler.ListFindingRetests)
 		r.Get("/runs/{runID}/finding-report", runHandler.GetFindingReport)
 		r.Get("/checks/catalog", runHandler.GetCheckCatalog)
+		r.Get("/tools/catalog", toolHandler.GetCatalog)
 		// MCP Servers
 		r.Get("/mcp/servers", mcpHandler.List)
 		r.Post("/mcp/servers", mcpHandler.Create)

@@ -98,6 +98,9 @@ func (s *RunService) ReviseExplorationNode(ctx context.Context, runID, nodeID uu
 			return fmt.Errorf("goal changes require re-proof")
 		}
 	}
+	if kind == "fact" && currentState == "origin" {
+		return fmt.Errorf("task origin is not editable evidence")
+	}
 	if kind == "fact" {
 		if state == "" {
 			state = "unverified"

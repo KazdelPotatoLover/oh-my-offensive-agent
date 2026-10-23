@@ -69,6 +69,9 @@ func (s *RunService) SetGoals(ctx context.Context, runID uuid.UUID, specs []mode
 		if err != nil {
 			return nil, fmt.Errorf("insert goal node: %w", err)
 		}
+		if err := linkOriginSpawnsTx(ctx, tx, runID, n.ID); err != nil {
+			return nil, err
+		}
 		nodes = append(nodes, &n)
 	}
 
@@ -276,6 +279,9 @@ func (s *RunService) RecordFact(
 				}
 				payload, _ := json.Marshal(map[string]any{"summary": workObjective, "adapter": "legacy"})
 				if err := tx.QueryRow(ctx, `INSERT INTO exploration_nodes(run_id,kind,payload,state,work_item_id,epoch_number) VALUES($1,'intent',$2,'open',$3,$4) RETURNING id`, runID, payload, *intentNodeID, knowledgeEpoch).Scan(&nodeID); err != nil {
+					return nil, err
+				}
+				if err := linkOriginDerivedTx(ctx, tx, runID, nodeID); err != nil {
 					return nil, err
 				}
 				resolvedIntentID = &nodeID
@@ -556,7 +562,8 @@ func (s *RunService) AddIntentNode(
 		return nil, fmt.Errorf("insert intent node: %w", err)
 	}
 
-	// Link parent --derived_from--> intent
+	// Link parent --derived_from--> intent. Explicit parents stay explicit.
+	linkedParents := 0
 	for _, pid := range parentIDs {
 		if pid == uuid.Nil {
 			continue
@@ -569,6 +576,18 @@ func (s *RunService) AddIntentNode(
 		)
 		if err != nil {
 			return nil, fmt.Errorf("insert derived_from edge: %w", err)
+		}
+		linkedParents++
+	}
+	if linkedParents == 0 {
+		var hasParent bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM exploration_edges WHERE run_id=$1 AND dst_id=$2 AND rel='derived_from')`, runID, n.ID).Scan(&hasParent); err != nil {
+			return nil, err
+		}
+		if !hasParent {
+			if err := linkOriginDerivedTx(ctx, tx, runID, n.ID); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -666,6 +685,9 @@ func (s *RunService) ProveGoal(
 		}
 		if evKind != "fact" && evKind != "finding" {
 			return false, fmt.Errorf("%w: evidence node must be fact or finding, got %s", ErrInvalidEvidence, evKind)
+		}
+		if evState == "origin" {
+			return false, fmt.Errorf("%w: task origin is not evidence and cannot prove a goal", ErrInvalidEvidence)
 		}
 		if evDeleteReason != nil {
 			return false, fmt.Errorf("%w: evidence node %s is invalidated (%s)", ErrInvalidEvidence, evidenceID, *evDeleteReason)

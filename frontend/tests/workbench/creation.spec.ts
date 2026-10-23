@@ -4,6 +4,7 @@ test('two fields create a real-model task with inherited settings and an automat
   await page.goto('/workbench');
   await page.getByTestId('open-create').click();
   await expect(page.getByTestId('creation-defaults')).toContainText('3 个并发 Worker');
+  await expect(page.getByTestId('creation-defaults')).toContainText('不限时');
   const form = page.getByTestId('create-task-form');
   await expect(form.locator('input:visible, textarea:visible')).toHaveCount(2);
   await expect(page.getByLabel('总模型次数', { exact: true })).toHaveCount(0);
@@ -44,6 +45,29 @@ test('optional overrides send only concurrency and minutes, clearing fields rest
   await page.getByTestId('create-task-submit').click();
   expect((await request).postDataJSON().budget).toEqual({ max_parallel_workers: 5, run_timeout_seconds: 2700 });
   await expect(page.getByTestId('worker-capacity')).toContainText('requested 5');
+});
+
+test('explicit unlimited duration overrides a positive server deadline', async ({ page }) => {
+  await page.route('**/api/runtime/defaults', route => route.fulfill({
+    json: {
+      budget: { max_parallel_workers: 3, run_timeout_seconds: 1800, max_model_calls: 0, max_tool_calls: 0 },
+      limits: { schema_version: 'agent_limits.v1', task_timeout_limited: true, task_timeout_seconds: 1800, model_calls_limited: false, tool_calls_limited: false },
+      model_configured: true,
+    },
+  }));
+  await page.goto('/workbench');
+  await page.getByTestId('open-create').click();
+  await expect(page.getByTestId('creation-defaults')).toContainText('最长 30 分钟');
+  await page.getByTestId('creation-advanced').locator('summary').first().click();
+  await page.locator('#duration-mode').selectOption('unlimited');
+  await expect(page.getByTestId('creation-defaults')).toContainText('不限时');
+  await page.locator('#create-task-objective').fill('不限时检查');
+  await page.locator('#scope-origin').fill('https://example.com/');
+  const taskRequest = page.waitForRequest(r => r.method() === 'POST' && new URL(r.url()).pathname === '/api/tasks');
+  const runRequest = page.waitForRequest(r => r.method() === 'POST' && /\/api\/tasks\/[^/]+\/runs$/.test(new URL(r.url()).pathname));
+  await page.getByTestId('create-task-submit').click();
+  expect((await taskRequest).postDataJSON().config.execution_policy).toEqual({ task_timeout_seconds: 0 });
+  expect((await runRequest).postDataJSON().execution_policy).toEqual({ task_timeout_seconds: 0 });
 });
 
 test('missing server model is explained and demonstration mode is an explicit choice', async ({ page }) => {

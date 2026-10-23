@@ -132,6 +132,7 @@ func main() {
 	assetHandler := handler.NewAssetHandler(runService)
 	mcpManager := mcp.NewManager(pool)
 	mcpHandler := handler.NewMCPHandler(mcpManager)
+	toolHandler := handler.NewToolHandler()
 
 	// Set up router
 	r := chi.NewRouter()
@@ -226,6 +227,7 @@ func main() {
 		r.Get("/runs/{runID}/findings/{findingID}/retests", runHandler.ListFindingRetests)
 		r.Get("/runs/{runID}/finding-report", runHandler.GetFindingReport)
 		r.Get("/checks/catalog", runHandler.GetCheckCatalog)
+		r.Get("/tools/catalog", toolHandler.GetCatalog)
 		// MCP Servers
 		r.Get("/mcp/servers", mcpHandler.List)
 		r.Post("/mcp/servers", mcpHandler.Create)

@@ -12,12 +12,23 @@ import (
 
 type ReportFindingTool struct {
 	runID      uuid.UUID
+	workItemID *uuid.UUID
 	runService *service.RunService
 }
 
 func NewReportFindingTool(runID uuid.UUID, runService *service.RunService) *ReportFindingTool {
 	return &ReportFindingTool{
 		runID:      runID,
+		runService: runService,
+	}
+}
+
+// NewReportFindingToolWithWorkItem attributes the finding to the server-owned
+// direction. The model cannot supply a different work item id.
+func NewReportFindingToolWithWorkItem(runID, workItemID uuid.UUID, runService *service.RunService) *ReportFindingTool {
+	return &ReportFindingTool{
+		runID:      runID,
+		workItemID: &workItemID,
 		runService: runService,
 	}
 }
@@ -179,8 +190,9 @@ func (t *ReportFindingTool) Execute(ctx context.Context, argumentsJSON []byte) (
 		SourceToolCallID: sourceToolCallUUID,
 		EvidenceRef:      evidenceBytes,
 		Verification:     in.Verification,
-		TriggerCondition: in.TriggerCondition,
-		ReproduceSteps:   in.ReproduceSteps,
+		TriggerCondition:  in.TriggerCondition,
+		ReproduceSteps:    in.ReproduceSteps,
+		TrustedWorkItemID: t.workItemID,
 	})
 	if err != nil {
 		return "", err

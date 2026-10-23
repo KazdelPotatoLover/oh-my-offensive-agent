@@ -285,8 +285,22 @@ func TestP2_ExplorationGraph_LineageAndGoalProof(t *testing.T) {
 		t.Errorf("expected goal node state 'met', got '%s'", gNode.State)
 	}
 	gInEdges := goalDetail["incoming_edges"].([]map[string]any)
-	if len(gInEdges) != 1 || gInEdges[0]["rel"] != "proves" {
-		t.Fatalf("expected 1 incoming proves edge on goal, got %+v", gInEdges)
+	proves, spawns := 0, 0
+	for _, e := range gInEdges {
+		switch e["rel"] {
+		case "proves":
+			proves++
+			if e["src_id"] != fact3.ID {
+				t.Errorf("proves edge must come from the yielded fact, got %v", e["src_id"])
+			}
+		case "spawns":
+			spawns++
+		default:
+			t.Errorf("unexpected incoming relation %v", e["rel"])
+		}
+	}
+	if proves != 1 || spawns != 1 {
+		t.Fatalf("expected one task-start spawns edge and exactly one proves edge, got %+v", gInEdges)
 	}
 
 	// 8. Verify GraphOverview

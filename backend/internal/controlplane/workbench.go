@@ -240,10 +240,23 @@ func rawBudget(executionInput []byte) json.RawMessage {
 	var wrapped struct {
 		Budget json.RawMessage `json:"budget"`
 	}
-	if json.Unmarshal(executionInput, &wrapped) == nil && len(wrapped.Budget) > 0 && string(wrapped.Budget) != "null" {
+	if json.Unmarshal(executionInput, &wrapped) != nil || len(wrapped.Budget) == 0 || string(wrapped.Budget) == "null" {
+		return json.RawMessage(`{}`)
+	}
+	policy := model.PolicyFromExecutionInput(executionInput)
+	if policy == nil {
 		return wrapped.Budget
 	}
-	return json.RawMessage(`{}`)
+	var obj map[string]any
+	if json.Unmarshal(wrapped.Budget, &obj) != nil {
+		return wrapped.Budget
+	}
+	obj["limits"] = policy.PublicLimits()
+	out, err := json.Marshal(obj)
+	if err != nil {
+		return wrapped.Budget
+	}
+	return out
 }
 
 func readPlanner(ctx context.Context, tx pgx.Tx, runID uuid.UUID, runStatus string, active, queued int) (contract.PlannerView, error) {

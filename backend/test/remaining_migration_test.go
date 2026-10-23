@@ -65,14 +65,20 @@ func TestRemaining_MigrationUpgradeAndAuditRollbackGuards(t *testing.T) {
 	require.NoError(t, m.Up())
 	require.NoError(t, pool.QueryRow(ctx, snapshot, runID).Scan(&after))
 	require.JSONEq(t, string(before), string(after))
-	var fabricated int
-	require.NoError(t, pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM exploration_nodes)+(SELECT count(*) FROM execution_epochs)`).Scan(&fabricated))
-	require.Zero(t, fabricated, "migration must not invent goals, proofs or execution authorization")
+	var epochs, goals, proves, origins int
+	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM execution_epochs`).Scan(&epochs))
+	require.Zero(t, epochs, "migration must not invent execution authorization")
+	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM exploration_nodes WHERE kind='goal'`).Scan(&goals))
+	require.Zero(t, goals, "migration must not invent goals")
+	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM exploration_edges WHERE rel='proves'`).Scan(&proves))
+	require.Zero(t, proves, "migration must not invent proofs")
+	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM exploration_nodes WHERE kind='fact' AND state='origin'`).Scan(&origins))
+	require.Equal(t, 1, origins, "historical backfill adds one task origin and nothing else")
 	var source, verification string
 	require.NoError(t, pool.QueryRow(ctx, `SELECT source_kind,verification_state FROM findings WHERE id=$1`, findingID).Scan(&source, &verification))
 	require.Equal(t, "check_rule", source)
 	require.Equal(t, "unverified", verification)
-	// With no new exploration records, the reversible suffix can move to 21
+	// The origin fact is additive. The reversible suffix can move to 21
 	// and back without modifying the original review/evidence snapshot.
 	require.NoError(t, m.Migrate(21))
 	require.NoError(t, m.Up())

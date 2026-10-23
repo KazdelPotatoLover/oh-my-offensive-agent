@@ -27,6 +27,10 @@ type BudgetManager struct {
 	startTime   time.Time
 	deadline    time.Time
 	hasDeadline bool
+	// modelLimited and toolLimited stay true for policy-less managers so a
+	// stored 0 keeps the historical fallback. v1 sets them from the frozen policy.
+	modelLimited bool
+	toolLimited  bool
 
 	// Model calls
 	maxModelCalls       int
@@ -68,6 +72,8 @@ func NewBudgetManager(cfg model.BudgetConfig, startTime time.Time) *BudgetManage
 		reserveForWrapup:    reserve,
 		maxExplorationCalls: maxExploration,
 		maxToolCalls:        maxTools,
+		modelLimited:        true,
+		toolLimited:         true,
 	}
 
 	timeout := cfg.RunTimeoutSeconds
@@ -80,13 +86,78 @@ func NewBudgetManager(cfg model.BudgetConfig, startTime time.Time) *BudgetManage
 	return bm
 }
 
+// NewBudgetManagerFromPolicy honors agent_limits.v1. A zero cap is unlimited.
+// It does not invent the legacy 30/30/120 fallbacks.
+func NewBudgetManagerFromPolicy(policy model.ExecutionPolicy, cfg model.BudgetConfig, startTime time.Time) *BudgetManager {
+	bm := &BudgetManager{
+		cfg:          cfg,
+		startTime:    startTime,
+		modelLimited: policy.ModelLimited(),
+		toolLimited:  policy.ToolLimited(),
+		hasDeadline:  policy.HasDeadline(),
+	}
+	if bm.modelLimited {
+		maxModels := cfg.MaxModelCalls
+		if maxModels <= 0 {
+			maxModels = policy.HardLimits.ModelCalls
+		}
+		reserve := 0
+		if maxModels > 1 {
+			reserve = 1
+		}
+		bm.maxModelCalls = maxModels
+		bm.reserveForWrapup = reserve
+		bm.maxExplorationCalls = maxModels - reserve
+	}
+	if bm.toolLimited {
+		maxTools := cfg.MaxToolCalls
+		if maxTools <= 0 {
+			maxTools = policy.HardLimits.ToolCalls
+		}
+		bm.maxToolCalls = maxTools
+	}
+	if bm.hasDeadline {
+		timeout := cfg.RunTimeoutSeconds
+		if timeout <= 0 {
+			timeout = policy.TaskTimeoutSeconds
+		}
+		bm.deadline = startTime.Add(time.Duration(timeout) * time.Second)
+	}
+	return bm
+}
+
+func budgetManagerFor(policy *model.ExecutionPolicy, cfg model.BudgetConfig, start time.Time) *BudgetManager {
+	if policy != nil && policy.IsV1() {
+		return NewBudgetManagerFromPolicy(*policy, cfg, start)
+	}
+	return NewBudgetManager(cfg, start)
+}
+
+func (b *BudgetManager) HasDeadline() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.hasDeadline
+}
+
+func (b *BudgetManager) HasModelLimit() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.modelLimited
+}
+
+func (b *BudgetManager) HasToolLimit() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.toolLimited
+}
+
 // UpdateEffectiveBudget updates the budget limits and deadline dynamically while strictly preserving
-// cumulative usage counters.
+// cumulative usage counters. Unlimited dimensions are not turned into a small remainder.
 func (b *BudgetManager) UpdateEffectiveBudget(cfg model.BudgetConfig) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.cfg = cfg
-	if cfg.MaxModelCalls > 0 {
+	if b.modelLimited && cfg.MaxModelCalls > 0 {
 		b.maxModelCalls = cfg.MaxModelCalls
 		reserve := 0
 		if b.maxModelCalls > 1 {
@@ -95,10 +166,10 @@ func (b *BudgetManager) UpdateEffectiveBudget(cfg model.BudgetConfig) {
 		b.reserveForWrapup = reserve
 		b.maxExplorationCalls = b.maxModelCalls - reserve
 	}
-	if cfg.MaxToolCalls > 0 {
+	if b.toolLimited && cfg.MaxToolCalls > 0 {
 		b.maxToolCalls = cfg.MaxToolCalls
 	}
-	if cfg.RunTimeoutSeconds > 0 {
+	if b.hasDeadline && cfg.RunTimeoutSeconds > 0 {
 		b.deadline = b.startTime.Add(time.Duration(cfg.RunTimeoutSeconds) * time.Second)
 	}
 }
@@ -133,17 +204,19 @@ func (b *BudgetManager) acquireModelCall(ctx context.Context, isWrapup bool, kee
 		return ErrExplorationModelBudgetExhausted
 	}
 
-	// Check total hard limit
-	if int(b.consumedModelCalls) >= b.maxModelCalls {
-		return ErrModelBudgetExhausted
-	}
+	if b.modelLimited {
+		// Check total hard limit
+		if int(b.consumedModelCalls) >= b.maxModelCalls {
+			return ErrModelBudgetExhausted
+		}
 
-	// Check exploration budget
-	if !isWrapup && int(b.consumedModelCalls) >= b.maxExplorationCalls {
-		return ErrExplorationModelBudgetExhausted
-	}
-	if !isWrapup && b.maxModelCalls-int(b.consumedModelCalls) <= keep {
-		return ErrWorkerBudgetReserved
+		// Check exploration budget
+		if !isWrapup && int(b.consumedModelCalls) >= b.maxExplorationCalls {
+			return ErrExplorationModelBudgetExhausted
+		}
+		if !isWrapup && b.maxModelCalls-int(b.consumedModelCalls) <= keep {
+			return ErrWorkerBudgetReserved
+		}
 	}
 
 	b.consumedModelCalls++
@@ -156,6 +229,9 @@ func (b *BudgetManager) acquireModelCall(ctx context.Context, isWrapup bool, kee
 func (b *BudgetManager) WorkerModelCallsRemaining(planner, main int) int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if !b.modelLimited {
+		return -1
+	}
 	keep := max(planner+main, b.reserveForWrapup)
 	return max(0, b.maxModelCalls-int(b.consumedModelCalls)-keep)
 }
@@ -184,7 +260,7 @@ func (b *BudgetManager) AcquireToolCall(ctx context.Context) error {
 	if b.hasDeadline && !time.Now().Before(b.deadline) {
 		return context.DeadlineExceeded
 	}
-	if int(b.consumedToolCalls) >= b.maxToolCalls {
+	if b.toolLimited && int(b.consumedToolCalls) >= b.maxToolCalls {
 		return ErrToolBudgetExhausted
 	}
 
@@ -203,12 +279,12 @@ func (b *BudgetManager) CanClaimWorkItem(ctx context.Context) bool {
 	}
 
 	// Exploration model quota reached -> stop claiming
-	if int(b.consumedModelCalls) >= b.maxExplorationCalls {
+	if b.modelLimited && int(b.consumedModelCalls) >= b.maxExplorationCalls {
 		return false
 	}
 
 	// Tool quota reached -> stop claiming
-	if int(b.consumedToolCalls) >= b.maxToolCalls {
+	if b.toolLimited && int(b.consumedToolCalls) >= b.maxToolCalls {
 		return false
 	}
 
@@ -258,6 +334,9 @@ func (b *BudgetManager) ConsumedToolCalls() int {
 func (b *BudgetManager) RemainingModelCalls() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if !b.modelLimited {
+		return -1
+	}
 	remaining := b.maxModelCalls - int(b.consumedModelCalls)
 	if remaining < 0 {
 		return 0
@@ -268,6 +347,9 @@ func (b *BudgetManager) RemainingModelCalls() int {
 func (b *BudgetManager) RemainingExplorationModelCalls() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if !b.modelLimited {
+		return -1
+	}
 	remaining := b.maxExplorationCalls - int(b.consumedModelCalls)
 	if remaining < 0 {
 		return 0
@@ -278,6 +360,9 @@ func (b *BudgetManager) RemainingExplorationModelCalls() int {
 func (b *BudgetManager) RemainingToolCalls() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if !b.toolLimited {
+		return -1
+	}
 	remaining := b.maxToolCalls - int(b.consumedToolCalls)
 	if remaining < 0 {
 		return 0
@@ -289,6 +374,9 @@ func (b *BudgetManager) RemainingToolCalls() int {
 func (b *BudgetManager) HasWrapupQuota() bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if !b.modelLimited {
+		return true
+	}
 	return int(b.consumedModelCalls) < b.maxModelCalls
 }
 
@@ -313,8 +401,14 @@ func (b *BudgetManager) ExhaustionCause() model.TerminationCause {
 	if b.hasDeadline && time.Until(b.deadline) < minimum {
 		return model.CauseTimeout
 	}
-	if int(b.consumedToolCalls) >= b.maxToolCalls {
+	if b.toolLimited && int(b.consumedToolCalls) >= b.maxToolCalls {
 		return model.CauseToolBudgetExhausted
+	}
+	if b.modelLimited && int(b.consumedModelCalls) >= b.maxExplorationCalls {
+		return model.CauseModelBudgetExhausted
+	}
+	if !b.modelLimited && !b.toolLimited && !b.hasDeadline {
+		return model.CauseNeedsInput
 	}
 	return model.CauseModelBudgetExhausted
 }
@@ -354,6 +448,18 @@ type WorkerBudgetGate struct {
 	limiter                 *ModelLimiter
 	plannerReserve          int
 	mainReserve             int
+	policyV1                bool
+	modelCapEnabled         bool
+	toolCapEnabled          bool
+	localDeadlineEnabled    bool
+	turnsEnabled            bool
+	maxLogicalTurns         int
+	logicalTurns            int
+	settlementTurnsEnabled  bool
+	settlementMaxTurns      int
+	settlementTurns         int
+	settlementClockEnabled  bool
+	settlementClock         time.Duration
 }
 
 func (w *WorkerBudgetGate) UseModelLimiter(limiter *ModelLimiter) {
@@ -396,10 +502,94 @@ func NewWorkerBudgetGate(bm *BudgetManager, cfg model.BudgetConfig) *WorkerBudge
 		startTime:               now,
 		localTimeout:            timeoutDur,
 		localDeadline:           now.Add(timeoutDur),
+		localDeadlineEnabled:    true,
 		workerMaxModels:         maxModels,
 		workerMaxTools:          maxTools,
+		modelCapEnabled:         true,
+		toolCapEnabled:          true,
 		settlementModelsAllowed: 1, // 1 model call for settlement wrapup
 	}
+}
+
+// NewWorkerBudgetGateForPolicy applies v1 turn, duration, and request caps.
+// cfg is the worker budget after profile tightening, so a positive profile cap
+// still bounds an otherwise unlimited worker dimension.
+func NewWorkerBudgetGateForPolicy(bm *BudgetManager, cfg model.BudgetConfig, policy model.ExecutionPolicy) *WorkerBudgetGate {
+	now := time.Now()
+	gate := &WorkerBudgetGate{
+		bm:       bm,
+		cfg:      cfg,
+		policyV1: true,
+		startTime: now,
+	}
+	if cfg.WorkerMaxModelCalls > 0 {
+		gate.modelCapEnabled = true
+		gate.workerMaxModels = cfg.WorkerMaxModelCalls
+	}
+	if cfg.WorkerMaxToolCalls > 0 {
+		gate.toolCapEnabled = true
+		gate.workerMaxTools = cfg.WorkerMaxToolCalls
+	}
+	timeout := policy.Agents.Worker.RunTimeoutSeconds
+	if cfg.WorkerTimeoutSeconds > 0 && (timeout <= 0 || cfg.WorkerTimeoutSeconds < timeout) {
+		timeout = cfg.WorkerTimeoutSeconds
+	}
+	if timeout > 0 {
+		gate.localDeadlineEnabled = true
+		gate.localTimeout = time.Duration(timeout) * time.Second
+		gate.localDeadline = now.Add(gate.localTimeout)
+	}
+	if policy.Agents.Worker.MaxTurns > 0 {
+		gate.turnsEnabled = true
+		gate.maxLogicalTurns = policy.Agents.Worker.MaxTurns
+	}
+	if policy.Agents.Worker.SettlementMaxTurns > 0 {
+		gate.settlementTurnsEnabled = true
+		gate.settlementMaxTurns = policy.Agents.Worker.SettlementMaxTurns
+	}
+	if cfg.WorkerSettlementTimeoutSeconds > 0 {
+		gate.settlementClockEnabled = true
+		gate.settlementClock = time.Duration(cfg.WorkerSettlementTimeoutSeconds) * time.Second
+	} else if policy.WorkerSettlementTimeoutSeconds > 0 {
+		gate.settlementClockEnabled = true
+		gate.settlementClock = time.Duration(policy.WorkerSettlementTimeoutSeconds) * time.Second
+	}
+	return gate
+}
+
+func (w *WorkerBudgetGate) NoteLogicalTurn(inSettlement bool) {
+	if w == nil {
+		return
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if inSettlement || w.inSettlement.Load() {
+		w.settlementTurns++
+		return
+	}
+	w.logicalTurns++
+}
+
+func (w *WorkerBudgetGate) enterSettlementLocked() {
+	if w.inSettlement.Load() {
+		return
+	}
+	w.inSettlement.Store(true)
+	if !w.policyV1 {
+		settleSec := w.cfg.WorkerSettlementTimeoutSeconds
+		if settleSec <= 0 {
+			settleSec = 15
+		}
+		w.localDeadlineEnabled = true
+		w.localDeadline = time.Now().Add(time.Duration(settleSec) * time.Second)
+		return
+	}
+	if w.settlementClockEnabled {
+		w.localDeadlineEnabled = true
+		w.localDeadline = time.Now().Add(w.settlementClock)
+		return
+	}
+	w.localDeadlineEnabled = false
 }
 
 func (w *WorkerBudgetGate) TryAcquire() bool {
@@ -434,7 +624,7 @@ func (w *WorkerBudgetGate) tryAcquireModelLocked(ctx context.Context, isSettleme
 	defer w.mu.Unlock()
 
 	// 1. Check Global Run-level deadline
-	if w.bm.RemainingTime() <= 0 {
+	if w.bm.HasDeadline() && w.bm.RemainingTime() <= 0 {
 		return agent.BudgetGateResult{
 			Allowed: false,
 			Scope:   agent.ScopeGlobal,
@@ -450,7 +640,7 @@ func (w *WorkerBudgetGate) tryAcquireModelLocked(ctx context.Context, isSettleme
 	}
 
 	// 2. Check Global Run-level model budget
-	if w.bm.RemainingModelCalls() <= 0 {
+	if w.bm.HasModelLimit() && w.bm.RemainingModelCalls() <= 0 {
 		return agent.BudgetGateResult{
 			Allowed: false,
 			Scope:   agent.ScopeGlobal,
@@ -459,14 +649,9 @@ func (w *WorkerBudgetGate) tryAcquireModelLocked(ctx context.Context, isSettleme
 	}
 
 	// 3. Check Worker-local deadline
-	if time.Now().After(w.localDeadline) {
+	if w.localDeadlineEnabled && time.Now().After(w.localDeadline) {
 		if !w.inSettlement.Load() {
-			w.inSettlement.Store(true)
-			settleSec := w.cfg.WorkerSettlementTimeoutSeconds
-			if settleSec <= 0 {
-				settleSec = 15
-			}
-			w.localDeadline = time.Now().Add(time.Duration(settleSec) * time.Second)
+			w.enterSettlementLocked()
 			return agent.BudgetGateResult{
 				Allowed:      false,
 				Scope:        agent.ScopeWorkerLocal,
@@ -482,10 +667,10 @@ func (w *WorkerBudgetGate) tryAcquireModelLocked(ctx context.Context, isSettleme
 		}
 	}
 
-	// 4. Check Worker-local model call limits
+	// 4. Check Worker-local model call limits and logical turns
 	if !w.inSettlement.Load() {
-		if w.localModelCalls >= w.workerMaxModels {
-			w.inSettlement.Store(true)
+		if w.turnsEnabled && w.logicalTurns >= w.maxLogicalTurns {
+			w.enterSettlementLocked()
 			return agent.BudgetGateResult{
 				Allowed:      false,
 				Scope:        agent.ScopeWorkerLocal,
@@ -493,15 +678,30 @@ func (w *WorkerBudgetGate) tryAcquireModelLocked(ctx context.Context, isSettleme
 				IsSettlement: true,
 			}
 		}
-	} else {
-		// In settlement
-		if w.settlementModelsUsed >= w.settlementModelsAllowed {
+		if w.modelCapEnabled && w.localModelCalls >= w.workerMaxModels {
+			w.enterSettlementLocked()
+			return agent.BudgetGateResult{
+				Allowed:      false,
+				Scope:        agent.ScopeWorkerLocal,
+				Cause:        model.CauseWorkerModelBudgetExhausted,
+				IsSettlement: true,
+			}
+		}
+	} else if w.policyV1 {
+		if w.settlementTurnsEnabled && w.settlementTurns >= w.settlementMaxTurns {
 			return agent.BudgetGateResult{
 				Allowed:      false,
 				Scope:        agent.ScopeWorkerLocal,
 				Cause:        model.CauseWorkerSettlementComplete,
 				IsSettlement: false,
 			}
+		}
+	} else if w.settlementModelsUsed >= w.settlementModelsAllowed {
+		return agent.BudgetGateResult{
+			Allowed:      false,
+			Scope:        agent.ScopeWorkerLocal,
+			Cause:        model.CauseWorkerSettlementComplete,
+			IsSettlement: false,
 		}
 	}
 
@@ -533,7 +733,7 @@ func (w *WorkerBudgetGate) tryAcquireModelLocked(ctx context.Context, isSettleme
 
 	if w.inSettlement.Load() {
 		w.settlementModelsUsed++
-	} else {
+	} else if w.modelCapEnabled {
 		w.localModelCalls++
 	}
 
@@ -549,7 +749,7 @@ func (w *WorkerBudgetGate) TryAcquireTool(ctx context.Context, toolName string, 
 	defer w.mu.Unlock()
 
 	// 1. Check Global Run-level limits
-	if w.bm.RemainingTime() <= 0 {
+	if w.bm.HasDeadline() && w.bm.RemainingTime() <= 0 {
 		return agent.BudgetGateResult{
 			Allowed: false,
 			Scope:   agent.ScopeGlobal,
@@ -563,7 +763,7 @@ func (w *WorkerBudgetGate) TryAcquireTool(ctx context.Context, toolName string, 
 			Cause:   model.ResolveCancelCause(ctx),
 		}
 	}
-	if w.bm.RemainingToolCalls() <= 0 {
+	if w.bm.HasToolLimit() && w.bm.RemainingToolCalls() <= 0 {
 		return agent.BudgetGateResult{
 			Allowed: false,
 			Scope:   agent.ScopeGlobal,
@@ -589,9 +789,9 @@ func (w *WorkerBudgetGate) TryAcquireTool(ctx context.Context, toolName string, 
 	}
 
 	// 3. Check worker local tool calls
-	if w.localToolCalls >= w.workerMaxTools {
+	if w.toolCapEnabled && w.localToolCalls >= w.workerMaxTools {
 		if !w.inSettlement.Load() {
-			w.inSettlement.Store(true)
+			w.enterSettlementLocked()
 			return agent.BudgetGateResult{
 				Allowed:      false,
 				Scope:        agent.ScopeWorkerLocal,
@@ -627,8 +827,16 @@ func (w *WorkerBudgetGate) TryAcquireTool(ctx context.Context, toolName string, 
 func (b *BudgetManager) SetStartTime(started time.Time) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	previousStart := b.startTime
+	previousDeadline := b.deadline
 	b.startTime = started
+	if !b.hasDeadline {
+		return
+	}
 	timeout := b.cfg.RunTimeoutSeconds
+	if timeout <= 0 && !previousDeadline.IsZero() {
+		timeout = int(previousDeadline.Sub(previousStart) / time.Second)
+	}
 	if timeout <= 0 {
 		timeout = 120
 	}

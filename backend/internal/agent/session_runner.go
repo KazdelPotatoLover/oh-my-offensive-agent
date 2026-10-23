@@ -390,8 +390,11 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 			return &SessionResult{SessionID: sr.sessionID, FinishReason: reason}, errors.New("provider returned nil response")
 		}
 
-		// Model call completed
+		// Model call completed. One successful response plus its tool batch is one turn.
 		modelCallCount++
+		if observer, ok := sr.structuredGate.(LogicalTurnObserver); ok {
+			observer.NoteLogicalTurn(inSettlement)
+		}
 		var promptTokens, completionTokens, turnTokens int
 		if resp.Usage != nil {
 			promptTokens = resp.Usage.PromptTokens
@@ -526,7 +529,7 @@ func (sr *SessionRunner) Run(ctx context.Context, initialMessages []provider.Cha
 		}
 
 		// Check tool call budget
-		if sr.toolCallGate == nil && toolCallCount+len(resp.ToolCalls) > sr.budget.MaxToolCalls {
+		if sr.toolCallGate == nil && sr.structuredGate == nil && sr.budget.MaxToolCalls > 0 && toolCallCount+len(resp.ToolCalls) > sr.budget.MaxToolCalls {
 			reason := "tool_calls_exhausted"
 			sr.updateSessionTerminal("exhausted", reason)
 			return &SessionResult{

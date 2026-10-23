@@ -44,6 +44,7 @@ import {
   FindingRetest,
   BudgetConfig,
   MCPServer,
+  NativeToolItem,
 } from './types';
 
 const API_BASE_URL =
@@ -220,6 +221,9 @@ export const api = {
     }
     if (input?.budget !== undefined) {
       body.budget = input.budget;
+    }
+    if (input?.execution_policy !== undefined) {
+      body.execution_policy = input.execution_policy;
     }
 
     return request<Run>(`/api/tasks/${taskId}/runs`, {
@@ -484,5 +488,10 @@ export const api = {
     return request<{ tools: any[] }>(`/api/mcp/servers/${id}/discover`, {
       method: 'POST',
     });
+  },
+
+  // Native Tools Catalog
+  async getNativeToolsCatalog(): Promise<{ tools: NativeToolItem[] }> {
+    return request<{ tools: NativeToolItem[] }>(`/api/tools/catalog`);
   },
 };

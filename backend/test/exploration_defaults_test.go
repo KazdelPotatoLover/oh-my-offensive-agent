@@ -40,11 +40,13 @@ func TestExplorationDefaults_InheritOverrideAndFreeze(t *testing.T) {
 	b := budgetOf(run)
 	require.Equal(t, 5, b.MaxParallelWorkers)
 	require.Equal(t, 2400, b.RunTimeoutSeconds)
-	require.Equal(t, 240, b.MaxModelCalls)
-	require.Equal(t, 600, b.MaxToolCalls)
-	require.Equal(t, 20, b.WorkerMaxModelCalls)
-	require.Equal(t, 300, b.WorkerTimeoutSeconds)
-	require.Equal(t, 24, b.PlannerReservedModelCalls)
+	require.Equal(t, 0, b.MaxModelCalls)
+	require.Equal(t, 0, b.MaxToolCalls)
+	require.Equal(t, 0, b.WorkerMaxModelCalls)
+	require.Equal(t, 1200, b.WorkerTimeoutSeconds)
+	require.Equal(t, 0, b.PlannerReservedModelCalls)
+	require.Equal(t, "agent_limits.v1", policyOf(t, run).SchemaVersion)
+	require.False(t, policyOf(t, run).ModelLimited())
 
 	// Changing deployment defaults cannot increase an already accepted grant,
 	// including an idempotent retry of the original create request.
@@ -64,8 +66,25 @@ func TestExplorationDefaults_InheritOverrideAndFreeze(t *testing.T) {
 	require.Equal(t, 4, b.MaxParallelWorkers, "task settings override global defaults")
 	require.Equal(t, 600, b.RunTimeoutSeconds, "only the chosen request field overrides task settings")
 	require.Equal(t, 90, b.MaxModelCalls)
-	require.Equal(t, 9, b.PlannerReservedModelCalls, "managed reserves adapt to the actual grant")
-	require.Equal(t, 3, b.MainReservedModelCalls)
+	require.Equal(t, 0, b.PlannerReservedModelCalls)
+	require.Equal(t, 0, b.MainReservedModelCalls)
+	require.True(t, policyOf(t, run).ModelLimited())
+	require.False(t, policyOf(t, run).ToolLimited())
+
+	task = create(`{"exploration":true,"executor":"orchestrator","provider":"mock","budget":{"max_model_calls":40,"planner_reserved_model_calls":6,"main_reserved_model_calls":4}}`)
+	run, _, err = runs.Create(ctx, task.ID, model.CreateRunRequest{}, nil)
+	require.NoError(t, err)
+	b = budgetOf(run)
+	require.Equal(t, 40, b.MaxModelCalls)
+	require.Equal(t, 6, b.PlannerReservedModelCalls, "an explicit old reserve is a compatible cap")
+	require.Equal(t, 4, b.MainReservedModelCalls)
+
+	zero := 0
+	task = create(`{"exploration":true,"executor":"orchestrator","provider":"mock","budget":{"run_timeout_seconds":900}}`)
+	run, _, err = runs.Create(ctx, task.ID, model.CreateRunRequest{ExecutionPolicy: &model.PolicyOverride{TaskTimeoutSeconds: &zero}}, nil)
+	require.NoError(t, err)
+	require.Equal(t, 0, budgetOf(run).RunTimeoutSeconds)
+	require.False(t, policyOf(t, run).HasDeadline())
 
 	task = create(`{"executor":"orchestrator","provider":"mock","budget":{"max_model_calls":12}}`)
 	run, _, err = runs.Create(ctx, task.ID, model.CreateRunRequest{}, nil)
@@ -74,6 +93,14 @@ func TestExplorationDefaults_InheritOverrideAndFreeze(t *testing.T) {
 	require.Equal(t, 1, b.MaxParallelWorkers, "legacy non-exploration creation retains its defaults")
 	require.Equal(t, 120, b.RunTimeoutSeconds)
 	require.Equal(t, 12, b.MaxModelCalls)
+	require.Nil(t, model.PolicyFromExecutionInput(run.ExecutionInput))
+}
+
+func policyOf(t *testing.T, run *model.Run) model.ExecutionPolicy {
+	t.Helper()
+	policy := model.PolicyFromExecutionInput(run.ExecutionInput)
+	require.NotNil(t, policy)
+	return *policy
 }
 
 func TestExplorationDefaults_HTTPInheritsGlobalAndTaskWorkerCounts(t *testing.T) {
@@ -100,5 +127,10 @@ func TestExplorationDefaults_HTTPInheritsGlobalAndTaskWorkerCounts(t *testing.T)
 		}
 		require.NoError(t, json.Unmarshal(run.ExecutionInput, &snapshot))
 		require.Equal(t, tc.workers, snapshot.Budget.MaxParallelWorkers)
+		require.Equal(t, 0, snapshot.Budget.MaxModelCalls)
+		require.Equal(t, 0, snapshot.Budget.RunTimeoutSeconds)
+		policy := model.PolicyFromExecutionInput(run.ExecutionInput)
+		require.NotNil(t, policy)
+		require.Equal(t, "agent_limits.v1", policy.SchemaVersion)
 	}
 }

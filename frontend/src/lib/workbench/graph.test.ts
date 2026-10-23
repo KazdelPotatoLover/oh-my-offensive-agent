@@ -7,6 +7,7 @@ const graph: ExplorationGraph = {
     { id: 'goal-1', kind: 'goal', state: 'open', payload: { text: '第一个目标' } },
     { id: 'goal-2', kind: 'goal', state: 'met', payload: { text: '第二个目标' } },
     { id: 'intent-node', kind: 'intent', state: 'open', work_status: 'completed', work_item_id: 'work-id', payload: { text: '历史方向' } },
+    { id: 'origin-1', kind: 'fact', state: 'origin', payload: { summary: '任务目标' } },
     { id: 'fact-1', kind: 'fact', state: 'unverified', payload: { summary: '待验证事实' } },
     { id: 'fact-2', kind: 'fact', state: 'verified', payload: { summary: '有来源事实' } },
     { id: 'finding-node', kind: 'finding', state: 'unverified', finding_id: 'finding-id', payload: { summary: '旧摘要' }, finding: { id: 'finding-id', title: '真实标题', status: 'pending_review', source_kind: 'speculative', verification_state: 'unverified' } },
@@ -20,7 +21,11 @@ const graph: ExplorationGraph = {
 
 test('preserves canonical IDs, isolated goals, exact lineage and only recorded proofs', () => {
   const { graphNodes, graphEdges } = buildExplorationGraph(parseExplorationGraph(graph));
-  assert.equal(graphNodes.length, 6);
+  assert.equal(graphNodes.length, 7);
+  const origin = graphNodes.find(n => n.id === 'origin-1')!;
+  assert.equal(origin.kind, 'fact');
+  assert.equal(origin.state, 'origin');
+  assert.equal(origin.label, '任务起点');
   assert.deepEqual(graphEdges, graph.edges);
   assert.equal(graphEdges.filter(e => e.rel === 'proves').length, 1);
   assert.ok(!graphEdges.some(e => e.src === 'goal-1' || e.dst === 'goal-1'));
@@ -40,7 +45,7 @@ test('includes the whole snapshot, terminal nodes and parallel relationships', (
   const many: ExplorationGraph = { nodes: [...graph.nodes], edges: [...graph.edges, { id: 'other-rel', src: 'fact-2', dst: 'intent-node', rel: 'spawns' }] };
   for (let i = 0; i < 110; i++) many.nodes.push({ id: `fact-extra-${i}`, kind: 'fact', state: 'unverified', payload: {} });
   const view = buildExplorationGraph(parseExplorationGraph(many));
-  assert.equal(view.graphNodes.length, 116);
+  assert.equal(view.graphNodes.length, 117);
   assert.equal(view.graphEdges.length, 4);
 });
 

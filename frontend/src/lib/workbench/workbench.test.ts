@@ -197,4 +197,11 @@ test('deep links keep task, run and work item across refresh', () => {
     runId: RUN,
     workItemId: WORK,
   });
+
+  // Task only selection parses and can be resolved to latest run
+  const taskOnlyHref = workbenchHref({ taskId: 'task-1' });
+  assert.equal(taskOnlyHref, '/workbench/tasks/task-1');
+  assert.deepEqual(selectionFromPath(taskOnlyHref, ''), { taskId: 'task-1' });
+  const resolvedRunHref = workbenchHref({ taskId: 'task-1', runId: RUN });
+  assert.equal(resolvedRunHref, `/workbench/tasks/task-1/runs/${RUN}`);
 });

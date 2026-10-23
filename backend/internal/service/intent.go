@@ -43,13 +43,14 @@ func prepareIntent(ctx context.Context, tx pgx.Tx, runID uuid.UUID, item *PlanIt
 		}
 		seen[id] = true
 		var version int
-		var state string
-		if err := tx.QueryRow(ctx, `SELECT content_version,state FROM exploration_nodes WHERE id=$1 AND run_id=$2 AND kind='fact' AND delete_reason IS NULL`, id, runID).Scan(&version, &state); err != nil {
+		var state, kind string
+		if err := tx.QueryRow(ctx, `SELECT content_version,state,kind FROM exploration_nodes WHERE id=$1 AND run_id=$2 AND kind IN ('fact','finding') AND delete_reason IS NULL`, id, runID).Scan(&version, &state, &kind); err != nil {
 			return "", fmt.Errorf("invalid source fact: %w", err)
 		}
 		if state == "invalidated" || state == "retracted" {
 			return "", ErrInvalidEvidence
 		}
+		_ = kind
 		sources = append(sources, fmt.Sprintf("%s@%d", id, version))
 	}
 	sort.Strings(sources)
@@ -71,9 +72,26 @@ func linkPlannedIntent(ctx context.Context, tx pgx.Tx, runID, workID uuid.UUID, 
 			return err
 		}
 	}
+	if len(item.SourceFactIDs) == 0 {
+		return linkOriginDerivedTx(ctx, tx, runID, nodeID)
+	}
 	for _, factID := range item.SourceFactIDs {
-		if _, err = tx.Exec(ctx, `INSERT INTO exploration_edges(run_id,src_id,dst_id,rel,source_version,target_version) SELECT $1,id,$3,'derived_from',content_version,1 FROM exploration_nodes WHERE id=$2 AND run_id=$1`, runID, factID, nodeID); err != nil {
+		tag, err := tx.Exec(ctx, `INSERT INTO exploration_edges(run_id,src_id,dst_id,rel,source_version,target_version)
+			SELECT $1,id,$3,'derived_from',content_version,1 FROM exploration_nodes
+			WHERE id=$2 AND run_id=$1 AND kind IN ('fact','finding') AND delete_reason IS NULL
+			  AND state NOT IN ('retracted','invalidated')
+			ON CONFLICT (run_id, src_id, dst_id, rel) DO NOTHING`, runID, factID, nodeID)
+		if err != nil {
 			return err
+		}
+		if tag.RowsAffected() == 0 {
+			var exists bool
+			if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM exploration_edges WHERE run_id=$1 AND src_id=$2 AND dst_id=$3 AND rel='derived_from')`, runID, factID, nodeID).Scan(&exists); err != nil {
+				return err
+			}
+			if !exists {
+				return fmt.Errorf("%w: source %s is not a usable fact or finding", ErrInvalidEvidence, factID)
+			}
 		}
 	}
 	return nil

@@ -72,6 +72,7 @@ type Engine struct {
 
 	// Global budget tracking across Planner and all Workers
 	budgetMgr         *BudgetManager
+	executionPolicy   *model.ExecutionPolicy
 	executionCtx      context.Context
 	cancelWorkerCause context.CancelCauseFunc
 	activeWorkerCount atomic.Int32
@@ -213,9 +214,21 @@ func (e *Engine) RefreshBudget(ctx context.Context) error {
 		return err
 	}
 	newBudget := e.initialBudget
-	newBudget.MaxModelCalls += grants.AdditionalModelCalls
-	newBudget.MaxToolCalls += grants.AdditionalToolCalls
-	newBudget.RunTimeoutSeconds += grants.AdditionalSeconds
+	if e.executionPolicy != nil && e.executionPolicy.IsV1() {
+		if e.executionPolicy.ModelLimited() {
+			newBudget.MaxModelCalls += grants.AdditionalModelCalls
+		}
+		if e.executionPolicy.ToolLimited() {
+			newBudget.MaxToolCalls += grants.AdditionalToolCalls
+		}
+		if e.executionPolicy.HasDeadline() {
+			newBudget.RunTimeoutSeconds += grants.AdditionalSeconds
+		}
+	} else {
+		newBudget.MaxModelCalls += grants.AdditionalModelCalls
+		newBudget.MaxToolCalls += grants.AdditionalToolCalls
+		newBudget.RunTimeoutSeconds += grants.AdditionalSeconds
+	}
 	e.budgetMu.Lock()
 	e.budget = newBudget
 	e.budgetMu.Unlock()
@@ -224,7 +237,7 @@ func (e *Engine) RefreshBudget(ctx context.Context) error {
 	}
 	// Extend or reset dynamic deadline timer
 	e.timerMu.Lock()
-	if e.deadlineTimer != nil && e.runService != nil {
+	if e.budgetMgr != nil && e.budgetMgr.HasDeadline() && e.deadlineTimer != nil && e.runService != nil {
 		startedAt, err := e.runService.ExecutionBudgetStart(ctx, e.runID)
 		if err != nil {
 			e.timerMu.Unlock()
@@ -257,12 +270,52 @@ func NewEngine(
 	budget model.BudgetConfig,
 	opts ...EngineOption,
 ) *Engine {
+	return newEngine(runID, runService, p, budget, nil, opts...)
+}
+
+// NewEngineWithPolicy starts a run from its frozen execution policy. A v1
+// policy is the authority for unlimited dimensions. Caller-supplied budgets
+// passed to NewEngine keep the historical fallback path.
+func NewEngineWithPolicy(
+	runID uuid.UUID,
+	runService *service.RunService,
+	p provider.Provider,
+	budget model.BudgetConfig,
+	policy *model.ExecutionPolicy,
+	opts ...EngineOption,
+) *Engine {
+	if policy != nil && !policy.IsV1() {
+		policy = nil
+	}
+	return newEngine(runID, runService, p, budget, policy, opts...)
+}
+
+func newEngine(
+	runID uuid.UUID,
+	runService *service.RunService,
+	p provider.Provider,
+	budget model.BudgetConfig,
+	policy *model.ExecutionPolicy,
+	opts ...EngineOption,
+) *Engine {
 	initialBudget := budget
 	if runService != nil {
 		if grants, err := runService.GetBudgetGrantsTotal(context.Background(), runID); err == nil {
-			budget.MaxModelCalls += grants.AdditionalModelCalls
-			budget.MaxToolCalls += grants.AdditionalToolCalls
-			budget.RunTimeoutSeconds += grants.AdditionalSeconds
+			if policy != nil && policy.IsV1() {
+				if policy.ModelLimited() {
+					budget.MaxModelCalls += grants.AdditionalModelCalls
+				}
+				if policy.ToolLimited() {
+					budget.MaxToolCalls += grants.AdditionalToolCalls
+				}
+				if policy.HasDeadline() {
+					budget.RunTimeoutSeconds += grants.AdditionalSeconds
+				}
+			} else {
+				budget.MaxModelCalls += grants.AdditionalModelCalls
+				budget.MaxToolCalls += grants.AdditionalToolCalls
+				budget.RunTimeoutSeconds += grants.AdditionalSeconds
+			}
 		}
 	}
 	maxWorkers := budget.MaxParallelWorkers
@@ -289,7 +342,8 @@ func NewEngine(
 		budget:           budget,
 		maxWorkers:       maxWorkers,
 		requestedWorkers: maxWorkers,
-		budgetMgr:        NewBudgetManager(budget, time.Now()),
+		executionPolicy:  policy,
+		budgetMgr:        budgetManagerFor(policy, budget, time.Now()),
 		notifyChan:       make(chan struct{}, 100),
 		dispatchNotify:   make(chan struct{}, 100),
 		debounce:         50 * time.Millisecond,
@@ -529,15 +583,17 @@ func (e *Engine) Run(ctx context.Context) {
 	e.executionCtx = runCtx
 	e.timerMu.Lock()
 	e.runCancel = cancelRun
-	runTimeout := time.Duration(e.budgetConfig().RunTimeoutSeconds) * time.Second
-	if runTimeout <= 0 {
-		runTimeout = 120 * time.Second
-	}
-	remainingDur := time.Until(startedAt.Add(runTimeout))
-	if remainingDur <= 0 {
-		cancelRun(model.CauseTimeout)
-	} else {
-		e.deadlineTimer = time.AfterFunc(remainingDur, func() { cancelRun(model.CauseTimeout) })
+	if e.budgetMgr.HasDeadline() {
+		runTimeout := time.Duration(e.budgetConfig().RunTimeoutSeconds) * time.Second
+		if runTimeout <= 0 {
+			runTimeout = 120 * time.Second
+		}
+		remainingDur := time.Until(startedAt.Add(runTimeout))
+		if remainingDur <= 0 {
+			cancelRun(model.CauseTimeout)
+		} else {
+			e.deadlineTimer = time.AfterFunc(remainingDur, func() { cancelRun(model.CauseTimeout) })
+		}
 	}
 	e.timerMu.Unlock()
 	defer func() {
@@ -794,7 +850,7 @@ func (e *Engine) Run(ctx context.Context) {
 			}
 		}
 		obsInfo.WriteString(fmt.Sprintf("Work items: completed=%d, worker_exhausted=%d, pending_or_running=%d; observations=%d; assets discovered=%d, planned=%d, visited=%d, unvisited=%d. These are current persisted snapshots and do not imply complete coverage. Visits come from successful reads, independently of observations and work completion.\n", completedCount, exhaustedCount, pendingCount, len(obsList), len(coverage), planned, visited, len(coverage)-visited))
-		obsInfo.WriteString(fmt.Sprintf("Worker-admittable model calls: %d (after keeping Planner/Main reserves). Work item slots: %d of %d used. At zero worker allowance, do not submit or continue work; preserve results and suggest partial/blocked completion. At the work item cap, reuse a genuinely unfinished direction only if worker allowance remains; never change keys to evade the cap.\n", e.budgetMgr.WorkerModelCallsRemaining(e.plannerReserve, e.mainReserve), len(items), e.budgetConfig().MaxWorkItems))
+		obsInfo.WriteString(e.plannerBudgetLine(len(items)))
 		for _, a := range coverage[:min(50, len(coverage))] {
 			obsInfo.WriteString(fmt.Sprintf("- Asset coverage: %s [id: %s] planned=%t visited=%t\n", a.ExternalKey, a.AssetID, a.Planned, a.Visited))
 		}
@@ -1000,7 +1056,7 @@ func (e *Engine) executeWorkerSession(
 	adapterScope := tools.AdapterContext{RunID: e.runID, WorkItemID: wi.ID, AttemptID: att.ID, SessionID: sess.ID, Service: e.runService}
 	tools.RegisterArtifactReaders(workerRegistry, adapterScope)
 	workerRegistry.Register(tools.NewArtifactTool("write_artifact", adapterScope))
-	workerRegistry.Register(tools.NewReportFindingTool(e.runID, e.runService))
+	workerRegistry.Register(tools.NewReportFindingToolWithWorkItem(e.runID, wi.ID, e.runService))
 	workerRegistry.Register(tools.NewRecordFactToolWithCallback(e.runID, &wi.ID, e.runService, func() {
 		e.markPlannerDirty()
 	}))
@@ -1111,7 +1167,7 @@ func (e *Engine) executeWorkerSession(
 	e.workerCancels.Store(wi.ID, workerCancel)
 	defer e.workerCancels.Delete(wi.ID)
 
-	workerGate := NewWorkerBudgetGate(e.budgetMgr, workerBudget)
+	workerGate := e.workerBudgetGate(workerBudget)
 	workerGate.UseModelLimiter(e.modelLimiter)
 	workerGate.SetReserves(e.plannerReserve, e.mainReserve)
 
@@ -1263,7 +1319,7 @@ func (e *Engine) coordinateWrapup(
 		latestCause := cause
 		if e.executionCtx != nil && e.executionCtx.Err() != nil {
 			latestCause = model.ResolveCancelCause(e.executionCtx)
-		} else if e.budgetMgr.RemainingTime() <= 0 {
+		} else if e.budgetMgr.HasDeadline() && e.budgetMgr.RemainingTime() <= 0 {
 			// The summary's deadline can fire just before the Run timer callback.
 			// Resolve against the shared clock instead of depending on goroutine
 			// scheduling at that boundary.
@@ -1321,11 +1377,34 @@ func (e *Engine) cleanupTimeout() time.Duration {
 	return time.Duration(seconds) * time.Second
 }
 
+func (e *Engine) workerBudgetGate(cfg model.BudgetConfig) *WorkerBudgetGate {
+	if e.executionPolicy != nil && e.executionPolicy.IsV1() {
+		return NewWorkerBudgetGateForPolicy(e.budgetMgr, cfg, *e.executionPolicy)
+	}
+	return NewWorkerBudgetGate(e.budgetMgr, cfg)
+}
+
+func (e *Engine) plannerBudgetLine(itemCount int) string {
+	calls := e.budgetMgr.WorkerModelCallsRemaining(e.plannerReserve, e.mainReserve)
+	callText := fmt.Sprintf("%d", calls)
+	if calls < 0 {
+		callText = "不设上限"
+	}
+	slotText := fmt.Sprintf("%d of %d", itemCount, e.budgetConfig().MaxWorkItems)
+	if e.executionPolicy != nil && e.executionPolicy.IsV1() && !e.executionPolicy.WorkItemsLimited() {
+		slotText = fmt.Sprintf("%d（不设方向上限）", itemCount)
+	}
+	return fmt.Sprintf("Worker-admittable model calls: %s (after keeping Planner/Main reserves). Work item slots: %s used. At zero worker allowance, do not submit or continue work; preserve results and suggest partial/blocked completion. At the work item cap, reuse a genuinely unfinished direction only if worker allowance remains; never change keys to evade the cap.\n", callText, slotText)
+}
+
 func (e *Engine) budgetSummary() model.BudgetSummary {
-	remaining := e.budgetMgr.RemainingTime()
-	seconds := int(remaining / time.Second)
-	if seconds < 0 {
-		seconds = 0
+	seconds := -1
+	if e.budgetMgr.HasDeadline() {
+		remaining := e.budgetMgr.RemainingTime()
+		seconds = int(remaining / time.Second)
+		if seconds < 0 {
+			seconds = 0
+		}
 	}
 	return model.BudgetSummary{
 		RemainingModelCalls:       e.budgetMgr.RemainingModelCalls(),

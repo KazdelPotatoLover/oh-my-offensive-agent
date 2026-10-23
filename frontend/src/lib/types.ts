@@ -136,6 +136,7 @@ export interface CreateRunInput {
     summary_timeout_seconds?: number;
     cleanup_timeout_seconds?: number;
   };
+  execution_policy?: { task_timeout_seconds?: number };
 }
 
 export type WorkItemStatus =
@@ -441,11 +442,25 @@ export interface FindingReportSummary {
   ignored: number;
 }
 
+export interface PublicLimits {
+  schema_version?: string;
+  task_timeout_limited?: boolean;
+  task_timeout_seconds?: number;
+  model_calls_limited?: boolean;
+  tool_calls_limited?: boolean;
+  planner_rounds_limited?: boolean;
+  work_items_limited?: boolean;
+  worker_turns_limited?: boolean;
+  worker_run_timeout_seconds?: number;
+  max_parallel_workers?: number;
+}
+
 export interface EffectiveBudget {
   context_window_bytes?: number;
   max_model_calls: number;
   max_tool_calls: number;
   run_timeout_seconds: number;
+  limits?: PublicLimits;
   model_timeout_seconds?: number;
   tool_timeout_seconds?: number;
   max_planner_rounds?: number;
@@ -501,4 +516,14 @@ export interface MCPServer {
   created_at: string;
   updated_at: string;
   tools?: MCPTool[];
+}
+
+export interface NativeToolItem {
+  name: string;
+  category: string;
+  category_name: string;
+  description: string;
+  roles: string[];
+  default_profiles?: string[];
+  parameters?: Record<string, unknown>;
 }

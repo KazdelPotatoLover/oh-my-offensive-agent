@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, newRequestID } from '@/lib/api';
 import { buildAgentsConfig, buildDiscoveryScope, buildTaskConfig } from '@/lib/workbench/budget';
-import { creationBudget, creationName, type CreationDefaults } from '@/lib/workbench/creation';
+import { creationBudget, creationName, durationSummary, unlimitedTimeoutPolicy, type CreationDefaults, type DurationMode } from '@/lib/workbench/creation';
 import { workbenchHref } from '@/lib/workbench/links';
 
 const fieldClass = 'w-full rounded-md border border-gray-700 bg-gray-950 px-2.5 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500';
@@ -22,6 +22,7 @@ export function CreateTaskForm({ onCancel }: { onCancel: () => void }) {
   const [profilesText, setProfilesText] = useState('');
   const [workers, setWorkers] = useState('');
   const [minutes, setMinutes] = useState('');
+  const [durationMode, setDurationMode] = useState<DurationMode>('inherit');
   const [defaults, setDefaults] = useState<CreationDefaults | null>(null);
   const [defaultsError, setDefaultsError] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +50,7 @@ export function CreateTaskForm({ onCancel }: { onCancel: () => void }) {
     }
     try {
       const budget = creationBudget(workers, minutes);
+      const executionPolicy = unlimitedTimeoutPolicy(durationMode, minutes);
       const toolNames = ['get_endpoint', 'http_request', 'read_sample', 'extract_endpoint_links', 'extract_api_endpoints', 'run_security_check', 'record_observation', 'record_observation_batch', 'inspect_artifact', 'register_asset', 'search_http_traffic', 'get_http_exchange', 'list_skills', 'read_skill'];
       if (enableCommands) toolNames.push('run_command', 'write_file', 'read_file', 'inspect_command');
       let profiles: unknown[] = [{ name: 'explore', version: '1', tools: toolNames.map(name => ({ name, version: '1' })) }];
@@ -63,13 +65,14 @@ export function CreateTaskForm({ onCancel }: { onCancel: () => void }) {
         name: creationName(name, objective),
         objective: objective.trim(),
         scope: scope.scope,
-        config: buildTaskConfig({ provider, profiles, agents, budget: budgetOverride, mockScenario: provider === 'mock' ? 'orchestration' : undefined }),
+        config: buildTaskConfig({ provider, profiles, agents, budget: budgetOverride, executionPolicy, mockScenario: provider === 'mock' ? 'orchestration' : undefined }),
       });
       const run = await api.createRun(task.id, {
         executor: 'orchestrator', provider,
         mock_scenario: provider === 'mock' ? 'orchestration' : undefined,
         idempotency_key: newRequestID(),
         budget: budgetOverride,
+        execution_policy: executionPolicy,
       });
       router.push(workbenchHref({ taskId: task.id, runId: run.id }));
     } catch (err) {
@@ -97,7 +100,7 @@ export function CreateTaskForm({ onCancel }: { onCancel: () => void }) {
       <p className="text-[11px] text-gray-400">支持带路径的网址；仅访问该网站的同源地址，默认允许 GET/HEAD。</p>
       <div data-testid="creation-defaults" className="rounded-md border border-gray-800 bg-gray-900/50 px-3 py-2 text-xs text-gray-400">
         {provider === 'mock' ? '本地演示模式 · 不调用真实模型' : '使用服务器模型'}
-        {defaults && <> · {workers || defaults.budget.max_parallel_workers} 个并发 Worker · 最长 {minutes || Math.ceil(defaults.budget.run_timeout_seconds / 60)} 分钟</>}
+        {defaults && <> · {workers || defaults.budget.max_parallel_workers} 个并发 Worker · {durationSummary(minutes, durationMode, defaults)}</>}
         <p className="mt-1">单个方向额度耗尽后由 Planner 判断下一步；无需逐项分配预算。</p>
         {defaultsError && <p className="mt-1 text-amber-300">默认设置暂时无法读取，创建时将由服务器解析。</p>}
       </div>
@@ -118,7 +121,13 @@ export function CreateTaskForm({ onCancel }: { onCancel: () => void }) {
               <input id="run-minutes" type="number" min={1} max={1440} step={1} value={minutes} onChange={event => setMinutes(event.target.value)} placeholder="继承服务器设置" className={`${fieldClass} mt-1`} />
             </label>
           </div>
-          <p className="text-[11px] text-gray-500">留空继承默认；填写后仅覆盖本任务。0 不表示不限。</p>
+          <label className="block text-xs text-gray-300">任务时长
+            <select id="duration-mode" value={durationMode} onChange={event => setDurationMode(event.target.value as DurationMode)} className={`${fieldClass} mt-1`}>
+              <option value="inherit">继承服务器设置</option>
+              <option value="unlimited">不限时</option>
+            </select>
+          </label>
+          <p className="text-[11px] text-gray-500">留空并选择继承，使用服务器设置。选择不限时会覆盖全局期限。填写分钟数则使用该时长。0 不表示不限。</p>
           <label className="flex items-center gap-2 text-xs text-gray-300"><input type="checkbox" checked={enableCommands} onChange={event => setEnableCommands(event.target.checked)} />启用隔离命令与脚本</label>
           <details className="border-t border-gray-800 pt-2">
             <summary className="cursor-pointer text-xs text-gray-400">开发与调试</summary>

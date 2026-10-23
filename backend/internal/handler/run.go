@@ -285,8 +285,13 @@ func (h *RunHandler) startRunExecutor(run *model.Run) error {
 		if modelErr != nil {
 			return modelErr
 		}
+		policy := model.PolicyFromExecutionInput(run.ExecutionInput)
 		if executorType == "agent" {
-			runner := agent.NewAgentRunner(run.ID, h.runService, p, tools.DefaultRegistry(), budget, agent.WithProcessAdmission(limiter, tokens, recovery))
+			runnerOpts := []agent.AgentRunnerOption{agent.WithProcessAdmission(limiter, tokens, recovery)}
+			if policy != nil && !policy.HasDeadline() {
+				runnerOpts = append(runnerOpts, agent.WithNoRunDeadline())
+			}
+			runner := agent.NewAgentRunner(run.ID, h.runService, p, tools.DefaultRegistry(), budget, runnerOpts...)
 			startErr = h.manager.StartExecutor(run.ID, runner)
 		} else {
 			// Discovery uses the same pool size as the accepted request.
@@ -301,7 +306,7 @@ func (h *RunHandler) startRunExecutor(run *model.Run) error {
 			if h.supervision != nil {
 				opts = append(opts, orchestration.WithPlannerControlInstaller(supervisionInstaller{supervision: h.supervision}))
 			}
-			engine := orchestration.NewEngine(run.ID, h.runService, p, budget, opts...)
+			engine := orchestration.NewEngineWithPolicy(run.ID, h.runService, p, budget, policy, opts...)
 			startErr = h.manager.StartExecutor(run.ID, engine)
 		}
 	} else {
@@ -1324,7 +1329,16 @@ func (h *RunHandler) GetEffectiveBudget(w http.ResponseWriter, r *http.Request) 
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	respondJSON(w, http.StatusOK, budget)
+	payload := map[string]any{}
+	if raw, marshalErr := json.Marshal(budget); marshalErr == nil {
+		_ = json.Unmarshal(raw, &payload)
+	}
+	if run, getErr := h.runService.Get(r.Context(), runID); getErr == nil {
+		if policy := model.PolicyFromExecutionInput(run.ExecutionInput); policy != nil {
+			payload["limits"] = policy.PublicLimits()
+		}
+	}
+	respondJSON(w, http.StatusOK, payload)
 }
 
 func (h *RunHandler) StartNewEpoch(w http.ResponseWriter, r *http.Request) {

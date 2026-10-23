@@ -1,10 +1,27 @@
 import { validateWorkerCount } from './budget';
 
 export type CreationBudget = { max_parallel_workers?: number; run_timeout_seconds?: number };
+export type DurationMode = 'inherit' | 'unlimited';
 export type CreationDefaults = {
   budget: { max_parallel_workers: number; run_timeout_seconds: number };
+  limits?: { task_timeout_limited?: boolean };
   model_configured: boolean;
 };
+
+export function durationSummary(minutes: string, mode: DurationMode, defaults: CreationDefaults | null): string {
+  if (minutes.trim()) {
+    const n = Number(minutes);
+    if (Number.isSafeInteger(n) && n > 0) return `最长 ${n} 分钟`;
+  }
+  if (mode === 'unlimited') return '不限时';
+  const seconds = defaults?.budget.run_timeout_seconds ?? 0;
+  if (defaults?.limits?.task_timeout_limited === false || seconds <= 0) return '不限时';
+  return `最长 ${Math.ceil(seconds / 60)} 分钟`;
+}
+
+export function unlimitedTimeoutPolicy(mode: DurationMode, minutes: string): { task_timeout_seconds: 0 } | undefined {
+  return mode === 'unlimited' && !minutes.trim() ? { task_timeout_seconds: 0 } : undefined;
+}
 
 // Empty inputs mean inheritance. Never send zero as a pretend "unlimited" grant.
 export function creationBudget(workers: string, minutes: string): CreationBudget {

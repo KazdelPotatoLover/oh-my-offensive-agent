@@ -41,6 +41,14 @@ type AgentRunner struct {
 	requestLimiter  *provider.RequestLimiter
 	maxOutputTokens int
 	recovery        provider.RecoveryPolicy
+	noRunDeadline   bool
+}
+
+// WithNoRunDeadline keeps a v1 run without a task deadline from inventing a 120s timer.
+func WithNoRunDeadline() AgentRunnerOption {
+	return func(r *AgentRunner) {
+		r.noRunDeadline = true
+	}
 }
 
 // WithProcessAdmission attaches the same upstream cap used by planner and worker
@@ -141,12 +149,16 @@ func (r *AgentRunner) Run(ctx context.Context) {
 		{Role: provider.RoleUser, Content: userContent},
 	}
 
-	// Overall execution context bounded by run_timeout_seconds
-	runTimeout := time.Duration(r.budget.RunTimeoutSeconds) * time.Second
-	if runTimeout <= 0 {
-		runTimeout = 120 * time.Second
+	// Overall execution context bounded by run_timeout_seconds.
+	// Legacy runners still treat a missing timeout as 120s. v1 unlimited does not.
+	runCtx, cancelRun := context.WithCancel(ctx)
+	if !r.noRunDeadline {
+		runTimeout := time.Duration(r.budget.RunTimeoutSeconds) * time.Second
+		if runTimeout <= 0 {
+			runTimeout = 120 * time.Second
+		}
+		runCtx, cancelRun = context.WithTimeout(ctx, runTimeout)
 	}
-	runCtx, cancelRun := context.WithTimeout(ctx, runTimeout)
 	defer cancelRun()
 
 	var srOpts []SessionRunnerOption

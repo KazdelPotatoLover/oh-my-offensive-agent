@@ -130,6 +130,7 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 	mockScenario := "normal"
 	budget := model.DefaultBudgetConfig()
 	var taskBudget model.BudgetConfig
+	var taskPolicy *model.PolicyOverride
 	var creationMode struct {
 		Exploration bool `json:"exploration"`
 	}
@@ -139,8 +140,8 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 	_ = json.Unmarshal(taskConfig, &creationMode)
 	_ = json.Unmarshal(taskScope, &creationScope)
 	managed := creationMode.Exploration || creationScope.Mode == "discovery"
-	if managed {
-		budget, err = config.ExplorationBudget()
+	if managed && !creationMode.Exploration {
+		budget, err = config.LegacyManagedBudget()
 		if err != nil {
 			return nil, false, err
 		}
@@ -169,7 +170,18 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 			if bMap, ok := cfgMap["budget"].(map[string]interface{}); ok {
 				if bBytes, err := json.Marshal(bMap); err == nil {
 					json.Unmarshal(bBytes, &taskBudget)
-					budget = budget.WithOverrides(&taskBudget)
+					if !creationMode.Exploration {
+						budget = budget.WithOverrides(&taskBudget)
+					}
+				}
+			}
+			if pMap, ok := cfgMap["execution_policy"]; ok && pMap != nil {
+				if pBytes, err := json.Marshal(pMap); err == nil {
+					var parsed model.PolicyOverride
+					if err := json.Unmarshal(pBytes, &parsed); err != nil {
+						return nil, false, fmt.Errorf("invalid task execution_policy: %w", err)
+					}
+					taskPolicy = &parsed
 				}
 			}
 		}
@@ -185,22 +197,32 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 	if req.MockScenario != nil && *req.MockScenario != "" {
 		mockScenario = *req.MockScenario
 	}
-	budget = budget.WithOverrides(req.Budget)
-	if managed {
-		budget = config.ManagedReserves(budget)
-		// Preserve deliberate expert/API reserve overrides; ordinary creation has none.
-		if taskBudget.PlannerReservedModelCalls > 0 {
-			budget.PlannerReservedModelCalls = taskBudget.PlannerReservedModelCalls
+	var frozenExecPolicy *model.ExecutionPolicy
+	if creationMode.Exploration {
+		policy, policyErr := config.ResolveExplorationPolicy(taskBudget, taskPolicy, req.Budget, req.ExecutionPolicy)
+		if policyErr != nil {
+			return nil, false, policyErr
 		}
-		if taskBudget.MainReservedModelCalls > 0 {
-			budget.MainReservedModelCalls = taskBudget.MainReservedModelCalls
-		}
-		if req.Budget != nil {
-			if req.Budget.PlannerReservedModelCalls > 0 {
-				budget.PlannerReservedModelCalls = req.Budget.PlannerReservedModelCalls
+		budget = policy.ProjectBudget()
+		frozenExecPolicy = &policy
+	} else {
+		budget = budget.WithOverrides(req.Budget)
+		if managed {
+			budget = config.ManagedReserves(budget)
+			// Preserve deliberate expert/API reserve overrides; ordinary creation has none.
+			if taskBudget.PlannerReservedModelCalls > 0 {
+				budget.PlannerReservedModelCalls = taskBudget.PlannerReservedModelCalls
 			}
-			if req.Budget.MainReservedModelCalls > 0 {
-				budget.MainReservedModelCalls = req.Budget.MainReservedModelCalls
+			if taskBudget.MainReservedModelCalls > 0 {
+				budget.MainReservedModelCalls = taskBudget.MainReservedModelCalls
+			}
+			if req.Budget != nil {
+				if req.Budget.PlannerReservedModelCalls > 0 {
+					budget.PlannerReservedModelCalls = req.Budget.PlannerReservedModelCalls
+				}
+				if req.Budget.MainReservedModelCalls > 0 {
+					budget.MainReservedModelCalls = req.Budget.MainReservedModelCalls
+				}
 			}
 		}
 	}
@@ -444,6 +466,9 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 		executionInputMap["budget"] = budget
 	}
 	executionInputMap["budget"] = budget
+	if frozenExecPolicy != nil {
+		executionInputMap["execution_policy"] = frozenExecPolicy
+	}
 	historical := provider.ModelAlias{Alias: "historical", Model: "mock", Protocol: provider.FormatChatCompletions, ProviderAlias: "historical"}
 	if providerType != "mock" && modelConfig.Model != "" {
 		historical.Alias = modelConfig.Model
@@ -588,8 +613,21 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 	}
 
 	if taskMode.Exploration {
+		originID, err := ensureOriginTx(ctx, tx, r.ID, taskObjective, taskScope, "user")
+		if err != nil {
+			return nil, false, err
+		}
 		payload, _ := json.Marshal(map[string]any{"text": taskObjective, "source": "user_objective", "acceptance": "evidence_review"})
-		if _, err := tx.Exec(ctx, `INSERT INTO exploration_nodes(run_id,kind,payload,state,origin,epoch_number) VALUES($1,'goal',$2,'open','user',1)`, r.ID, payload); err != nil {
+		var goalID uuid.UUID
+		if err := tx.QueryRow(ctx, `INSERT INTO exploration_nodes(run_id,kind,payload,state,origin,epoch_number) VALUES($1,'goal',$2,'open','user',1) RETURNING id`, r.ID, payload).Scan(&goalID); err != nil {
+			return nil, false, err
+		}
+		if err := insertExplorationEdgeTx(ctx, tx, r.ID, originID, goalID, "spawns", "user_objective"); err != nil {
+			return nil, false, err
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO exploration_anchors(run_id,node_id,asset_id)
+			SELECT $1,$2,asset_id FROM run_assets WHERE run_id=$1 AND is_seed
+			ON CONFLICT (node_id, asset_id) DO NOTHING`, r.ID, originID); err != nil {
 			return nil, false, err
 		}
 	}

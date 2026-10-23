@@ -75,6 +75,7 @@ type ExploreRFNode = RFNode<{ node: CanvasNodeData }, 'explore'>;
 function ExploreCustomNode({ data, selected }: NodeProps<ExploreRFNode>) {
   const n = data.node;
   const meta = typeMeta[n.kind] || typeMeta.intent;
+  const label = n.label || meta.label;
   const Icon = meta.icon;
   const isRunning = n.is_live;
   const displayState = n.kind === 'finding' && n.state !== 'deleted' ? n.finding?.verification_state || n.state : n.state;
@@ -103,7 +104,7 @@ function ExploreCustomNode({ data, selected }: NodeProps<ExploreRFNode>) {
             <Icon className="size-3.5 text-white" />
           </span>
           <span className="grow truncate text-xs font-semibold text-gray-200">
-            {meta.label}
+            {label}
           </span>
           {isRunning && (
             <span className="relative flex size-2 shrink-0">
@@ -327,7 +328,7 @@ function NodeDetailDrawer({
             <Icon className="size-4 text-white" />
           </span>
           <div>
-            <h3 className="text-sm font-semibold text-gray-100">{meta.label} 详情</h3>
+            <h3 className="text-sm font-semibold text-gray-100">{node.label || meta.label} 详情</h3>
             <p className="font-mono text-xs text-gray-500">#{node.id}</p>
           </div>
         </div>

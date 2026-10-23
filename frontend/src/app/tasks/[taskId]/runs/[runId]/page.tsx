@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api, newRequestID } from '@/lib/api';
 import { Run, RunEvent, AgentMessage, ModelCall, AgentToolCall, WorkItem, Observation, AgentSession, PlannerRound, Asset, WorkItemDetail, AssetDiscoveryDetail, Goal, ExplorationNode, ExecutionEpoch, BudgetGrant, EffectiveBudget } from '@/lib/types';
+import { capText, limitFlags } from '@/lib/workbench/budget';
 import { RunStatusBadge } from '@/components/RunStatusBadge';
 import { ExplorationResources } from '@/components/ExplorationResources';
 import { CheckResultsPanel } from '@/components/CheckResultsPanel';
@@ -282,13 +283,17 @@ export default function RunDetailPage() {
   const handleGrantBudget = async () => {
     if (!beginControl()) return;
     try {
-      const signature = JSON.stringify([runId, grantModelCalls, grantToolCalls, grantSeconds, grantReason]);
+      const flags = limitFlags(effectiveBudget);
+      const model = flags.model ? grantModelCalls : 0;
+      const tool = flags.tool ? grantToolCalls : 0;
+      const seconds = flags.seconds ? grantSeconds : 0;
+      const signature = JSON.stringify([runId, model, tool, seconds, grantReason]);
       if (grantRequest.current?.signature !== signature) grantRequest.current = { signature, key: newRequestID() };
       await api.grantBudget(runId, {
         idempotency_key: grantRequest.current.key,
-        additional_model_calls: grantModelCalls,
-        additional_tool_calls: grantToolCalls,
-        additional_seconds: grantSeconds,
+        additional_model_calls: model,
+        additional_tool_calls: tool,
+        additional_seconds: seconds,
         reason: grantReason,
       });
       grantRequest.current = null;
@@ -986,24 +991,28 @@ export default function RunDetailPage() {
                 <div className="grid grid-cols-3 gap-4 bg-gray-950 p-4 rounded-lg border border-gray-800 text-center">
                   <div>
                     <span className="text-xs text-gray-500 block">有效模型调用上限</span>
-                    <span className="text-xl font-mono font-bold text-white mt-1 block">{effectiveBudget.max_model_calls}</span>
+                    <span className="text-xl font-mono font-bold text-white mt-1 block">{capText(limitFlags(effectiveBudget).model, effectiveBudget.max_model_calls)}</span>
                   </div>
                   <div>
                     <span className="text-xs text-gray-500 block">有效工具调用上限</span>
-                    <span className="text-xl font-mono font-bold text-white mt-1 block">{effectiveBudget.max_tool_calls}</span>
+                    <span className="text-xl font-mono font-bold text-white mt-1 block">{capText(limitFlags(effectiveBudget).tool, effectiveBudget.max_tool_calls)}</span>
                   </div>
                   <div>
                     <span className="text-xs text-gray-500 block">超时上限 (秒)</span>
-                    <span className="text-xl font-mono font-bold text-white mt-1 block">{effectiveBudget.run_timeout_seconds}s</span>
+                    <span className="text-xl font-mono font-bold text-white mt-1 block">{limitFlags(effectiveBudget).seconds ? `${effectiveBudget.run_timeout_seconds}s` : '不限时'}</span>
                   </div>
                 </div>
               )}
 
-              {grantFormOpen && (
+              {grantFormOpen && effectiveBudget && limitFlags(effectiveBudget).known && !limitFlags(effectiveBudget).model && !limitFlags(effectiveBudget).tool && !limitFlags(effectiveBudget).seconds && (
+                <p className="text-xs text-gray-400">无需追加授权</p>
+              )}
+
+              {grantFormOpen && (!effectiveBudget || !limitFlags(effectiveBudget).known || limitFlags(effectiveBudget).model || limitFlags(effectiveBudget).tool || limitFlags(effectiveBudget).seconds) && (
                 <div className="p-4 bg-gray-950 border border-amber-500/40 rounded-lg space-y-3">
                   <h4 className="text-xs font-bold text-amber-300">人工授权追加执行额度 (无需新建子 Run)</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
+                    {(!effectiveBudget || limitFlags(effectiveBudget).model) && <div>
                       <label className="text-[11px] text-gray-400 block mb-1">追加模型调用次数</label>
                       <input
                         type="number"
@@ -1012,8 +1021,8 @@ export default function RunDetailPage() {
                         onChange={e => setGrantModelCalls(parseInt(e.target.value) || 0)}
                         className="w-full text-xs bg-gray-900 border border-gray-700 rounded px-2.5 py-1.5 text-white"
                       />
-                    </div>
-                    <div>
+                    </div>}
+                    {(!effectiveBudget || limitFlags(effectiveBudget).tool) && <div>
                       <label className="text-[11px] text-gray-400 block mb-1">追加工具调用次数</label>
                       <input
                         type="number"
@@ -1022,8 +1031,8 @@ export default function RunDetailPage() {
                         onChange={e => setGrantToolCalls(parseInt(e.target.value) || 0)}
                         className="w-full text-xs bg-gray-900 border border-gray-700 rounded px-2.5 py-1.5 text-white"
                       />
-                    </div>
-                    <div>
+                    </div>}
+                    {(!effectiveBudget || limitFlags(effectiveBudget).seconds) && <div>
                       <label className="text-[11px] text-gray-400 block mb-1">追加运行秒数</label>
                       <input
                         type="number"
@@ -1032,7 +1041,7 @@ export default function RunDetailPage() {
                         onChange={e => setGrantSeconds(parseInt(e.target.value) || 0)}
                         className="w-full text-xs bg-gray-900 border border-gray-700 rounded px-2.5 py-1.5 text-white"
                       />
-                    </div>
+                    </div>}
                   </div>
                   <div>
                     <label className="text-[11px] text-gray-400 block mb-1">授权理由说明</label>

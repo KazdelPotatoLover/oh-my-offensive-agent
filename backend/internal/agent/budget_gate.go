@@ -26,3 +26,9 @@ type StructuredCallGate interface {
 	TryAcquireModel(ctx context.Context, isSettlement bool) BudgetGateResult
 	TryAcquireTool(ctx context.Context, toolName string, isSettlement bool) BudgetGateResult
 }
+
+// LogicalTurnObserver records one successful model response and its tool batch
+// as a single exploration or settlement turn. Retries are not turns.
+type LogicalTurnObserver interface {
+	NoteLogicalTurn(inSettlement bool)
+}

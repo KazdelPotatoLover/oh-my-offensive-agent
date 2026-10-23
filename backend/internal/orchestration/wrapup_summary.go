@@ -21,10 +21,6 @@ func (e *Engine) summarizeWithReservedCall(cleanupCtx context.Context, cause mod
 	if err != nil || run.Status != model.RunStatusRunning {
 		return fallback
 	}
-	remaining := e.budgetMgr.RemainingTime()
-	if remaining <= 0 {
-		return fallback
-	}
 	limit := time.Duration(e.budget.SummaryTimeoutSeconds) * time.Second
 	if limit <= 0 {
 		limit = time.Duration(e.budget.ModelTimeoutSeconds) * time.Second
@@ -32,8 +28,14 @@ func (e *Engine) summarizeWithReservedCall(cleanupCtx context.Context, cause mod
 			limit = 30 * time.Second
 		}
 	}
-	if limit > remaining {
-		limit = remaining
+	if e.budgetMgr.HasDeadline() {
+		remaining := e.budgetMgr.RemainingTime()
+		if remaining <= 0 {
+			return fallback
+		}
+		if limit > remaining {
+			limit = remaining
+		}
 	}
 	ctx, cancel := context.WithTimeout(e.executionCtx, limit)
 	defer cancel()

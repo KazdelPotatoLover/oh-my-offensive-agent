@@ -41,6 +41,12 @@ export function Navbar() {
             >
               Assets
             </Link>
+            <Link
+              href="/tools"
+              className="text-gray-300 hover:text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors"
+            >
+              工具 & MCP
+            </Link>
           </nav>
         </div>
       </div>

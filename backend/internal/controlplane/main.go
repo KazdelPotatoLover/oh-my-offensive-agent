@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"agent-workbench/backend/internal/contract"
+	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/provider"
 	"agent-workbench/backend/internal/service"
 	"agent-workbench/backend/internal/tools"
@@ -165,7 +166,7 @@ func (m *MainAgent) process(ctx context.Context, runID uuid.UUID, turn *turnRow)
 	}
 	reg.Register(&situationTool{workbench: m.Workbench, runID: runID})
 
-	reserve := mainReserve(run.ExecutionInput)
+	limited, lifetime, turnCap := mainInteractionLimits(run.ExecutionInput)
 	used, err := m.countMainCalls(ctx, runID)
 	if err != nil {
 		return err
@@ -182,7 +183,7 @@ func (m *MainAgent) process(ctx context.Context, runID uuid.UUID, turn *turnRow)
 	messages = append(messages, history...)
 	messages = append(messages, provider.ChatMessage{Role: provider.RoleUser, Content: turn.Text})
 	calls := 0
-	for used < reserve {
+	for !mainInteractionStopped(limited, used, lifetime, calls, turnCap) {
 		resp, callID, err := m.callModel(ctx, turn, scope.EpochNumber, messages, reg)
 		if err != nil {
 			return err
@@ -216,11 +217,31 @@ func (m *MainAgent) process(ctx context.Context, runID uuid.UUID, turn *turnRow)
 			return &contract.Error{Code: contract.CodeInvalidModelOutput, Scope: contract.ScopeSession, Message: err.Error(), SuggestedAction: contract.ActionNone}
 		}
 	}
-	_, _, err = m.appendMessage(ctx, turn, "assistant", "main reserved model calls are exhausted; the run budget was not increased", nil, nil, nil)
-	if err != nil {
-		return err
+	if limited && used >= lifetime {
+		_, _, err = m.appendMessage(ctx, turn, "assistant", "main reserved model calls are exhausted; the run budget was not increased", nil, nil, nil)
+		if err != nil {
+			return err
+		}
 	}
 	return m.completeTurn(ctx, turn.ID, calls)
+}
+
+func mainInteractionStopped(limited bool, used, lifetime, calls, turnCap int) bool {
+	if limited && used >= lifetime {
+		return true
+	}
+	return turnCap > 0 && calls >= turnCap
+}
+
+func mainInteractionLimits(executionInput json.RawMessage) (limited bool, lifetime, turnCap int) {
+	if policy := model.PolicyFromExecutionInput(executionInput); policy != nil && policy.IsV1() {
+		turnCap = policy.Agents.MainAgent.MaxTurns
+		if policy.LegacyReserves.MainModelCalls > 0 {
+			return true, policy.LegacyReserves.MainModelCalls, turnCap
+		}
+		return false, 0, turnCap
+	}
+	return true, mainReserve(executionInput), 0
 }
 
 func (m *MainAgent) history(ctx context.Context, runID, currentTurn uuid.UUID) ([]provider.ChatMessage, error) {

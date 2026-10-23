@@ -121,11 +121,14 @@ export function droppedBudgetFields(requested: Record<string, number>, execution
   return Object.keys(requested).filter((key) => present[key] !== requested[key]);
 }
 
+export type TaskTimeoutOverride = { task_timeout_seconds: 0 };
+
 export function buildTaskConfig(input: {
   provider: 'mock' | 'openai';
   profiles: unknown[];
   agents?: AgentsConfig;
   budget?: Partial<Omit<BudgetTemplate, 'name'>>;
+  executionPolicy?: TaskTimeoutOverride;
   mockScenario?: string;
 }): Record<string, unknown> {
   return {
@@ -136,5 +139,36 @@ export function buildTaskConfig(input: {
     ...(input.profiles.length ? { profiles: input.profiles } : {}),
     ...(input.agents ? { agents: input.agents } : {}),
     ...(input.budget && Object.keys(input.budget).length ? { budget: input.budget } : {}),
+    ...(input.executionPolicy ? { execution_policy: input.executionPolicy } : {}),
   };
+}
+
+export type LimitFlags = { known: boolean; model: boolean; tool: boolean; seconds: boolean };
+
+export function limitFlags(budget: unknown): LimitFlags {
+  const open = budget !== null && typeof budget === 'object' && !Array.isArray(budget);
+  const limits = open ? (budget as { limits?: unknown }).limits : undefined;
+  if (!limits || typeof limits !== 'object' || Array.isArray(limits)) {
+    return { known: false, model: true, tool: true, seconds: true };
+  }
+  const row = limits as Record<string, unknown>;
+  return {
+    known: true,
+    model: row.model_calls_limited !== false,
+    tool: row.tool_calls_limited !== false,
+    seconds: row.task_timeout_limited !== false,
+  };
+}
+
+export function capText(limited: boolean, value: unknown): string {
+  if (!limited) return '不设上限';
+  return typeof value === 'number' && Number.isFinite(value) ? String(value) : '未知';
+}
+
+export function budgetSummaryText(budget: Record<string, unknown>): string {
+  const flags = limitFlags(budget);
+  const seconds = flags.seconds
+    ? (typeof budget.run_timeout_seconds === 'number' ? `${budget.run_timeout_seconds} 秒` : '未知')
+    : '不限时';
+  return `模型 ${capText(flags.model, budget.max_model_calls)} · 工具 ${capText(flags.tool, budget.max_tool_calls)} · 时长 ${seconds}`;
 }

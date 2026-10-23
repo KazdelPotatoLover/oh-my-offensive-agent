@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"agent-workbench/backend/internal/contract"
 	"agent-workbench/backend/internal/model"
 
 	"github.com/google/uuid"
@@ -306,12 +307,25 @@ func (s *RunService) GrantBudget(
 	defer tx.Rollback(ctx)
 
 	var currentEpoch int
-	err = tx.QueryRow(ctx, `SELECT current_epoch FROM runs WHERE id = $1 FOR UPDATE`, runID).Scan(&currentEpoch)
+	var executionInput []byte
+	err = tx.QueryRow(ctx, `SELECT current_epoch, execution_input FROM runs WHERE id = $1 FOR UPDATE`, runID).Scan(&currentEpoch, &executionInput)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		return nil, err
+	}
+
+	if policy := model.PolicyFromExecutionInput(executionInput); policy != nil && policy.IsV1() {
+		if additionalModelCalls > 0 && !policy.ModelLimited() {
+			return nil, &contract.Error{Code: contract.CodeInvalidInput, Scope: contract.ScopeRequest, Message: "模型调用未设上限，无需追加授权", SuggestedAction: contract.ActionNone}
+		}
+		if additionalToolCalls > 0 && !policy.ToolLimited() {
+			return nil, &contract.Error{Code: contract.CodeInvalidInput, Scope: contract.ScopeRequest, Message: "工具调用未设上限，无需追加授权", SuggestedAction: contract.ActionNone}
+		}
+		if additionalSeconds > 0 && !policy.HasDeadline() {
+			return nil, &contract.Error{Code: contract.CodeInvalidInput, Scope: contract.ScopeRequest, Message: "任务未设时限，无需追加时长", SuggestedAction: contract.ActionNone}
+		}
 	}
 
 	if idempotencyKey != nil && *idempotencyKey != "" {
@@ -588,7 +602,7 @@ func (s *RunService) GetEffectiveBudget(ctx context.Context, runID uuid.UUID) (m
 			}
 		}
 	}
-	if base.MaxModelCalls == 0 && len(run.ConfigSnapshot) > 0 {
+	if model.PolicyFromExecutionInput(run.ExecutionInput) == nil && base.MaxModelCalls == 0 && len(run.ConfigSnapshot) > 0 {
 		var cfg map[string]any
 		if err := json.Unmarshal(run.ConfigSnapshot, &cfg); err == nil {
 			if bBytes, err := json.Marshal(cfg["budget"]); err == nil {
@@ -600,6 +614,18 @@ func (s *RunService) GetEffectiveBudget(ctx context.Context, runID uuid.UUID) (m
 	grants, err := s.GetBudgetGrantsTotal(ctx, runID)
 	if err != nil {
 		return base, err
+	}
+	if policy := model.PolicyFromExecutionInput(run.ExecutionInput); policy != nil && policy.IsV1() {
+		if policy.ModelLimited() {
+			base.MaxModelCalls += grants.AdditionalModelCalls
+		}
+		if policy.ToolLimited() {
+			base.MaxToolCalls += grants.AdditionalToolCalls
+		}
+		if policy.HasDeadline() {
+			base.RunTimeoutSeconds += grants.AdditionalSeconds
+		}
+		return base, nil
 	}
 
 	base.MaxModelCalls += grants.AdditionalModelCalls
