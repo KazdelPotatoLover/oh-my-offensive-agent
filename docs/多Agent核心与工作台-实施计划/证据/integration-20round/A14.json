@@ -23,10 +23,10 @@
       "first_model_call": "completed tool_calls ",
       "model_events": 7,
       "tools": [
-        "submit_plan:success:{\"created_count\":3,\"message\":\"Plan submitted successfully with 3 work items\",\"status\":\"success\"}",
-        "get_endpoint:success:{\"error\":null,\"integrity\":{\"saved_bytes\":238,\"is_truncated\":false,\"note\":\"\"},\"request\":{\"method\":\"GET\",\"url\":\"http://127.0.0.1:46401/m-1933affd211d/\",\"asset_id\":\"2b3f3d11-d83f-46ec",
-        "get_endpoint:success:{\"error\":null,\"integrity\":{\"saved_bytes\":13,\"is_truncated\":false,\"note\":\"\"},\"request\":{\"method\":\"GET\",\"url\":\"http://127.0.0.1:46401/m-1933affd211d/verify\",\"asset_id\":\"51c21930-4e15",
-        "get_endpoint:success:{\"error\":null,\"integrity\":{\"saved_bytes\":13,\"is_truncated\":false,\"note\":\"\"},\"request\":{\"method\":\"GET\",\"url\":\"http://127.0.0.1:46401/m-1933affd211d/verify\",\"asset_id\":\"51c21930-4e15",
+        "submit_plan:success:{\"created_count\":3,\"message\":\"Plan submitted successfully with 3 work items\",\"status\":\"success\",\"work_items\":[{\"id\":\"c01184cb-b467-4669-b11f-10099340fbb4\",\"run_id\":\"1c3c4dd6-519e-4",
+        "get_endpoint:success:{\"error\":null,\"integrity\":{\"saved_bytes\":238,\"is_truncated\":false,\"note\":\"\"},\"request\":{\"method\":\"GET\",\"url\":\"http://127.0.0.1:46659/m-78c5f047504d/\",\"asset_id\":\"9037bcae-5111-4357",
+        "get_endpoint:success:{\"error\":null,\"integrity\":{\"saved_bytes\":13,\"is_truncated\":false,\"note\":\"\"},\"request\":{\"method\":\"GET\",\"url\":\"http://127.0.0.1:46659/m-78c5f047504d/verify\",\"asset_id\":\"01b77ad0-a1d1",
+        "get_endpoint:success:{\"error\":null,\"integrity\":{\"saved_bytes\":13,\"is_truncated\":false,\"note\":\"\"},\"request\":{\"method\":\"GET\",\"url\":\"http://127.0.0.1:46659/m-78c5f047504d/verify\",\"asset_id\":\"01b77ad0-a1d1",
         "http_request:rejected:tool not found: unknown tool 'http_request'",
         "run_command:rejected:tool not found: unknown tool 'run_command'"
       ],
@@ -34,10 +34,10 @@
     },
     "identities": {},
     "paths": {
-      "/m-1933affd211d/": 1,
-      "/m-1933affd211d/verify": 2
+      "/m-78c5f047504d/": 1,
+      "/m-78c5f047504d/verify": 2
     }
   },
   "command": "go test ./test/ -count=1 -run TestMA_A14_LabCollaborationIsMaterial",
-  "finished_at": "2026-10-22T08:47:02Z"
+  "finished_at": "2026-10-23T01:52:35Z"
 }

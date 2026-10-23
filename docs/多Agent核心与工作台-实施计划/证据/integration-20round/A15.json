@@ -14,5 +14,5 @@
     "spec": "frontend/tests/ma-acceptance/ma-acceptance.spec.ts"
   },
   "command": "frontend/tests/ma-acceptance/playwright.config.ts",
-  "finished_at": "2026-10-22T08:47:02Z"
+  "finished_at": "2026-10-23T01:52:35Z"
 }

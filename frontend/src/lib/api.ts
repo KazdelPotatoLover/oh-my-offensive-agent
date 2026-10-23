@@ -1,3 +1,4 @@
+import { parseExplorationGraph, type ExplorationGraph } from './workbench/graph';
 import {
   CheckResult,
   Finding,
@@ -361,6 +362,10 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ evidence_id: evidenceID, reason }),
     });
+  },
+
+  async getExplorationGraph(runId: string): Promise<ExplorationGraph> {
+    return parseExplorationGraph(await request<unknown>(`/api/runs/${runId}/graph`));
   },
 
   async getGraphOverview(runId: string): Promise<{ nodes: ExplorationNode[]; total_nodes: number }> {

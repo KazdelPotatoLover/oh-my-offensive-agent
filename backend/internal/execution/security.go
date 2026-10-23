@@ -5,9 +5,11 @@ import "strings"
 // allowedArgv0 is the fixed command protocol. The model cannot name an image,
 // a host path, or a shell that the broker evaluates on the host.
 var allowedArgv0 = map[string]string{
-	"python3": "/usr/local/bin/python3",
-	"python":  "/usr/local/bin/python3",
-	"curl":    "/usr/bin/curl",
+	"python3":        "/usr/local/bin/python3",
+	"python":         "/usr/local/bin/python3",
+	"curl":           "/usr/bin/curl",
+	"node":           "/usr/local/bin/node",
+	"playwright-cli": "/usr/local/bin/playwright-cli",
 }
 
 // NormalizeArgv rewrites argv[0] to the container absolute path. It rejects
@@ -74,6 +76,8 @@ func containerCreateBody(spec containerCreate) (map[string]any, error) {
 		"LANG=C.UTF-8",
 		"NO_PROXY=",
 		"no_proxy=",
+		"PLAYWRIGHT_BROWSERS_PATH=/ms-playwright",
+		"PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1",
 	}
 	if spec.CACertHost != "" {
 		env = append(env,

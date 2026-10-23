@@ -20,5 +20,5 @@
     "withdraw_status": 404
   },
   "command": "go test ./test/ -count=1 -run TestMA_A13_ProofRequiresTrustedTargetEvidence",
-  "finished_at": "2026-10-22T08:47:00Z"
+  "finished_at": "2026-10-23T01:52:32Z"
 }

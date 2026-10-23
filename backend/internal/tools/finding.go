@@ -76,6 +76,19 @@ func (t *ReportFindingTool) Parameters() json.RawMessage {
 				"type": "string",
 				"description": "UUID of the successful tool call (_execution.source_tool_call_id) providing empirical evidence"
 			},
+			"traffic_refs": {
+				"type": "array",
+				"description": "Optional list of verified HTTP receipts and their roles in proving the vulnerability. Roles: 'baseline' (normal unexploited behavior), 'proof' (exploit trigger), 'verification' (secondary confirmation), or 'supporting'.",
+				"items": {
+					"type": "object",
+					"properties": {
+						"receipt_id": {"type": "string", "description": "UUID of the captured HTTP receipt"},
+						"role": {"type": "string", "enum": ["baseline", "proof", "verification", "supporting"], "description": "Evidence role"},
+						"note": {"type": "string", "description": "Explanation of what this exchange proves"}
+					},
+					"required": ["receipt_id", "role"]
+				}
+			},
 			"verification": {"type":"object","description":"Optional HTTP predicates saved with the original finding. vulnerable and fixed each require status_code and body_contains or header_name/header_value. The initial response must uniquely match vulnerable."},
 			"evidence": {
 				"type": "object",
@@ -84,6 +97,12 @@ func (t *ReportFindingTool) Parameters() json.RawMessage {
 		},
 		"required": ["title", "category", "severity", "description", "asset_id"]
 	}`)
+}
+
+type FindingTrafficRef struct {
+	ReceiptID string `json:"receipt_id"`
+	Role      string `json:"role"`
+	Note      string `json:"note,omitempty"`
 }
 
 func (t *ReportFindingTool) Validate(argumentsJSON []byte) error {
@@ -115,6 +134,7 @@ func (t *ReportFindingTool) Execute(ctx context.Context, argumentsJSON []byte) (
 		TriggerCondition string                       `json:"trigger_condition"`
 		ReproduceSteps   string                       `json:"reproduce_steps"`
 		SourceToolCallID string                       `json:"source_tool_call_id"`
+		TrafficRefs      []FindingTrafficRef          `json:"traffic_refs"`
 		Evidence         json.RawMessage              `json:"evidence"`
 		Verification     *service.FindingVerification `json:"verification"`
 	}
@@ -135,6 +155,19 @@ func (t *ReportFindingTool) Execute(ctx context.Context, argumentsJSON []byte) (
 		}
 	}
 
+	evidenceBytes := in.Evidence
+	if len(in.TrafficRefs) > 0 {
+		var evidenceMap map[string]interface{}
+		if len(evidenceBytes) > 0 {
+			_ = json.Unmarshal(evidenceBytes, &evidenceMap)
+		}
+		if evidenceMap == nil {
+			evidenceMap = make(map[string]interface{})
+		}
+		evidenceMap["traffic_refs"] = in.TrafficRefs
+		evidenceBytes, _ = json.Marshal(evidenceMap)
+	}
+
 	finding, err := t.runService.ReportFinding(ctx, t.runID, service.ReportFindingInput{
 		AssetID:          assetUUID,
 		Title:            in.Title,
@@ -144,7 +177,7 @@ func (t *ReportFindingTool) Execute(ctx context.Context, argumentsJSON []byte) (
 		Remediation:      in.Remediation,
 		SourceKind:       in.SourceKind,
 		SourceToolCallID: sourceToolCallUUID,
-		EvidenceRef:      in.Evidence,
+		EvidenceRef:      evidenceBytes,
 		Verification:     in.Verification,
 		TriggerCondition: in.TriggerCondition,
 		ReproduceSteps:   in.ReproduceSteps,

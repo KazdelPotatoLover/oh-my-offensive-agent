@@ -18,10 +18,10 @@
   "observed": {
     "docker": {
       "error": "",
-      "label": "ma7.accept=f906bbed-4b77-4919-87bc-a51a3ce2b0fc",
+      "label": "ma7.accept=4cd09975-7b84-4935-a231-eb661f1482d1",
       "output": ""
     }
   },
   "command": "go test ./test/ -count=1 -run TestMA_A11_ContainerIsolationAndTrustedCapture",
-  "finished_at": "2026-10-22T08:46:51Z"
+  "finished_at": "2026-10-23T01:52:29Z"
 }

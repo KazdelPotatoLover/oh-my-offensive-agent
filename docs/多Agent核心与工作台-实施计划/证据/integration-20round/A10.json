@@ -19,17 +19,17 @@
       "first_model_call": "completed tool_calls ",
       "model_events": 9,
       "tools": [
-        "submit_plan:success:{\"created_count\":4,\"message\":\"Plan submitted successfully with 4 work items\",\"status\":\"success\"}",
+        "submit_plan:success:{\"created_count\":4,\"message\":\"Plan submitted successfully with 4 work items\",\"status\":\"success\",\"work_items\":[{\"id\":\"76cae627-6507-4106-81c0-1ea111bd17fa\",\"run_id\":\"91b1836a-4ea3-4",
+        "get_endpoint:pending:",
         "get_endpoint:pending:",
         "get_endpoint:failed:scope_denied: origin page limit reached",
-        "get_endpoint:pending:",
         "get_endpoint:failed:scope_denied: origin page limit reached"
       ],
-      "work_items": "dir-0:running,dir-2:running,dir-1:failed,dir-3:failed"
+      "work_items": "dir-0:running,dir-1:running,dir-2:failed,dir-3:failed"
     },
     "lab_peak": 2,
     "snapshot": 4
   },
   "command": "go test ./test/ -count=1 -run TestMA_A10_OriginLimitDedupAndNoNetworkInLock",
-  "finished_at": "2026-10-22T08:46:49Z"
+  "finished_at": "2026-10-23T01:52:27Z"
 }

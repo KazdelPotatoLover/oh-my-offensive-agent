@@ -59,6 +59,9 @@ func init() {
 		{Name: "extract_endpoint_links", Version: "1", Factory: func(c AdapterContext) Tool {
 			return NewExtractEndpointLinksTool(c.RunID, c.WorkItemID, c.SessionID, c.Service)
 		}},
+		{Name: "extract_api_endpoints", Version: "1", Factory: func(c AdapterContext) Tool {
+			return NewExtractAPIEndpointsTool(c.RunID, c.WorkItemID, c.SessionID, c.Service)
+		}},
 		{Name: "run_security_check", Version: "1", Factory: func(c AdapterContext) Tool {
 			return NewRunSecurityCheckTool(c.RunID, c.WorkItemID, c.AttemptID, c.SessionID, c.Service)
 		}},
@@ -69,6 +72,8 @@ func init() {
 			return NewRecordObservationBatchTool(c.RunID, c.AttemptID, c.SessionID, c.Service)
 		}},
 		{Name: "inspect_artifact", Version: "1", Factory: func(c AdapterContext) Tool { return NewArtifactTool("inspect_artifact", c) }},
+		{Name: "list_skills", Version: "1", Factory: func(c AdapterContext) Tool { return NewListSkillsTool() }},
+		{Name: "read_skill", Version: "1", Factory: func(c AdapterContext) Tool { return NewReadSkillTool() }},
 	} {
 		if err := RegisterAdapter(a); err != nil {
 			panic(err)

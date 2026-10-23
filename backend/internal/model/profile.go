@@ -32,8 +32,12 @@ var capabilityNames = struct {
 	sync.RWMutex
 	names map[string]string
 }{names: map[string]string{
-	"get_endpoint": "1", "read_sample": "1", "extract_endpoint_links": "1", "run_security_check": "1",
-	"record_observation": "1", "record_observation_batch": "1", "inspect_artifact": "1", "register_asset": "1",
+	"get_endpoint": "1", "read_sample": "1", "extract_endpoint_links": "1", "extract_api_endpoints": "1",
+	"run_security_check": "1", "record_observation": "1", "record_observation_batch": "1",
+	"inspect_artifact": "1", "register_asset": "1",
+	"http_request": "1", "search_http_traffic": "1", "get_http_exchange": "1",
+	"list_skills": "1", "read_skill": "1",
+	"run_command": "1", "write_file": "1", "read_file": "1", "inspect_command": "1",
 }}
 
 // RegisterCapabilityName is server-owned. Task configuration cannot invent an
@@ -50,9 +54,96 @@ func RegisterCapabilityName(name string, versions ...string) {
 
 func DefaultProfiles() []CapabilityProfile {
 	return []CapabilityProfile{
-		{Name: "explore", Version: "1", Tools: []CapabilityTool{{Name: "get_endpoint"}, {Name: "read_sample"}, {Name: "extract_endpoint_links"}, {Name: "run_security_check"}, {Name: "record_observation"}, {Name: "record_observation_batch"}, {Name: "inspect_artifact"}, {Name: "register_asset"}}},
-		{Name: "http_readonly", Version: "1", Tools: []CapabilityTool{{Name: "get_endpoint"}, {Name: "extract_endpoint_links"}, {Name: "record_observation"}, {Name: "inspect_artifact"}}},
-		{Name: "sample", Version: "1", Tools: []CapabilityTool{{Name: "read_sample"}, {Name: "record_observation"}, {Name: "inspect_artifact"}}},
+		{
+			Name:    "explore",
+			Version: "1",
+			Tools: []CapabilityTool{
+				{Name: "get_endpoint"},
+				{Name: "read_sample"},
+				{Name: "extract_endpoint_links"},
+				{Name: "extract_api_endpoints"},
+				{Name: "run_security_check"},
+				{Name: "record_observation"},
+				{Name: "record_observation_batch"},
+				{Name: "inspect_artifact"},
+				{Name: "register_asset"},
+				{Name: "list_skills"},
+				{Name: "read_skill"},
+			},
+		},
+		{
+			Name:    "api_recon",
+			Version: "1",
+			Tools: []CapabilityTool{
+				{Name: "get_endpoint"},
+				{Name: "extract_api_endpoints"},
+				{Name: "extract_endpoint_links"},
+				{Name: "search_http_traffic"},
+				{Name: "get_http_exchange"},
+				{Name: "record_observation"},
+				{Name: "record_observation_batch"},
+				{Name: "inspect_artifact"},
+				{Name: "register_asset"},
+				{Name: "list_skills"},
+				{Name: "read_skill"},
+			},
+		},
+		{
+			Name:    "active_probe",
+			Version: "1",
+			Tools: []CapabilityTool{
+				{Name: "get_endpoint"},
+				{Name: "http_request"},
+				{Name: "search_http_traffic"},
+				{Name: "get_http_exchange"},
+				{Name: "extract_api_endpoints"},
+				{Name: "extract_endpoint_links"},
+				{Name: "run_security_check"},
+				{Name: "record_observation"},
+				{Name: "record_observation_batch"},
+				{Name: "inspect_artifact"},
+				{Name: "register_asset"},
+				{Name: "list_skills"},
+				{Name: "read_skill"},
+			},
+		},
+		{
+			Name:    "browser",
+			Version: "1",
+			Tools: []CapabilityTool{
+				{Name: "get_endpoint"},
+				{Name: "http_request"},
+				{Name: "search_http_traffic"},
+				{Name: "get_http_exchange"},
+				{Name: "extract_api_endpoints"},
+				{Name: "extract_endpoint_links"},
+				{Name: "record_observation"},
+				{Name: "record_observation_batch"},
+				{Name: "inspect_artifact"},
+				{Name: "register_asset"},
+				{Name: "list_skills"},
+				{Name: "read_skill"},
+			},
+		},
+		{
+			Name:    "http_readonly",
+			Version: "1",
+			Tools: []CapabilityTool{
+				{Name: "get_endpoint"},
+				{Name: "extract_endpoint_links"},
+				{Name: "record_observation"},
+				{Name: "inspect_artifact"},
+			},
+		},
+		{
+			Name:    "sample",
+			Version: "1",
+			Tools: []CapabilityTool{
+				{Name: "read_sample"},
+				{Name: "record_observation"},
+				{Name: "inspect_artifact"},
+			},
+		},
 	}
 }
 

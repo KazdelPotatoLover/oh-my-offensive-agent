@@ -439,5 +439,5 @@
     }
   },
   "command": "go test ./test/ -count=1 -run TestMA_A01_DiscoveryWorkerCapacityRequiresRealOverlap",
-  "finished_at": "2026-10-22T08:35:19Z"
+  "finished_at": "2026-10-23T01:47:18Z"
 }

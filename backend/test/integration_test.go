@@ -174,6 +174,7 @@ func setupTestEnv(t *testing.T, execute ...bool) *TestEnv {
 		r.Get("/runs/{runID}/goals", runHandler.ListGoals)
 		r.Post("/runs/{runID}/goals", runHandler.SetGoals)
 		r.Post("/runs/{runID}/goals/{goalID}/prove", runHandler.ProveGoal)
+		r.Get("/runs/{runID}/graph", runHandler.ExplorationGraph)
 		r.Get("/runs/{runID}/graph/overview", runHandler.GraphOverview)
 		r.Get("/runs/{runID}/graph/nodes/{nodeID}", runHandler.GetExplorationNodeDetail)
 		r.Post("/runs/{runID}/graph/nodes/{nodeID}/revisions", runHandler.ReviseExplorationNode)

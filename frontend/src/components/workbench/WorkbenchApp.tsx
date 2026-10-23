@@ -39,11 +39,8 @@ import {
   type QueryError,
 } from '@/lib/workbench/state';
 import { CreateTaskForm } from './CreateTaskForm';
-import {
-  ExplorationCanvas,
-  type CanvasEdgeData,
-  type CanvasNodeData,
-} from './ExplorationCanvas';
+import { ExplorationCanvas } from './ExplorationCanvas';
+import { buildExplorationGraph, type ExplorationGraph } from '@/lib/workbench/graph';
 import { InspectorPane } from './InspectorPane';
 
 const POLL_MS = 1500;
@@ -141,8 +138,8 @@ function WorkbenchSession() {
   const [grant, setGrant] = useState({ model: 0, tool: 0, seconds: 0 });
   const [hint, setHint] = useState('');
   const [intent, setIntent] = useState('');
-  const [graphOverview, setGraphOverview] = useState<any>(null);
-  const [findingsList, setFindingsList] = useState<any[]>([]);
+  const [graph, setGraph] = useState<ExplorationGraph | null>(null);
+  const [graphError, setGraphError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,28 +196,25 @@ function WorkbenchSession() {
   useEffect(() => {
     if (!runId) return;
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    setGraph(null);
+    setGraphError(null);
     const loadGraph = async () => {
       try {
-        const resp = await api.getGraphOverview(runId);
-        if (!cancelled) setGraphOverview(resp);
-      } catch {
-        // quiet fallback
-      }
-      try {
-        const findingsResp = await fetch(`/api/runs/${runId}/findings`);
-        if (findingsResp.ok) {
-          const body = await findingsResp.json();
-          if (!cancelled && Array.isArray(body?.findings)) setFindingsList(body.findings);
+        const response = await api.getExplorationGraph(runId);
+        if (!cancelled) {
+          setGraph(prev => JSON.stringify(prev) === JSON.stringify(response) ? prev : response);
+          setGraphError(null);
         }
-      } catch {
-        // quiet fallback
+      } catch (err) {
+        if (!cancelled) setGraphError(err instanceof Error ? err.message : '探索图读取失败');
       }
+      if (!cancelled) timer = setTimeout(() => { void loadGraph(); }, 4000);
     };
     void loadGraph();
-    const timer = setInterval(() => { void loadGraph(); }, 4000);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      clearTimeout(timer);
     };
   }, [runId]);
 
@@ -284,164 +278,7 @@ function WorkbenchSession() {
   const canEpoch = canCommand && ['stopped', 'failed', 'interrupted'].includes(runStatus);
   const terminationNotice = runNotice(runRecord.data);
 
-  const { graphNodes, graphEdges } = useMemo(() => {
-    const nodes: CanvasNodeData[] = [];
-    const edges: CanvasEdgeData[] = [];
-    if (!runId) return { graphNodes: nodes, graphEdges: edges };
-
-    if (taskRecord.data) {
-      nodes.push({
-        id: `root-${taskRecord.data.id}`,
-        kind: 'begin',
-        state: 'origin',
-        summary: taskRecord.data.name + (taskRecord.data.objective ? ` · ${taskRecord.data.objective}` : ''),
-        origin: 'user',
-        created_at: taskRecord.data.created_at,
-      });
-    }
-
-    const rawGoals = graphOverview?.goals || snap?.goals || [];
-    rawGoals.forEach((g: any) => {
-      const gid = String(g.id || g.goal_id);
-      nodes.push({
-        id: gid,
-        kind: 'goal',
-        state: g.state || 'open',
-        summary: g.text || g.objective || '达成探索目标',
-        priority: g.priority || 9,
-        payload: g,
-      });
-      if (taskRecord.data) {
-        edges.push({
-          id: `e-root-${gid}`,
-          src: `root-${taskRecord.data.id}`,
-          dst: gid,
-          rel: 'spawns',
-        });
-      }
-    });
-
-    const seenIntents = new Set<string>();
-    (snap?.directions || []).forEach((d) => {
-      const wid = d.work_item_id;
-      seenIntents.add(wid);
-      nodes.push({
-        id: wid,
-        kind: 'intent',
-        state: d.status,
-        summary: d.objective || '探索方向',
-        work_item_id: wid,
-        is_live: d.status === 'running',
-        payload: d as unknown as Record<string, unknown>,
-      });
-      const firstGoal = nodes.find((n) => n.kind === 'goal');
-      if (firstGoal) {
-        edges.push({
-          id: `e-${firstGoal.id}-${wid}`,
-          src: firstGoal.id,
-          dst: wid,
-          rel: 'spawns',
-        });
-      }
-    });
-
-    [...(graphOverview?.open_intents || []), ...(graphOverview?.running_intents || [])].forEach((oi: any) => {
-      const iid = String(oi.id);
-      if (!seenIntents.has(iid) && (!oi.work_item_id || !seenIntents.has(String(oi.work_item_id)))) {
-        seenIntents.add(iid);
-        nodes.push({
-          id: iid,
-          kind: 'intent',
-          state: oi.state || 'open',
-          summary: oi.summary || '待探索意图',
-          priority: oi.priority,
-          is_live: oi.state === 'running',
-          payload: oi,
-        });
-        const firstGoal = nodes.find((n) => n.kind === 'goal');
-        if (firstGoal) {
-          edges.push({
-            id: `e-${firstGoal.id}-${iid}`,
-            src: firstGoal.id,
-            dst: iid,
-            rel: 'spawns',
-          });
-        }
-      }
-    });
-
-    (graphOverview?.facts || []).forEach((f: any) => {
-      const fid = String(f.id);
-      nodes.push({
-        id: fid,
-        kind: 'fact',
-        state: 'verified',
-        summary: f.summary || '已确认事实',
-        payload: f,
-      });
-      if (f.work_item_id && nodes.some((n) => n.id === String(f.work_item_id))) {
-        edges.push({
-          id: `e-${f.work_item_id}-${fid}`,
-          src: String(f.work_item_id),
-          dst: fid,
-          rel: 'yields',
-        });
-      } else {
-        const firstIntent = nodes.find((n) => n.kind === 'intent');
-        if (firstIntent) {
-          edges.push({
-            id: `e-${firstIntent.id}-${fid}`,
-            src: firstIntent.id,
-            dst: fid,
-            rel: 'yields',
-          });
-        }
-      }
-    });
-
-    findingsList.forEach((find: any) => {
-      const fid = String(find.id);
-      nodes.push({
-        id: fid,
-        kind: 'finding',
-        state: find.state || find.status || 'verified',
-        summary: find.name || find.summary || '已验证漏洞',
-        priority: 9,
-        finding_id: fid,
-        payload: find,
-      });
-      if (find.work_item_id && nodes.some((n) => n.id === String(find.work_item_id))) {
-        edges.push({
-          id: `e-${find.work_item_id}-${fid}`,
-          src: String(find.work_item_id),
-          dst: fid,
-          rel: 'yields',
-        });
-      }
-      const firstGoal = nodes.find((n) => n.kind === 'goal');
-      if (firstGoal) {
-        edges.push({
-          id: `e-${fid}-${firstGoal.id}`,
-          src: fid,
-          dst: firstGoal.id,
-          rel: 'proves',
-        });
-      }
-    });
-
-    (graphOverview?.edges || []).forEach((be: any) => {
-      if (!edges.some((e) => e.src === be.src && e.dst === be.dst)) {
-        edges.push({
-          id: be.id || `e-${be.src}-${be.dst}`,
-          src: be.src,
-          dst: be.dst,
-          rel: be.rel,
-        });
-      }
-    });
-
-    return { graphNodes: nodes, graphEdges: edges };
-  }, [runId, taskRecord.data, snap?.goals, snap?.directions, graphOverview, findingsList]);
+  const { graphNodes, graphEdges } = useMemo(() => buildExplorationGraph(graph), [graph]);
 
   const openWork = (workItemId: string) => {
     setPane('inspect');
@@ -845,7 +682,9 @@ function WorkbenchSession() {
               {/* View 1: Exploration Canvas */}
               {activeView === 'graph' ? (
                 <div className="relative min-h-0 flex-1">
-                  <ExplorationCanvas nodes={graphNodes} edges={graphEdges} />
+                  <ExplorationCanvas key={runId} nodes={graphNodes} edges={graphEdges}
+                    notice={graphError ? `${graphError}${graph ? '；显示上次成功读取的数据' : ''}` : !graph ? '正在读取探索图…' : undefined}
+                    hasError={Boolean(graphError)} onOpenWork={openWork} />
                 </div>
               ) : (
                 /* View 2: Direction Board + Main Conversation */

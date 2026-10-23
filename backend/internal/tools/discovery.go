@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 
 	"agent-workbench/backend/internal/model"
@@ -573,6 +574,596 @@ func (t *ExtractEndpointLinksTool) Execute(ctx context.Context, argsBytes []byte
 
 	// Refresh shortest distances, including existing assets reached via a shorter
 	// route. UNION deduplicates (asset,depth); the bound prevents cyclic expansion.
+	if _, err = tx.Exec(ctx, `
+ WITH RECURSIVE reachable(asset_id, depth) AS (
+   SELECT asset_id, 0 FROM run_assets WHERE run_id=$1 AND is_seed
+   UNION
+   SELECT ad.target_asset_id, r.depth+1
+   FROM reachable r JOIN asset_discoveries ad ON ad.source_asset_id=r.asset_id
+   WHERE ad.run_id=$1 AND r.depth < $2
+ ), distances AS (SELECT asset_id, MIN(depth) AS depth FROM reachable GROUP BY asset_id)
+ UPDATE run_assets ra SET depth=d.depth FROM distances d
+ WHERE ra.run_id=$1 AND ra.asset_id=d.asset_id
+ `, t.runID, maxDepth); err != nil {
+		return "", fmt.Errorf("refresh discovery depths: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return "", fmt.Errorf("commit discovery transaction: %w", err)
+	}
+
+	resMap := map[string]interface{}{
+		"source_asset_id": sourceAssetUUID.String(),
+		"discovered":      discovered,
+		"existing":        existing,
+		"rejected":        rejected,
+	}
+	resJSON, _ := json.Marshal(resMap)
+	return string(resJSON), nil
+}
+
+var (
+	rxAxiosCall   = regexp.MustCompile(`(?i)axios\.(get|post|put|delete|patch|options)\s*\(\s*['"]([^'"\s?#]+)['"]`)
+	rxFetchCall   = regexp.MustCompile(`(?i)(?:fetch|\$\.(?:get|post|ajax))\s*\(\s*['"]([^'"\s?#]+)['"]`)
+	rxAPIPathStr  = regexp.MustCompile(`['"](/(?:api|v[0-9]+|rest|graphql|auth|admin|user|users|login|logout|upload|account|data|export|search|profile|orders|items)(?:/[a-zA-Z0-9_\-\.]+)*)['"]`)
+	rxScriptSrc   = regexp.MustCompile(`(?i)<script[^>]+src\s*=\s*['"]([^'"]+)['"]`)
+	rxScriptBlock = regexp.MustCompile(`(?is)<script(?:[^>]*)>(.*?)</script>`)
+)
+
+type ExtractAPIEndpointsTool struct {
+	runID      uuid.UUID
+	workItemID uuid.UUID
+	sessionID  uuid.UUID
+	runService *service.RunService
+}
+
+func NewExtractAPIEndpointsTool(runID, workItemID, sessionID uuid.UUID, runService *service.RunService) *ExtractAPIEndpointsTool {
+	return &ExtractAPIEndpointsTool{
+		runID:      runID,
+		workItemID: workItemID,
+		sessionID:  sessionID,
+		runService: runService,
+	}
+}
+
+func (t *ExtractAPIEndpointsTool) Name() string {
+	return "extract_api_endpoints"
+}
+
+func (t *ExtractAPIEndpointsTool) Description() string {
+	return "Extract and register API endpoint paths and HTTP methods discovered in HTML scripts, JavaScript files, or JSON/OpenAPI responses using verified HTTP evidence."
+}
+
+func (t *ExtractAPIEndpointsTool) Parameters() json.RawMessage {
+	return json.RawMessage(`{
+		"type": "object",
+		"properties": {
+			"source_tool_call_id": {
+				"type": "string",
+				"description": "Copy _execution.source_tool_call_id from a successful get_endpoint or http_request result. Parses the stored body to discover API routes and methods."
+			}
+		},
+		"required": ["source_tool_call_id"]
+	}`)
+}
+
+func (t *ExtractAPIEndpointsTool) Validate(argsBytes []byte) error {
+	var args struct {
+		SourceToolCallID string `json:"source_tool_call_id"`
+	}
+	if err := json.Unmarshal(argsBytes, &args); err != nil {
+		return fmt.Errorf("invalid arguments: %w", err)
+	}
+	if strings.TrimSpace(args.SourceToolCallID) == "" {
+		return errors.New("source_tool_call_id is required")
+	}
+	return nil
+}
+
+type apiCandidateSpec struct {
+	rawRef  string
+	path    string
+	fullURL string
+	method  string
+}
+
+func (t *ExtractAPIEndpointsTool) Execute(ctx context.Context, argsBytes []byte) (string, error) {
+	var args struct {
+		SourceToolCallID string `json:"source_tool_call_id"`
+	}
+	if err := json.Unmarshal(argsBytes, &args); err != nil {
+		return "", fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	pool := t.runService.Pool()
+	source, err := t.runService.HTTPDiscoverySource(ctx, t.runID, t.sessionID, t.workItemID, args.SourceToolCallID)
+	if err != nil {
+		return "", err
+	}
+	tcID, sourceAssetUUID := source.CallID, source.AssetID
+
+	// Validate supported content-type (HTML, JS, JSON, text)
+	var isSupported bool
+	var isHTML bool
+	var isJS bool
+	var isJSON bool
+	for k, v := range source.Headers {
+		if strings.EqualFold(k, "Content-Type") {
+			lv := strings.ToLower(v)
+			if strings.Contains(lv, "text/html") {
+				isSupported = true
+				isHTML = true
+			} else if strings.Contains(lv, "javascript") || strings.Contains(lv, "text/plain") {
+				isSupported = true
+				isJS = true
+			} else if strings.Contains(lv, "json") {
+				isSupported = true
+				isJSON = true
+			}
+		}
+	}
+	if !isSupported {
+		trimmedBody := strings.TrimSpace(source.Body)
+		if strings.HasPrefix(strings.ToLower(trimmedBody), "<!doctype html") || strings.HasPrefix(strings.ToLower(trimmedBody), "<html") {
+			isSupported = true
+			isHTML = true
+		} else if strings.HasPrefix(trimmedBody, "{") || strings.HasPrefix(trimmedBody, "[") {
+			isSupported = true
+			isJSON = true
+		} else if strings.Contains(trimmedBody, "function") || strings.Contains(trimmedBody, "var ") || strings.Contains(trimmedBody, "const ") {
+			isSupported = true
+			isJS = true
+		} else {
+			return "", errors.New("source response is not text/html, javascript, or json")
+		}
+	}
+
+	var runStatus model.RunStatus
+	var executionInputJSON []byte
+	err = pool.QueryRow(ctx,
+		`SELECT status, execution_input FROM runs WHERE id = $1`, t.runID).Scan(&runStatus, &executionInputJSON)
+	if err != nil {
+		return "", fmt.Errorf("get run status: %w", err)
+	}
+	if runStatus.IsTerminal() || runStatus == model.RunStatusStopping {
+		return "", fmt.Errorf("run is in status '%s': discovery rejected", runStatus)
+	}
+
+	var execInput struct {
+		DiscoveryPolicy *model.DiscoveryPolicy `json:"discovery_policy"`
+		Scope           map[string]interface{} `json:"scope"`
+	}
+	_ = json.Unmarshal(executionInputJSON, &execInput)
+	discPolicy := execInput.DiscoveryPolicy
+	if discPolicy == nil && execInput.Scope != nil {
+		if dpRaw, ok := execInput.Scope["discovery_policy"]; ok {
+			dpBytes, _ := json.Marshal(dpRaw)
+			var dp model.DiscoveryPolicy
+			if err := json.Unmarshal(dpBytes, &dp); err == nil && dp.Origin != "" {
+				discPolicy = &dp
+			}
+		}
+	}
+	if discPolicy == nil {
+		if source.ReceiptID != uuid.Nil {
+			return "", errors.New("explicit discovery_policy required for captured HTTP link registration")
+		}
+		fixturePort := os.Getenv("FIXTURE_PORT")
+		if fixturePort == "" {
+			fixturePort = "29090"
+		}
+		discPolicy = &model.DiscoveryPolicy{
+			Mode:           "exact_paths",
+			Origin:         fmt.Sprintf("http://127.0.0.1:%s", fixturePort),
+			AllowedMethods: []string{"GET", "POST"},
+			AllowedPaths:   []string{"/", "/login", "/health", "/api"},
+		}
+	}
+	if discPolicy.Mode == "" {
+		if len(discPolicy.AllowedPaths) > 0 {
+			discPolicy.Mode = "exact_paths"
+		} else {
+			discPolicy.Mode = "same_origin_html"
+		}
+	}
+
+	policyURL, err := url.Parse(discPolicy.Origin)
+	if err != nil {
+		return "", fmt.Errorf("invalid discovery policy origin '%s': %w", discPolicy.Origin, err)
+	}
+
+	allowedPathMap := make(map[string]bool)
+	networkPolicy, networkErr := netcap.PolicyFromExecutionInput(executionInputJSON)
+	if source.ReceiptID != uuid.Nil && networkErr != nil {
+		return "", networkErr
+	}
+	for _, p := range discPolicy.AllowedPaths {
+		allowedPathMap[p] = true
+	}
+
+	type rawCandidate struct {
+		rawRef string
+		method string
+	}
+	var rawCandidates []rawCandidate
+
+	// Extract raw candidates depending on format
+	if isHTML {
+		// 1. Script tag src links
+		for _, m := range rxScriptSrc.FindAllStringSubmatch(source.Body, 50) {
+			if len(m) > 1 {
+				rawCandidates = append(rawCandidates, rawCandidate{rawRef: m[1], method: "GET"})
+			}
+		}
+		// 2. Inline script blocks
+		for _, m := range rxScriptBlock.FindAllStringSubmatch(source.Body, 50) {
+			if len(m) > 1 {
+				block := m[1]
+				for _, ax := range rxAxiosCall.FindAllStringSubmatch(block, 30) {
+					if len(ax) > 2 {
+						rawCandidates = append(rawCandidates, rawCandidate{rawRef: ax[2], method: strings.ToUpper(ax[1])})
+					}
+				}
+				for _, fe := range rxFetchCall.FindAllStringSubmatch(block, 30) {
+					if len(fe) > 1 {
+						rawCandidates = append(rawCandidates, rawCandidate{rawRef: fe[1], method: "GET"})
+					}
+				}
+				for _, ap := range rxAPIPathStr.FindAllStringSubmatch(block, 30) {
+					if len(ap) > 1 {
+						rawCandidates = append(rawCandidates, rawCandidate{rawRef: ap[1], method: "GET"})
+					}
+				}
+			}
+		}
+		// 3. Fallback scan on HTML body
+		for _, ap := range rxAPIPathStr.FindAllStringSubmatch(source.Body, 30) {
+			if len(ap) > 1 {
+				rawCandidates = append(rawCandidates, rawCandidate{rawRef: ap[1], method: "GET"})
+			}
+		}
+	} else if isJS {
+		for _, ax := range rxAxiosCall.FindAllStringSubmatch(source.Body, 50) {
+			if len(ax) > 2 {
+				rawCandidates = append(rawCandidates, rawCandidate{rawRef: ax[2], method: strings.ToUpper(ax[1])})
+			}
+		}
+		for _, fe := range rxFetchCall.FindAllStringSubmatch(source.Body, 50) {
+			if len(fe) > 1 {
+				rawCandidates = append(rawCandidates, rawCandidate{rawRef: fe[1], method: "GET"})
+			}
+		}
+		for _, ap := range rxAPIPathStr.FindAllStringSubmatch(source.Body, 50) {
+			if len(ap) > 1 {
+				rawCandidates = append(rawCandidates, rawCandidate{rawRef: ap[1], method: "GET"})
+			}
+		}
+	} else if isJSON {
+		// Check for OpenAPI / Swagger "paths"
+		var parsedJSON map[string]interface{}
+		if err := json.Unmarshal([]byte(source.Body), &parsedJSON); err == nil {
+			if pathsObj, ok := parsedJSON["paths"].(map[string]interface{}); ok {
+				for p, item := range pathsObj {
+					if pMap, ok := item.(map[string]interface{}); ok {
+						for m := range pMap {
+							lm := strings.ToUpper(m)
+							if lm == "GET" || lm == "POST" || lm == "PUT" || lm == "DELETE" || lm == "PATCH" {
+								rawCandidates = append(rawCandidates, rawCandidate{rawRef: p, method: lm})
+							}
+						}
+					} else {
+						rawCandidates = append(rawCandidates, rawCandidate{rawRef: p, method: "GET"})
+					}
+				}
+			}
+		}
+		for _, ap := range rxAPIPathStr.FindAllStringSubmatch(source.Body, 50) {
+			if len(ap) > 1 {
+				rawCandidates = append(rawCandidates, rawCandidate{rawRef: ap[1], method: "GET"})
+			}
+		}
+	}
+
+	sourceReqURL, err := url.Parse(source.FinalURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid source request URL: %w", err)
+	}
+
+	var discovered []DiscoveredItem
+	var existing []ExistingItem
+	var rejected []RejectedItem
+	var candidates []apiCandidateSpec
+	seenKeys := make(map[string]bool)
+
+	for _, rc := range rawCandidates {
+		trimmed := strings.TrimSpace(rc.rawRef)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(strings.ToLower(trimmed), "javascript:") {
+			continue
+		}
+		if len(trimmed) > 2048 {
+			rejected = append(rejected, RejectedItem{RawHref: trimmed[:64] + "...", Reason: "path exceeds 2048 bytes limit"})
+			continue
+		}
+		resolved, err := sourceReqURL.Parse(trimmed)
+		if err != nil {
+			rejected = append(rejected, RejectedItem{RawHref: trimmed, Reason: "cannot parse as relative or absolute URL"})
+			continue
+		}
+		if resolved.Scheme != "http" && resolved.Scheme != "https" {
+			rejected = append(rejected, RejectedItem{RawHref: trimmed, Reason: "scheme must be http or https"})
+			continue
+		}
+		if resolved.Host != policyURL.Host {
+			rejected = append(rejected, RejectedItem{RawHref: trimmed, Reason: fmt.Sprintf("origin '%s' does not match policy origin '%s'", resolved.Host, policyURL.Host)})
+			continue
+		}
+		method := rc.method
+		if method == "" {
+			method = "GET"
+		}
+		if source.ReceiptID != uuid.Nil {
+			_, matchErr := networkPolicy.Match(resolved)
+			if matchErr != nil || networkPolicy.AllowsMethod(method) != nil {
+				rejected = append(rejected, RejectedItem{RawHref: trimmed, Reason: "outside frozen HTTP request policy"})
+				continue
+			}
+		}
+
+		lowerPath := strings.ToLower(resolved.Path)
+		if strings.HasSuffix(lowerPath, ".png") || strings.HasSuffix(lowerPath, ".jpg") ||
+			strings.HasSuffix(lowerPath, ".jpeg") || strings.HasSuffix(lowerPath, ".gif") ||
+			strings.HasSuffix(lowerPath, ".svg") || strings.HasSuffix(lowerPath, ".css") ||
+			strings.HasSuffix(lowerPath, ".ico") || strings.HasSuffix(lowerPath, ".woff") ||
+			strings.HasSuffix(lowerPath, ".woff2") || strings.HasSuffix(lowerPath, ".ttf") ||
+			strings.HasSuffix(lowerPath, ".eot") || strings.HasSuffix(lowerPath, ".map") ||
+			strings.HasSuffix(lowerPath, ".pdf") || strings.HasSuffix(lowerPath, ".zip") {
+			rejected = append(rejected, RejectedItem{RawHref: trimmed, Reason: "static asset skipped"})
+			continue
+		}
+
+		if discPolicy.Mode != "same_origin_html" {
+			if !allowedPathMap[resolved.Path] {
+				// Also check if prefix matches
+				var matchedPrefix bool
+				for ap := range allowedPathMap {
+					if ap != "/" && strings.HasPrefix(resolved.Path, ap) {
+						matchedPrefix = true
+						break
+					}
+				}
+				if !matchedPrefix {
+					rejected = append(rejected, RejectedItem{RawHref: trimmed, Reason: fmt.Sprintf("path '%s' is outside discovery policy allowed_paths", resolved.Path)})
+					continue
+				}
+			}
+		}
+
+		candidateFullURL := discPolicy.Origin + resolved.Path
+		key := method + " " + candidateFullURL
+		if seenKeys[key] {
+			continue
+		}
+		seenKeys[key] = true
+		candidates = append(candidates, apiCandidateSpec{
+			rawRef:  trimmed,
+			path:    resolved.Path,
+			fullURL: candidateFullURL,
+			method:  method,
+		})
+		if len(candidates) >= 50 {
+			break
+		}
+	}
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return "", fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	var currentRunStatus model.RunStatus
+	var currentEpoch int
+	err = tx.QueryRow(ctx, `SELECT status, current_epoch FROM runs WHERE id = $1 FOR UPDATE`, t.runID).Scan(&currentRunStatus, &currentEpoch)
+	if err != nil {
+		return "", fmt.Errorf("lock run for discovery: %w", err)
+	}
+	if currentEpoch != source.Epoch {
+		return "", service.ErrStaleEpoch
+	}
+	if currentRunStatus.IsTerminal() || currentRunStatus == model.RunStatusStopping || currentRunStatus == model.RunStatusPaused {
+		return "", fmt.Errorf("run transitioned to status '%s': discovery registration aborted", currentRunStatus)
+	}
+
+	var attemptID *uuid.UUID
+	err = tx.QueryRow(ctx, `SELECT attempt_id FROM agent_sessions WHERE id = $1`, t.sessionID).Scan(&attemptID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return "", fmt.Errorf("get session attempt_id: %w", err)
+	}
+
+	maxDepth := discPolicy.MaxDepth
+	if maxDepth <= 0 {
+		maxDepth = 2
+	}
+	var sourceDepth *int
+	err = tx.QueryRow(ctx, `
+ WITH RECURSIVE reachable(asset_id, depth) AS (
+   SELECT asset_id, 0 FROM run_assets WHERE run_id=$1 AND is_seed
+   UNION
+   SELECT ad.target_asset_id, r.depth+1
+   FROM reachable r JOIN asset_discoveries ad ON ad.source_asset_id=r.asset_id
+   WHERE ad.run_id=$1 AND r.depth < $3
+ )
+ SELECT MIN(depth) FROM reachable WHERE asset_id=$2
+ `, t.runID, sourceAssetUUID, maxDepth).Scan(&sourceDepth)
+	if err != nil {
+		return "", fmt.Errorf("calculate discovery depth for source asset: %w", err)
+	}
+	if sourceDepth == nil {
+		return "", fmt.Errorf("source asset is not reachable from a seed within depth limit")
+	}
+
+	candidateDepth := *sourceDepth + 1
+
+	for _, c := range candidates {
+		targetKey := c.method + " " + c.fullURL
+		var existingAssetID uuid.UUID
+		err = tx.QueryRow(ctx,
+			`SELECT a.id FROM run_assets ra
+			 JOIN assets a ON ra.asset_id = a.id
+			 WHERE ra.run_id = $1 AND (a.external_key = $2 OR a.external_key = $3)`,
+			t.runID, targetKey, "GET "+c.fullURL).Scan(&existingAssetID)
+
+		if err == nil {
+			existing = append(existing, ExistingItem{
+				AssetID: existingAssetID,
+				URL:     c.fullURL,
+				Path:    c.path,
+				RawHref: c.rawRef,
+			})
+			if existingAssetID != sourceAssetUUID {
+				_, err = tx.Exec(ctx,
+					`INSERT INTO asset_discoveries (id, run_id, source_asset_id, source_tool_call_id, target_asset_id, raw_href)
+					 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
+					 ON CONFLICT (run_id, source_asset_id, target_asset_id, raw_href) DO NOTHING`,
+					t.runID, sourceAssetUUID, tcID, existingAssetID, c.rawRef)
+				if err != nil {
+					return "", fmt.Errorf("insert existing asset discovery edge: %w", err)
+				}
+			}
+			continue
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return "", fmt.Errorf("check run asset: %w", err)
+		}
+
+		if candidateDepth > maxDepth {
+			rejected = append(rejected, RejectedItem{
+				RawHref: c.rawRef,
+				Reason:  fmt.Sprintf("discovery depth limit exceeded (depth %d > max %d)", candidateDepth, maxDepth),
+			})
+			continue
+		}
+
+		maxPages := discPolicy.MaxPages
+		if maxPages <= 0 {
+			maxPages = 20
+		}
+		var currentAssetCount int
+		err = tx.QueryRow(ctx, `SELECT COUNT(*) FROM run_assets WHERE run_id = $1`, t.runID).Scan(&currentAssetCount)
+		if err != nil {
+			return "", fmt.Errorf("count run assets: %w", err)
+		}
+		if currentAssetCount >= maxPages {
+			rejected = append(rejected, RejectedItem{
+				RawHref: c.rawRef,
+				Reason:  fmt.Sprintf("discovery page limit exceeded (count %d >= max %d)", currentAssetCount, maxPages),
+			})
+			continue
+		}
+
+		ns := "target-range"
+		if strings.Contains(discPolicy.Origin, "127.0.0.1") {
+			ns = "local-fixture-v1"
+		}
+		assetName := fmt.Sprintf("%s %s", c.method, c.path)
+		desc := fmt.Sprintf("API endpoint %s %s of %s", c.method, c.path, discPolicy.Origin)
+
+		metaJSON, _ := json.Marshal(map[string]interface{}{
+			"url":    c.fullURL,
+			"path":   c.path,
+			"port":   policyURL.Port(),
+			"method": c.method,
+		})
+
+		var targetAssetID uuid.UUID
+		err = tx.QueryRow(ctx,
+			`INSERT INTO assets (id, namespace, kind, external_key, name, description, metadata, created_at, updated_at)
+			 VALUES (gen_random_uuid(), $1, 'http_endpoint', $2, $3, $4, $5, now(), now())
+			 ON CONFLICT (namespace, kind, external_key) DO UPDATE
+			 SET updated_at = now()
+			 RETURNING id`,
+			ns, targetKey, assetName, desc, metaJSON).Scan(&targetAssetID)
+		if err != nil {
+			return "", fmt.Errorf("insert asset %s: %w", targetKey, err)
+		}
+
+		snapJSON, _ := json.Marshal(map[string]interface{}{
+			"kind":         "http_endpoint",
+			"external_key": targetKey,
+			"is_seed":      false,
+			"metadata": map[string]interface{}{
+				"url":    c.fullURL,
+				"method": c.method,
+			},
+		})
+		_, err = tx.Exec(ctx,
+			`INSERT INTO run_assets (run_id, asset_id, snapshot, depth)
+			 VALUES ($1, $2, $3, $4)
+			 ON CONFLICT (run_id, asset_id) DO NOTHING`,
+			t.runID, targetAssetID, snapJSON, candidateDepth)
+		if err != nil {
+			return "", fmt.Errorf("insert run_asset: %w", err)
+		}
+
+		if targetAssetID != sourceAssetUUID {
+			_, err = tx.Exec(ctx,
+				`INSERT INTO asset_discoveries (id, run_id, source_asset_id, source_tool_call_id, target_asset_id, raw_href)
+				 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
+				 ON CONFLICT (run_id, source_asset_id, target_asset_id, raw_href) DO NOTHING`,
+				t.runID, sourceAssetUUID, tcID, targetAssetID, c.rawRef)
+			if err != nil {
+				return "", fmt.Errorf("insert asset discovery edge: %w", err)
+			}
+		}
+
+		obsContent := fmt.Sprintf("Discovered API endpoint %s %s from reference %s", c.method, c.path, c.rawRef)
+		obsDataJSON, _ := json.Marshal(map[string]interface{}{
+			"source_asset_id": sourceAssetUUID,
+			"target_asset_id": targetAssetID,
+			"raw_href":        c.rawRef,
+			"path":            c.path,
+			"url":             c.fullURL,
+			"method":          c.method,
+		})
+
+		var newObsID uuid.UUID
+		err = tx.QueryRow(ctx,
+			`INSERT INTO observations (id, run_id, attempt_id, asset_id, obs_type, content, data, source_tool_call_id, created_at)
+			 VALUES (gen_random_uuid(), $1, $2, $3, 'discovered_links', $4, $5, $6, now())
+			 RETURNING id`,
+			t.runID, attemptID, sourceAssetUUID, obsContent, obsDataJSON, tcID).Scan(&newObsID)
+		if err != nil {
+			return "", fmt.Errorf("insert observation: %w", err)
+		}
+
+		var nextSeq int
+		err = tx.QueryRow(ctx, `SELECT COALESCE(MAX(seq), 0) + 1 FROM run_events WHERE run_id = $1`, t.runID).Scan(&nextSeq)
+		if err != nil {
+			return "", fmt.Errorf("get next run_events seq: %w", err)
+		}
+		eventPayload, _ := json.Marshal(map[string]interface{}{
+			"observation_id": newObsID,
+			"asset_id":       sourceAssetUUID,
+			"target_asset":   targetAssetID,
+			"obs_type":       "discovered_links",
+			"content":        obsContent,
+		})
+		_, err = tx.Exec(ctx,
+			`INSERT INTO run_events (id, run_id, seq, type, payload)
+			 VALUES (gen_random_uuid(), $1, $2, 'observation', $3)`,
+			t.runID, nextSeq, eventPayload)
+		if err != nil {
+			return "", fmt.Errorf("insert run event: %w", err)
+		}
+
+		discovered = append(discovered, DiscoveredItem{
+			AssetID: targetAssetID,
+			URL:     c.fullURL,
+			Path:    c.path,
+			RawHref: c.rawRef,
+		})
+	}
+
 	if _, err = tx.Exec(ctx, `
  WITH RECURSIVE reachable(asset_id, depth) AS (
    SELECT asset_id, 0 FROM run_assets WHERE run_id=$1 AND is_seed

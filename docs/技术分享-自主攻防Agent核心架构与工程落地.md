@@ -1,7 +1,7 @@
 # 工业级自主攻防 Agent：核心架构解密与工程落地实践
 
-> **分享定位**：面向技术团队、AI 架构师与安全研究员的技术分享材料。  
-> **核心宗旨**：拒绝“套壳 Demo / 泛泛而谈”，深入剖析复杂攻防场景下多智能体协同、长任务推进、证据保真与受控执行的核心机制与深水区工程实践。
+> **分享定位**：面向技术团队、AI 架构师与安全研究员的技术分享材料（实战进阶版）。  
+> **核心宗旨**：拒绝“套壳 Demo / 泛泛而谈”，深入剖析复杂攻防场景下多智能体协同、长任务推进、证据保真、隔离执行与受控交互的底层机制，以及一线踩坑的硬核工程经验。
 
 ---
 
@@ -12,20 +12,20 @@
 │ 核心命题：                                                             │
 │ 为什么大部分自主渗透 Agent 只能停留在“自动化脚本/网页总结器”阶段？    │
 │ 要让 Agent 在开放、高对抗、长周期的攻防场景中持续作战，               │
-│ 必须跨越哪些架构鸿沟？                                                 │
+│ 必须跨越哪些核心架构鸿沟？                                             │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 传统“玩具 Agent”的五大死穴
-1. **单一线性流水线**：抓取 URL $\rightarrow$ 调固定检查 $\rightarrow$ 人工看报告。Agent 没有“假设-验证-衍生新意图”的自主探索能力。
+1. **单一线性流水线**：抓取 URL $\rightarrow$ 调固定检查 $\rightarrow$ 人工看报告。Agent 缺乏“假设-验证-衍生新意图”的自主因果推理能力。
 2. **上下文灾难与预算熔断**：任务跑几轮后 Token 撑爆，或 Worker 局部配额耗尽直接导致全任务崩溃，无法跨 Attempt 连续推进。
-3. **“幻觉型漏洞”与伪证据**：模型看到 200 响应就声称发现注入，或将资产 A 的成功请求作为资产 B 存在漏洞的证据。
-4. **日志孤岛与重复踩坑**：并发 Worker 各跑各的，无法按需检索其他 Worker 的中间探索轨迹，频繁发起重复探测。
-5. **人在环路（HITL）流于表面**：只能在最后点“确认/忽略”，无法在运行时动态纠偏（Steer）、暂停（Pause）、精准定点熔断（Kill）或动态续命。
+3. **“幻觉型漏洞”与伪证据**：模型看到 200 响应就声称发现注入，或将资产 A 的成功请求作为资产 B 存在漏洞的证据；前端为了视觉美化甚至伪造“已证明”连线。
+4. **日志孤岛与重复发包**：并发 Worker 各跑各的，无法按需检索其他 Worker 的中间网络流量与探索轨迹，频繁发起重复探测，甚至打草惊蛇。
+5. **人在环路（HITL）流于表面**：只能在最后点“确认/忽略”，无法在运行时动态纠偏（Steer）、双屏障暂停（Pause）、定点熔断（Kill）或动态续命。
 
 ---
 
-## 一、 认知底座：从“链接拓扑”走向“双图因果推理”
+## 一、 认知底座：物理资产图 vs 认知探索图（双图架构）
 
 在攻防对抗中，单纯维护一张网页链接的拓扑树（Link Graph）是远远不够的。本项目参考 ARTEX 设计，实现了**资产图（Asset Graph）**与**探索图（Exploration Graph）**解耦的双图底座。
 
@@ -34,7 +34,7 @@ flowchart TD
     subgraph AssetGraph ["物理底座：全局资产图 (Asset Graph)"]
         Domain["Domain / Host 节点"]
         IP["IP / Service 节点"]
-        Endpoint["HTTP Endpoint 节点"]
+        Endpoint["HTTP / API Endpoint 节点"]
         Domain --> IP --> Endpoint
     end
 
@@ -45,20 +45,20 @@ flowchart TD
         Intent1["⚡ Intent / WorkItem (探测未授权接口)"]
         Finding["🚨 Finding: empirical (已验证命令执行)"]
 
-        Goal -->|generates| Intent1
+        Goal -->|generates / set_goals| Intent1
         Fact1 -.->|derived_from| Intent1
         Fact2 -.->|derived_from| Intent1
         Intent1 -->|yields| Finding
         Finding -->|proves| Goal
     end
 
-    ExplorationGraph -.->|Anchor 绑定到具体资产| AssetGraph
+    ExplorationGraph -.->|Anchor 绑定到具体物理资产| AssetGraph
 ```
 
 ### 关键设计精要：
 1. **物理实体 vs 认知实体分离**：
-   - **资产图**关注物理身份与安全范围（Scope）：归一化 URI、主机、端口、协议，严格限制无授权探测。
-   - **探索图**关注认知推理血缘：以 `Goal`（最终交付物）、`Fact`（可复用事实）、`Hint`（线索假设）、`Intent`（行动意图）、`Finding`（发现）为节点。
+   - **资产图**关注物理身份与安全范围（Scope）：归一化 URI、主机、端口、协议，严格施加范围授权检查（Scope Gate），防止未授权越界扫描。
+   - **探索图**关注认知推理血缘：以 `Goal`（最终交付物）、`Fact`（可复用事实）、`Hint`（线索假设）、`Intent`（行动意图）、`Finding`（实证发现）为节点。
 2. **事实置信度降级机制（Anti-Hallucination Fact Gate）**：
    - 事实分为 `observed`（直接观察）与 `inferred`（推断猜测）。
    - **硬规则**：只有具备真实成功的工具调用（`source_tool_call_id`）或可信观察（`source_observation_id`）的事实才能打上 `verified` 标签；纯文本自述或缺少确证来源的一律降级为 `unverified`。
@@ -68,33 +68,51 @@ flowchart TD
 
 ---
 
-## 二、 记忆模型解耦：非对称运行时（Asymmetric Memory Model）
+## 二、 运行架构：解耦的 Lead Planner 与真正的 N Worker 并发
 
-多 Agent 架构最容易犯的错误就是**“所有 Agent 共用一套会话历史”**，这会导致巨量噪音和上下文爆炸。
+过去许多多 Agent 系统在派工时由于规划阻塞，往往退化成了“伪多 Agent、实单 Worker 串行”。本项目彻底实现了规划、派发与执行的三权分立：
 
+```mermaid
+flowchart TD
+    U[用户在统一工作台创建任务] --> R[Run: 保存范围、预算与模型配置]
+    R --> P[Lead Planner: 事件驱动规划]
+    P -->|动态提交意图| Q[持久化 WorkItem 队列]
+    Q -->|原子抢占| D[独立 Dispatcher: N 槽位并发控制]
+    D --> W1[Worker Attempt 1]
+    D --> W2[Worker Attempt 2]
+    D --> W3[Worker Attempt N]
+    
+    W1 --> T1[HTTP / HTTPS 网关工具]
+    W2 --> T2[隔离沙箱命令: Python/Node/Playwright]
+    W3 --> T3[API 侦查与漏洞验证工具]
+    
+    T1 & T2 & T3 --> E[脱敏响应 / SHA-256 存证产物]
+    E --> K[资产图 / 事实库 / 实证漏洞库]
+    K -->|防抖合并唤醒| P
+    
+    M[Main Agent 对话 / 统一控制 API] --> C[ExecutionController]
+    C --> R
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                     非对称记忆架构设计对比                             │
-├───────────────────┬────────────────────────────────────────────────────┤
-│ 角色              │ 核心诉求与记忆设计机制                             │
-├───────────────────┼────────────────────────────────────────────────────┤
-│ 主规划者          │ • 宏观视野，负责全局态势感知与意图拆解             │
-│ (Lead Planner)    │ • 每轮开启全新独立 Session，不读所有旧对话         │
-│                   │ • 只喂入：双图最新态势 + 事件变动 + 共享待办      │
-│                   │ • 跨轮记忆依托：持久化 PlannerTodo 表              │
-├───────────────────┼────────────────────────────────────────────────────┤
-│ 执行工蜂          │ • 微观深度，负责具体方向的深度渗透与漏洞利用       │
-│ (Domain Worker)   │ • 维护单一意图的跨 Attempt 连续对话历史            │
-│                   │ • 局部超限收尾后，重跑恢复历史，避免重复发网络请求 │
-│                   │ • 跨工作协作：通过 Trace 过程检索工具按需查阅      │
-└───────────────────┴────────────────────────────────────────────────────┘
-```
+
+### 1. 非对称记忆架构（Asymmetric Memory Model）
+- **Lead Planner（宏观视野）**：
+  - 负责全局态势感知与意图拆解；
+  - **每轮开启全新独立 Session**，坚决不回放全体旧对话，避免上下文无限膨胀；
+  - 仅喂入：双图最新态势 + 防抖合并变动事件 + 跨轮持久化待办（`planner_todos` 表）。
+- **Domain Worker（微观深度）**：
+  - 负责具体方向的深度渗透与漏洞利用；
+  - 维护单一意图跨 Attempt 的连续对话上下文；
+  - 配额耗尽收尾后，重跑恢复历史，避免重复发外部请求。
+
+### 2. 共享模型准入池（Shared Model Admission）
+- 多 Worker 并行如果各调各的 API，瞬间就会打爆上游 LLM 的 RPM / TPM 限制，甚至导致 Planner 无法获得槽位进行监督调度。
+- 服务内构建共享 Token Bucket 信号量池，并为 Planner 预留高优先级通道，确保突发并发下规划中枢永不饥饿。
 
 ---
 
 ## 三、 深水区攻坚：长任务会话恢复与“合成协议闭合”
 
-当一个复杂漏洞利用需要执行 15 步交互，而单轮 Worker 的配额（如限制最多 5 轮交互）耗尽时，传统系统直接报错或从头来过。本项目实现了**多 Attempt 会话恢复与协议闭合体系**。
+当一个复杂漏洞利用需要执行 15 步交互，而单轮 Worker 的局部配额（如限制最多 5 轮交互）耗尽时，传统系统直接报错或从头来过。本项目实现了**多 Attempt 会话恢复与协议闭合体系**。
 
 ```mermaid
 sequenceDiagram
@@ -119,38 +137,73 @@ sequenceDiagram
     
     Note over Worker2: 步骤 4: 启动 Attempt 2 恢复上下文
     Worker2->>DB: LoadWorkItemConversation (拉取历史交互)
-    Note over Worker2: 关键机制：Synthetic Protocol Closure
+    Note over Worker2: 核心机制：Synthetic Protocol Closure
     Worker2->>Worker2: 检测到 Attempt 1 末尾未闭合的 ToolCall
-    Worker2->>Worker2: 自动合成补齐: {"status": "unexecuted", "reason": "budget_exhausted"}
+    Worker2->>Worker2: 自动合成补齐: {"status": "unexecuted", "reason": "worker_budget_exhausted"}
     Note over Worker2: 检测到 /api/v1/user 已经探测成功，直接复用结果！
     Worker2->>Tool: 直接执行后续深度注入载荷 (免重复发包)
 ```
 
-### 核心工程细节：为什么需要“合成协议闭合（Synthetic Protocol Closure）”？
-- **OpenAI / Claude 协议铁律**：在请求历史中，只要 Assistant 发出了一个 `tool_calls`，后面必须紧跟一条 `role: "tool"` 且携带相同 `tool_call_id` 的消息；否则直接报错 `400 Invalid parameter: tool_calls must be followed by tool results`。
+### 为什么需要“合成协议闭合（Synthetic Protocol Closure）”？
+- **大模型底层协议铁律**：在请求历史中，只要 Assistant 发出了一个 `tool_calls`，后面必须紧跟一条 `role: "tool"` 且携带相同 `tool_call_id` 的消息；否则 OpenAI / Anthropic 会直接报错：`400 Invalid parameter: tool_calls must be followed by tool results`。
 - **痛点**：Worker 在第 5 轮决定调用工具的同时触碰了额度熔断（Hard Budget Cap），该工具根本没被真正执行就强制进入了收尾退出（Settlement）。
 - **解法**：在加载历史构造第二轮对话时，运行时自动识别孤儿 `tool_call`，在历史末尾合成一个标准 Tool Result（标注 `unexecuted`），既满足了 LLM 厂商的严苛协议规范，又把“上轮未执行”的真实上下文无缝传递给了下一任 Worker。
 
 ---
 
-## 四、 跨智能体协作：过程级 Trace 检索而非结果汇总
+## 四、 跨智能体协作升级：共享 HTTP 流量与材料复用
 
-大部分 Agent 协作仅靠“Agent A 写一段几十字的 Summary 存数据库，Agent B 读 Summary”。这在攻防场景完全不够用，因为**渗透测试的关键细节往往藏在原始 HTTP 响应头、未识别的隐藏字段、异常堆栈或中间报错信息中**。
+很多团队以为多 Agent 协作就是“Agent A 写一段 50 字 Summary 存数据库，Agent B 读这段话”。但在攻防实战中，这种方式会导致 **99% 的关键信息丢失**。
 
 ```
-传统方式：
-Worker A -> "尝试了 SQL 注入，未成功。" (信息丢失 99%)
+传统方式的致命缺陷：
+Worker A -> "尝试了某登录接口，返回了 500 报错。" (丢失了 Cookie、异常堆栈和参数结构)
 
-本项目机制：
-Worker B 随时调用 `search_all_worker_traces` 或 `get_worker_trace`：
-- 关键字搜索: "error in SQL syntax" 或 "Set-Cookie"
-- 精确到 Step 的结构化交互详情（参数、响应、抓包指针）
-- 结果：Worker B 发现 Worker A 在探测某接口时服务端爆出的绝对路径 /var/www/html/app.py，直接利用该路径打 LFI 本地文件包含。
+本项目落地机制 (Shared HTTP Traffic)：
 ```
+
+1. **流量存证与稳定收据（Receipt & Artifact）**：
+   - 所有 Worker 发起的 HTTP(S) 请求均由统一网关透明捕获，记录脱敏请求/响应头，并对完整正文计算 SHA-256 后存为受控产物（Artifact）。
+   - 产生稳定全局唯一的 `receipt_id`。
+2. **只读材料检索工具集**：
+   - `search_http_traffic`：支持按 Host、Method、状态码、Epoch、URL 模糊匹配等进行轻量检索；
+   - `get_http_exchange`：通过 `receipt_id` 读取包含完整响应、脱敏凭据的交互切片；
+   - `read_artifact`：针对长正文进行 UTF-8 安全的分页读取。
+3. **协作场景**：
+   - Worker A 在探测首页时抓到了包含敏感接口路由的 HTML；
+   - Worker B（负责 API 渗透）无需再次向目标服务器发包，直接通过 `get_http_exchange` 获取 Worker A 的捕获结果，解析前端 JS 路由，**实现真正的零冗余协同，极大幅度降低对目标靶场的轰炸频次**。
+4. **防作弊铁律**：通过流量检索读取的历史材料，系统自动打标 `new_verification=false`，**坚决不能作为 Worker 证明当前漏洞存在的依据**！
 
 ---
 
-## 五、 防作弊实证契约：真实验证防御矩阵
+## 五、 沙箱隔离与领域技能（Skills）体系
+
+为了突破单一 Web 请求的限制，让 Agent 具备执行 Python 脚本、Playwright 浏览器自动化与特定漏洞 PoC 的能力，必须引入**受控执行容器**与**SOP 技能包**：
+
+```mermaid
+flowchart LR
+    Agent["Worker / Verifier"] -->|run_command| Broker["OMA Execution Broker"]
+    Broker -->|受限通信 / 路径白名单| Docker["隔离执行容器 (Alpine + Headless Playwright)"]
+    Docker -->|标准输出 / 错误流| Broker
+    Broker -->|退出码 / Job 状态 / 截断保护| Agent
+    
+    Agent -.->|list_skills / read_skill| SkillsDir["Skills SOP 库 (Markdown Playbooks)"]
+    SkillsDir -.->|指导执行规范| Agent
+```
+
+1. **执行容器隔离（Execution Broker）**：
+   - 严苛的命令白名单（`NormalizeArgv`）：仅允许 `/usr/local/bin/python3`、`/usr/bin/curl`、`/usr/local/bin/node`、`/usr/local/bin/playwright-cli`；
+   - 禁止在宿主机直接跑命令，所有执行落入受限容器沙箱，通过不可篡改的环境变量与网络策略管控；
+   - 退出码与输出完整记账，支持异步 Cancel 与超时熔断。
+2. **领域技能树（Skills System）**：
+   - 落地 `skills/api-recon`（API 资产与端点探测标准流程）；
+   - 落地 `skills/finding-verification`（实证漏洞验证与 HTTP 证据对齐契约）；
+   - 落地 `skills/playwright-cli`（无头浏览器深度交互指引）；
+   - Agent 通过 `list_skills` 了解可用剧本，通过 `read_skill` 按需加载 SOP，避免提示词超长，实现“知识按需拉取”。
+
+---
+
+## 六、 防作弊实证契约与独立复测执行器
 
 为了防止 Agent “虚报战功”或“把无关证据张冠李戴”，系统建立了一整套严格的后端数据约束与前置校验矩阵：
 
@@ -168,76 +221,65 @@ flowchart LR
 ```
 
 ### 独立复测执行器（Retest Executor）的结构化裁决
-复测漏洞是否被修复时，**坚决不使用 LLM 自由文本子串匹配（如出现 'fixed' 就当修复）**：
-1. **独立启动**：`POST /api/runs/.../retests` 由后台独立的 Verifier 会话执行，与原 Worker 隔离。
+复测漏洞是否被修复时，**坚决不使用 LLM 自由文本子串匹配（如模型输出里包含 'fixed' 就当修复）**：
+1. **独立拉起**：`POST /api/runs/.../retests` 由后台独立的 Verifier 会话执行，与原发现 Worker 完全隔离。
 2. **结构化特征比对**：
-   - 必须有本次复测会话发出的真实 HTTP 工具调用；
-   - 提取真实响应状态码与响应体特征（如原先泄露的密钥在响应体中消失，且返回 403 Forbidden）；
+   - 必须绑定本次复测会话发出的真实 HTTP 工具调用；
+   - 提取真实响应状态码与响应体特征（例如原先泄露的密钥在响应体中消失，且返回 403 Forbidden）；
    - 若无工具调用、工具调用失败、或内容被截断，一律判定为 `inconclusive`，绝不武断判定 `fixed`；
    - 100% 保护现有人工审核历史与时间戳，审计轨迹不可逆。
 
 ---
 
-## 六、 生产级受控执行与人在环路（HITL）
+## 七、 那些写在代码深水区的“硬核教训”（Hard-Earned Lessons）
 
-工业级系统必须赋予操作员“掌控一切”的能力，而不仅是放任 Agent 自由漫步。
+在真实测试与生产落地中，踩过的坑往往比成功的架构更有参考价值：
 
-```mermaid
-flowchart TD
-    subgraph ControlActions ["操作员实时干预通道"]
-        direction LR
-        Pause["⏸️ PauseRun (暂停任务)"]
-        Resume["▶️ ResumeRun (恢复任务)"]
-        Steer["🧭 SteerWorkItem (动态纠偏)"]
-        Kill["🛑 KillWorkItem (定向熔断)"]
-        Grant["💰 GrantBudget (追加授权)"]
-    end
+### 1. UTF-8 汉字截断惨案：512 字节引发的数据库崩溃
+- **现象**：在真实中文靶场上，很多页面虽然返回了 HTTP 200，但后续链接提取和持久化全部失败，Agent 提前停止。
+- **根因**：脱敏模块在提取正文预览时写了 `body[:512]`。由于中文字符在 UTF-8 下占 3 个字节，切片恰好切在第 2 个字节中间，产生了一个残缺非法的 byte 序列。该字符串插入 PostgreSQL 报错：`invalid byte sequence for encoding "UTF8"`，事务回滚！
+- **修复**：**必须按 Unicode Rune 边界做字符截断**，并在持久化前进行字符合法性兜底。
 
-    subgraph DeepBarrier ["双屏障机制 (Double-Barrier Synchronization)"]
-        TurnHook["Hook 1: WithBeforeTurnHook (模型轮次前屏障)"]
-        ToolHook["Hook 2: WithBeforeToolHook (工具执行前屏障)"]
-    end
+### 2. 工具 Panic 隔离机制：一个除以零不应该毁掉整个 Run
+- **教训**：工具函数在解析复杂的畸形 HTML、非标准 JSON 时，可能偶发空指针或数组越界 panic。如果直接崩溃，Goroutine 死亡会导致整个 Run 悬空。
+- **解法**：在 `tools.Registry` 统一包装 `guardPanic`。所有工具的 Validate 与 Execute 均在 recover 保护下运行。发生 panic 时，将错误堆栈记录在服务日志中，同时向模型返回结构化失败，并**安全生成 failed tool_call 记录**，确保模型轮次的协议成对闭合。
 
-    Pause -->|sync.Cond 阻塞派发| DeepBarrier
-    TurnHook -->|阻断新模型推理| ActiveWorker["活跃 Worker"]
-    ToolHook -->|阻断即将发出的 HTTP 请求| NetworkIO["外部网络 I/O"]
-    
-    Steer -->|安全轮次边界注入 Guidance| ActiveWorker
-    Kill -->|专属 workerCancels 定向触发 Context Cancel| ActiveWorker
-    Grant -->|实时推送 Manager.RefreshBudget| DynamicTimer["动态延展 Engine Deadline 定时器"]
-```
+### 3. 前端画板（Canvas）的真实性审查：警惕“UI 欺骗”
+- **教训**：在最初的前端探索链路画板中，开发人员为了连线好看，在代码里写了默认规则：如果 Finding 没有关联 Goal，就自动连一条 `proves` 线到第一个 Goal；如果 Fact 找不到来源，就默认挂到第一个 Intent。
+- **反思**：**这是 Agent 系统中最大的隐形毒瘤**。用户在界面上看到了密密麻麻的“证明连线”，以为漏洞已被确认、目标已被证明，但后端数据库里实际上全都是 `unverified`！
+- **准则**：**界面连线必须严格忠实于底层的因果血缘（`derived_from`, `yields`, `proves`）**。后端没有真实证明，画板上一根虚线都不准连！
 
-### 核心并发治理：PostgreSQL 死锁（40P01）根治
-在高并发多 Worker + 操作员实时干预（Pause / Steer / Retest）的复杂场景下，多表交叉更新极易引发数据库死锁。
-- **强制全局锁序**：
-  $$\text{runs (FOR UPDATE)} \longrightarrow \text{work\_items / findings / retests (FOR UPDATE)} \longrightarrow \text{run\_events / agent\_tool\_calls}$$
-- **实践效果**：在全库 166 秒的 `-race` 竞态压力测试下，零死锁、零竞态冲突。
+### 4. PostgreSQL 事务加锁顺序与死锁（40P01）根治
+- **现象**：当多 Worker 并发写入发现，同时操作员在界面上点击 Pause / Steer 时，数据库频繁爆发 `pq: deadlock detected`。
+- **解法**：彻底重构加锁顺序，严格规范行锁获取次序：
+  $$\text{runs (FOR UPDATE)} \longrightarrow \text{work\_items / findings / retests (FOR UPDATE)} \longrightarrow \text{run\_events / tool\_calls}$$
+  在全库 166 秒 `-race` 竞态压力测试下，达成零死锁、零并发竞态冲突。
 
 ---
 
-## 七、 技术分享的核心总结与架构启示
+## 八、 技术分享总结与核心金句
 
 ### 1. 软件工程第一定律在 Agent 系统的体现
-> **LLM 是概率机器，但攻防系统必须是确定性系统。**
-- 提示词（Prompt）只能指导行为倾向，**永远不能代替后端在范围（Scope）、权限、预算与证据链上的代码级强校验**。
+> **“LLM 是高度概率化的决策大脑，但工程底座必须是 100% 确定性的闭环骨架。”**
+- 提示词（Prompt）只能指导行为意图，**永远不能代替后端在范围（Scope）、权限、预算与证据链上的代码级强校验**。
 
-### 2. 状态机与持久化是长任务生命线
+### 2. 会话状态与持久化是长任务的生命线
 - 任务执行必须拥有清晰的代次（Epoch）、工作项（WorkItem）、尝试（Attempt）与会话（Session）层次；
 - 失败收尾（Settlement）、断点恢复、协议兼容闭合必须在一开始就设计为一等公民，而不是事后打补丁。
 
-### 3. 多 Agent 协作的关键是“信息流动”，而非“层级汇报”
+### 3. 多 Agent 协作的关键是“信息共享”，而非“层级汇报”
 - 传统的多层汇报机制会导致严重的上下文信息丢失；
-- 建立共享知识图谱（双图）与细粒度过程索引（Trace 检索），让每个 Agent 在需要时能“看透全局物理拓扑与微观探测细节”，才是真正的高效协同。
+- 建立共享知识底座（双图）与全量流量存证索引（Shared HTTP Traffic），让每一个 Agent 在需要时能“看透全局物理拓扑与微观探测细节”，才是真正的高效协同。
 
 ---
 
-## 附：周五分享演讲节奏与 PPT 页面规划建议
+## 附：周五分享演讲节奏与 PPT 规划建议（45 分钟标准）
 
 | 时间 | 模块 | 核心讲解重点 | 演示 / 互动建议 |
 | :--- | :--- | :--- | :--- |
-| **00-05 min** | **引子与痛点** | 为什么网上的 AutoGPT/攻防 Demo 一跑就崩？展示 5 大现实死穴。 | 抛出问题：“如果一个漏洞需要 15 步交互，你该怎么设计 Agent？” |
-| **05-15 min** | **双图架构** | 物理资产图 vs 认知探索图；事实置信度与目标证明。 | 结合 Mermaid 图，讲解因果链条（Derived $\rightarrow$ Yields $\rightarrow$ Proves）。 |
-| **15-25 min** | **会话恢复与长任务** | 重点剖析 Attempt 会话恢复与**合成协议闭合（Synthetic Tool Closure）**。 | 展示为什么大模型 API 会报 400 错误，我们如何优雅解决。 |
-| **25-35 min** | **证据防作弊与复测** | 资产一致性校验、代次隔离、独立复测执行器的确定性判定。 | 展示反例测试（如用 A 网站的 200 证明 B 网站漏洞被拦截）。 |
-| **35-42 min** | **人在环路与控制面** | 双屏障暂停（阻止物理发包）、动态预算延展、锁序治理。 | 讲解如何用 Go `sync.Cond` 与 Context 树实现微秒级受控拦截。 |
-| **42-45 min** | **Q & A** | 回答关于 Token 消耗、对抗场景下稳定性等问题。 | 总结核心金句。 |
+| **00-05 min** | **引子与痛点** | 为什么网上的 AutoGPT/攻防 Demo 一跑就崩？展示 5 大现实死穴。 | 抛出互动：“如果一个漏洞利用需要 15 步交互，你该怎么设计 Agent？” |
+| **05-15 min** | **双图架构与 N Worker** | 物理资产图 vs 认知探索图；真正解耦的派发器与共享模型准入池。 | 展示架构图，对比“网页链接拓扑”与“因果推理图”的本质区别。 |
+| **15-25 min** | **长任务恢复与协议闭合** | 剖析 Attempt 会话恢复与**合成协议闭合（Synthetic Tool Closure）**。 | **全场核心亮点**：展示 OpenAI 报 400 错误的底层原因与优雅闭合方案。 |
+| **25-32 min** | **流量复用与容器隔离** | 共享 HTTP 流量机制（零冗余发包）；Execution Broker 沙箱与 Skills SOP。 | 解释为什么 Agent 不能只靠几十字的 Summary 汇报，而是需要原始请求材料。 |
+| **32-40 min** | **硬核踩坑实录** | 剖析 UTF-8 字节截断、工具 Panic 兜底、前端画板“伪造连线”的反思、死锁治理。 | **最具工程师共鸣环节**：分享真实的 Bug 堆栈与反思。 |
+| **40-45 min** | **总结与 Q & A** | 回顾三大定律，回答听众关于 Token 预算、防误报等实际问题。 | 亮出核心金句收尾。 |

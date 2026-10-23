@@ -33,29 +33,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type ExploreKind = 'begin' | 'goal' | 'intent' | 'fact' | 'finding' | 'hint' | 'digest';
-
-export interface CanvasNodeData {
-  id: string;
-  kind: ExploreKind;
-  state: string;
-  priority?: number;
-  origin?: string;
-  summary: string;
-  payload?: Record<string, unknown> | string;
-  created_at?: string;
-  work_item_id?: string;
-  finding_id?: string;
-  is_live?: boolean;
-}
-
-export interface CanvasEdgeData {
-  id: string;
-  src: string;
-  dst: string;
-  rel: string;
-  animated?: boolean;
-}
+import type { CanvasEdgeData, CanvasNodeData, ExploreKind } from '@/lib/workbench/graph';
 
 type TypeMeta = {
   label: string;
@@ -70,7 +48,7 @@ export const typeMeta: Record<ExploreKind, TypeMeta> = {
   goal: { label: '目标', icon: Target, iconBg: 'bg-emerald-600', chip: 'bg-emerald-500/20 text-emerald-300', hex: '#10b981' },
   intent: { label: '意图', icon: Compass, iconBg: 'bg-blue-600', chip: 'bg-blue-500/20 text-blue-300', hex: '#3b82f6' },
   fact: { label: '事实', icon: FlaskConical, iconBg: 'bg-amber-600', chip: 'bg-amber-500/20 text-amber-300', hex: '#f59e0b' },
-  finding: { label: '漏洞', icon: Bug, iconBg: 'bg-rose-600', chip: 'bg-rose-500/20 text-rose-300', hex: '#f43f5e' },
+  finding: { label: '发现', icon: Bug, iconBg: 'bg-rose-600', chip: 'bg-rose-500/20 text-rose-300', hex: '#f43f5e' },
   hint: { label: '提示', icon: Lightbulb, iconBg: 'bg-purple-600', chip: 'bg-purple-500/20 text-purple-300', hex: '#8b5cf6' },
   digest: { label: '压缩', icon: Layers, iconBg: 'bg-teal-600', chip: 'bg-teal-500/20 text-teal-300', hex: '#14b8a6' },
 };
@@ -98,7 +76,8 @@ function ExploreCustomNode({ data, selected }: NodeProps<ExploreRFNode>) {
   const n = data.node;
   const meta = typeMeta[n.kind] || typeMeta.intent;
   const Icon = meta.icon;
-  const isRunning = n.is_live || n.state === 'running';
+  const isRunning = n.is_live;
+  const displayState = n.kind === 'finding' && n.state !== 'deleted' ? n.finding?.verification_state || n.state : n.state;
 
   return (
     <div
@@ -158,7 +137,7 @@ function ExploreCustomNode({ data, selected }: NodeProps<ExploreRFNode>) {
           <span
             className={cn(
               'rounded px-1.5 py-0.5 font-medium',
-              n.state === 'met' || n.state === 'verified' || n.state === 'done'
+              (displayState === 'met' || displayState === 'verified' || displayState === 'done') && n.finding?.status !== 'false_positive' && n.finding?.retest_verdict !== 'fixed'
                 ? 'bg-emerald-500/15 text-emerald-400'
                 : n.state === 'running'
                 ? 'bg-blue-500/15 text-blue-400'
@@ -167,7 +146,8 @@ function ExploreCustomNode({ data, selected }: NodeProps<ExploreRFNode>) {
                 : 'bg-gray-800 text-gray-400'
             )}
           >
-            {n.state}
+            {displayState}
+            {n.finding && <span className="ml-1">· {n.finding.status}</span>}
           </span>
           <span className="font-mono text-gray-500">#{n.id.slice(0, 8)}</span>
         </div>
@@ -306,9 +286,13 @@ function computeLayout(
 function NodeDetailDrawer({
   node,
   onClose,
+  edges,
+  onOpenWork,
 }: {
   node: CanvasNodeData | null;
+  edges: CanvasEdgeData[];
   onClose: () => void;
+  onOpenWork?: (id: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
   if (!node) return null;
@@ -384,6 +368,31 @@ function NodeDetailDrawer({
           )}
         </section>
 
+        {node.work_item_id && (
+          <button className="text-blue-400 hover:underline" onClick={() => onOpenWork?.(node.work_item_id!)}>
+            查看方向执行记录 · {node.work_item_id.slice(0, 8)}
+          </button>
+        )}
+        {node.finding && (
+          <section aria-label="发现状态" className="space-y-1 rounded-lg border border-gray-800 p-3">
+            <p>审核状态：{node.finding.status}</p>
+            <p>验证状态：{node.finding.verification_state}</p>
+            <p>发现来源：{node.finding.source_kind}</p>
+            <p>复测结论：{node.finding.retest_verdict || '无'}</p>
+            <p className="break-all text-gray-400">Finding ID：{node.finding_id}</p>
+          </section>
+        )}
+        <section aria-label="真实关系" className="space-y-2">
+          <h4 className="font-medium text-gray-400">已记录关系</h4>
+          {edges.filter(e => e.src === node.id || e.dst === node.id).map(e => (
+            <div key={e.id} className="break-all rounded border border-gray-800 p-2">
+              <p>{e.src === node.id ? '→' : '←'} {relLabel[e.rel] || e.rel} · {e.src === node.id ? e.dst : e.src}</p>
+              {e.reason && <p className="mt-1 text-gray-400">{e.reason}</p>}
+            </div>
+          ))}
+          {!edges.some(e => e.src === node.id || e.dst === node.id) && <p className="text-gray-500">暂无已记录关系</p>}
+        </section>
+
         {/* Summary */}
         <section className="space-y-1">
           <h4 className="font-medium text-gray-400">摘要内容</h4>
@@ -419,15 +428,22 @@ export function ExplorationCanvas({
   edges,
   className,
   emptyHint = '当前 Run 暂无探索图节点',
+  notice,
+  hasError,
+  onOpenWork,
 }: {
   nodes: CanvasNodeData[];
   edges: CanvasEdgeData[];
   className?: string;
   emptyHint?: string;
+  notice?: string;
+  hasError?: boolean;
+  onOpenWork?: (id: string) => void;
 }) {
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<ExploreRFNode>([]);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<RFEdge>([]);
-  const [selectedNode, setSelectedNode] = useState<CanvasNodeData | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedNode = nodes.find(n => n.id === selectedId) ?? null;
 
   const prevNodesRef = useRef<Map<string, { x: number; y: number }>>(new Map());
 
@@ -454,7 +470,7 @@ export function ExplorationCanvas({
 
     const newRfEdges: RFEdge[] = edges.map((e, idx) => {
       const color = relColor[e.rel] || '#94a3b8';
-      const isAnimated = e.animated || liveDst.has(e.dst);
+      const isAnimated = liveDst.has(e.dst);
       return {
         id: e.id || `e-${idx}-${e.src}-${e.dst}`,
         source: e.src,
@@ -490,7 +506,7 @@ export function ExplorationCanvas({
         edges={rfEdges}
         onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
-        onNodeClick={(_, node) => setSelectedNode(node.data.node)}
+        onNodeClick={(_, node) => setSelectedId(node.id)}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.2 }}
@@ -521,7 +537,9 @@ export function ExplorationCanvas({
         {/* Legend / Info Panel */}
         <Panel position="top-left">
           <div className="flex flex-col gap-2 rounded-lg border border-gray-800 bg-gray-900/90 p-2.5 text-xs shadow-lg backdrop-blur-md">
-            {nodes.length === 0 && <span className="text-gray-400">{emptyHint}</span>}
+            {notice && <span role={hasError ? 'alert' : 'status'} data-testid="graph-notice" className="max-w-sm text-amber-300">{notice}</span>}
+            <span className="max-w-sm text-[11px] text-gray-400">仅显示已记录关系；没有连线表示尚未记录关联，不代表目标已完成。</span>
+            {nodes.length === 0 && !notice && <span className="text-gray-400">{emptyHint}</span>}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               {(['goal', 'intent', 'fact', 'finding', 'hint'] as ExploreKind[]).map((k) => {
                 const m = typeMeta[k];
@@ -549,7 +567,7 @@ export function ExplorationCanvas({
       </ReactFlow>
 
       {/* Detail Drawer */}
-      <NodeDetailDrawer node={selectedNode} onClose={() => setSelectedNode(null)} />
+      <NodeDetailDrawer key={selectedId} node={selectedNode} edges={edges} onOpenWork={onOpenWork} onClose={() => setSelectedId(null)} />
     </div>
   );
 }

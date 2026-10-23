@@ -5,5 +5,5 @@
   "rounds": 20,
   "failures": null,
   "command": "go test ./test/ -count=1 -run TestMA_A08_MainAgentIdempotentBoundary",
-  "finished_at": "2026-10-22T08:50:39Z"
+  "finished_at": "2026-10-23T01:52:20Z"
 }

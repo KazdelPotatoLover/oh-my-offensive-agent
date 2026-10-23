@@ -247,5 +247,5 @@
     }
   },
   "command": "go test ./test/ -count=1 -run TestMA_A04_LocalProtocolAndExhaustionDoNotStopPeers",
-  "finished_at": "2026-10-22T08:39:29Z"
+  "finished_at": "2026-10-23T01:49:33Z"
 }
