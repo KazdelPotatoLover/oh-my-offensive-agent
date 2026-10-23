@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS mcp_tools_cache (
 
 -- Seed built-in browser (Playwright) MCP (stdio transport)
 INSERT INTO mcp_servers (name, transport, command, args, env, enabled)
-VALUES ('browser', 'stdio', 'npx', '["@playwright/mcp","--headless"]', '{}', true)
+VALUES ('browser', 'stdio', 'npx', '["@playwright/mcp","--browser","chromium","--no-sandbox"]', '{}', true)
 ON CONFLICT (name) DO NOTHING;
 
 -- Seed placeholder ScopeSentry asset-sync MCP (http transport, disabled by default)

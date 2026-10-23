@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends nodejs \
     && npm install -g @playwright/mcp@latest @playwright/cli@latest playwright@latest \
     && playwright install --with-deps chromium \
+    && (ln -sf /ms-playwright/chromium-* /ms-playwright/chromium-1247 || true) \
     && mkdir -p /ms-playwright && chmod -R 755 /ms-playwright \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
