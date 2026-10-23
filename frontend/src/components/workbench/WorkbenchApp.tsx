@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Activity,
-  AlertTriangle,
   Brain,
   ChevronDown,
   ChevronRight,
@@ -54,6 +53,7 @@ import { CreateTaskForm } from './CreateTaskForm';
 import { ExplorationCanvas } from './ExplorationCanvas';
 import { buildExplorationGraph, type ExplorationGraph } from '@/lib/workbench/graph';
 import { InspectorPane } from './InspectorPane';
+import { RunNoticeToast } from './RunNoticeToast';
 
 const POLL_MS = 1500;
 const fieldClass = 'rounded border border-gray-700 bg-gray-950 px-2 py-1 text-xs text-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500';
@@ -178,7 +178,7 @@ function WorkbenchSession() {
       .then((run) => { if (!cancelled) setRunRecord({ data: run, error: null }); })
       .catch((err: unknown) => { if (!cancelled) setRunRecord({ data: null, error: err instanceof Error ? err.message : '运行记录读取失败' }); });
     return () => { cancelled = true; };
-  }, [runId]);
+  }, [runId, snapshot.data?.run.status, snapshot.data?.run.epoch_number]);
 
   const taskId = selection.taskId || runRecord.data?.task_id;
 
@@ -336,7 +336,8 @@ function WorkbenchSession() {
   const canStop = canCommand && ['running', 'queued', 'paused', 'stopping'].includes(runStatus);
   const canResume = canCommand && runStatus === 'paused';
   const canEpoch = canCommand && ['stopped', 'failed', 'interrupted'].includes(runStatus);
-  const terminationNotice = runNotice(runRecord.data);
+  const terminationNotice = !snap || snap.run.status === runRecord.data?.status ? runNotice(runRecord.data) : null;
+  const noticeId = `${runId}:${snap?.run.epoch_number ?? runRecord.data?.current_epoch}:${runRecord.data?.status}:${runRecord.data?.finish_reason || 'unknown'}`;
 
   const { graphNodes, graphEdges } = useMemo(() => buildExplorationGraph(graph), [graph]);
 
@@ -427,6 +428,7 @@ function WorkbenchSession() {
   return (
     <div lang="zh-CN" data-testid="workbench-shell" className="fixed inset-x-0 bottom-0 top-16 z-40 flex flex-col overflow-y-auto bg-gray-950 text-gray-100">
       <h1 className="sr-only">统一工作台</h1>
+      {terminationNotice && !creating && <RunNoticeToast key={noticeId} noticeId={noticeId} {...terminationNotice} />}
 
       {/* Sleek Modern Header (Compact ARTEX-style) */}
       {runId && !creating && <header className="shrink-0 border-b border-gray-800 bg-gray-950/90 px-3 py-1.5 backdrop-blur">
@@ -514,61 +516,22 @@ function WorkbenchSession() {
           </div>
         </div>
 
-        {/* Compact Termination / Recovery Notice */}
-        {terminationNotice && (
-          <div role="status" data-testid="run-termination-notice" className="mt-1.5 rounded-md border border-amber-800/60 bg-amber-950/40 px-3 py-1.5 text-xs text-amber-200">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="size-4 text-amber-400 shrink-0" />
-                <div>
-                  <span className="font-semibold text-amber-300">{terminationNotice.title}</span>
-                  {terminationNotice.detail && (
-                    <span className="ml-2 text-amber-200/90">{terminationNotice.detail}</span>
-                  )}
-                </div>
-              </div>
-              {canEpoch && (
-                <div className="flex items-center gap-1.5">
-                  <input
-                    data-testid="epoch-reason"
-                    placeholder="继续原因..."
-                    value={epochReason}
-                    onChange={(event) => setEpochReason(event.target.value)}
-                    className={`${fieldClass} w-44 text-xs`}
-                  />
-                  <button
-                    type="button"
-                    data-testid="start-epoch"
-                    disabled={!canEpoch || epochReason.trim() === ''}
-                    onClick={() => {
-                      const body = commandFor('start_epoch', { reason: epochReason.trim(), ...(epochSummary.trim() ? { summary: epochSummary.trim() } : {}) });
-                      if (body) void sendCommand(body);
-                    }}
-                    className="rounded bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-40 transition-colors shadow-sm shrink-0"
-                  >
-                    继续任务（新 Epoch）
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Compact Stopped / Continuation Row (when stopped without notice) */}
-        {!terminationNotice && canEpoch && (
+        {/* Continuation controls remain available after dismissing the notice. */}
+        {canEpoch && (
           <div className="mt-1.5 rounded-md border border-gray-800 bg-gray-900/60 px-3 py-1.5 text-xs">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2 text-gray-300">
                 <span className="inline-block size-2 rounded-full bg-rose-400" />
-                <span>任务当前已停止。填写原因以启动新 Epoch 继续执行:</span>
+                <span>填写继续原因，恢复任务执行：</span>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto">
                 <input
                   data-testid="epoch-reason"
+                  aria-label="继续原因"
                   placeholder="例如: 停止后继续探索"
                   value={epochReason}
                   onChange={(event) => setEpochReason(event.target.value)}
-                  className={`${fieldClass} w-48 text-xs`}
+                  className={`${fieldClass} min-w-0 flex-1 text-xs sm:w-48 sm:flex-none`}
                 />
                 <button
                   type="button"
