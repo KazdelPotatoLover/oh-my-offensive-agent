@@ -476,7 +476,7 @@ func (t *RecordHintTool) Parameters() json.RawMessage {
 	return json.RawMessage(`{
 		"type": "object",
 		"properties": {
-			"text": {"type": "string", "description": "Hint or guidance text"},
+			"text": {"type": "string", "description": "Hint or guidance text in Simplified Chinese (简体中文提示内容，将展示在探索链路画板提示节点上)"},
 			"asset_ids": {"type": "array", "items": {"type": "string"}, "description": "Optional asset UUIDs"}
 		},
 		"required": ["text"]
