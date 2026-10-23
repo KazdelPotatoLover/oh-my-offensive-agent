@@ -4,13 +4,23 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
+  Activity,
   Brain,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
+  Database,
+  Layers,
+  LayoutGrid,
+  Maximize2,
+  MessageSquare,
   Network,
+  PanelLeftClose,
+  PanelLeftOpen,
   Pause,
   Play,
   Radio,
+  Send,
   Sliders,
   Square,
 } from 'lucide-react';
@@ -125,6 +135,13 @@ function WorkbenchSession() {
   const [modelCalls, setModelCalls] = useState<{ count: number | null; error: string | null }>({ count: null, error: null });
   const [pane, setPane] = useState<Pane>(selection.workItemId ? 'inspect' : runId ? 'execute' : 'nav');
   const [activeView, setActiveView] = useState<'execute' | 'graph'>('execute');
+  const [workbenchTab, setWorkbenchTab] = useState<'main' | 'inspector' | 'directions' | 'activity' | 'graph' | 'resources'>(
+    selection.workItemId ? 'inspector' : 'main'
+  );
+  const [layoutMode, setLayoutMode] = useState<'tabs' | 'split'>('tabs');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [directionBoardOpen, setDirectionBoardOpen] = useState(true);
   const [showAdvancedControls, setShowAdvancedControls] = useState(false);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState('');
@@ -291,9 +308,22 @@ function WorkbenchSession() {
   }, [runId]);
 
   useEffect(() => {
-    if (!selection.workItemId) return;
-    document.getElementById('inspector-heading')?.focus();
-  }, [selection.workItemId, pane]);
+    if (selection.workItemId) {
+      setWorkbenchTab('inspector');
+      setPane('inspect');
+      document.getElementById('inspector-heading')?.focus();
+    } else if (runId) {
+      setWorkbenchTab('main');
+      setPane('execute');
+    }
+  }, [selection.workItemId, runId]);
+
+  useEffect(() => {
+    if (snapshot.status === 'error' && !snapshot.data && runRecord.data) {
+      setWorkbenchTab('inspector');
+      setPane('inspect');
+    }
+  }, [snapshot.status, snapshot.data, runRecord.data]);
 
   const snap = snapshot.data;
   const direction = snap?.directions.find((item) => item.work_item_id === selection.workItemId);
@@ -310,6 +340,7 @@ function WorkbenchSession() {
 
   const openWork = (workItemId: string) => {
     setPane('inspect');
+    setWorkbenchTab('inspector');
     if (taskId && runId) router.push(workbenchHref({ taskId, runId, workItemId }));
     else if (runId) router.push(`/workbench?run=${encodeURIComponent(runId)}&work=${encodeURIComponent(workItemId)}`);
   };
@@ -396,7 +427,7 @@ function WorkbenchSession() {
       <h1 className="sr-only">统一工作台</h1>
 
       {/* Sleek Modern Header */}
-      {runId && !creating && <header className="shrink-0 border-b border-gray-800 bg-gray-950/80 px-4 py-2.5 backdrop-blur">
+      {runId && !creating && <header className="shrink-0 border-b border-gray-800 bg-gray-950/80 px-4 py-2 backdrop-blur">
         {/* Top row: Status & Actions */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Status Pills */}
@@ -472,117 +503,117 @@ function WorkbenchSession() {
           </div>
         )}
 
-        {/* Structured Advanced Controls Tray */}
-        <div className="mt-2.5 flex flex-wrap items-center gap-3 rounded-lg border border-gray-800/80 bg-gray-900/60 p-2 text-xs">
-            <div className="flex flex-wrap items-center gap-1.5 border-r border-gray-800 pr-3">
-              <span className="font-semibold text-gray-300">代次控制:</span>
-              <label className="text-gray-400">原因
-                <input
-                  data-testid="epoch-reason"
-                  placeholder="例如: 停止后继续探索"
-                  value={epochReason}
-                  onChange={(event) => setEpochReason(event.target.value)}
-                  className={`${fieldClass} ml-1`}
-                />
-              </label>
-              <label className="text-gray-400">摘要
-                <input
-                  aria-label="代次摘要"
-                  placeholder="可选摘要"
-                  value={epochSummary}
-                  onChange={(event) => setEpochSummary(event.target.value)}
-                  className={`${fieldClass} ml-1`}
-                />
-              </label>
-              <button
-                type="button"
-                data-testid="start-epoch"
-                disabled={!canEpoch || epochReason.trim() === ''}
-                onClick={() => {
-                  const body = commandFor('start_epoch', { reason: epochReason.trim(), ...(epochSummary.trim() ? { summary: epochSummary.trim() } : {}) });
-                  if (body) void sendCommand(body);
-                }}
-                className="rounded bg-indigo-600 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-40"
-              >
-                继续任务（新 Epoch）
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="font-semibold text-gray-300">追加授权:</span>
-              {(() => {
-                const flags = limitFlags(snap?.budget);
-                if (flags.known && !flags.model && !flags.tool && !flags.seconds) {
-                  return <span data-testid="grant-unneeded" className="text-gray-400">无需追加授权</span>;
-                }
-                const model = flags.model ? grant.model : 0;
-                const tool = flags.tool ? grant.tool : 0;
-                const seconds = flags.seconds ? grant.seconds : 0;
-                return (
-                  <>
-                    {flags.model && <label className="text-gray-400">模型
-                      <input
-                        data-testid="grant-model-calls"
-                        type="number"
-                        value={grant.model}
-                        onChange={(event) => setGrant((c) => ({ ...c, model: Number(event.target.value) }))}
-                        className={`${fieldClass} ml-1 w-14`}
-                      />
-                    </label>}
-                    {flags.tool && <label className="text-gray-400">工具
-                      <input
-                        aria-label="追加工具次数"
-                        type="number"
-                        value={grant.tool}
-                        onChange={(event) => setGrant((c) => ({ ...c, tool: Number(event.target.value) }))}
-                        className={`${fieldClass} ml-1 w-14`}
-                      />
-                    </label>}
-                    {flags.seconds && <label className="text-gray-400">秒数
-                      <input
-                        aria-label="追加秒数"
-                        type="number"
-                        value={grant.seconds}
-                        onChange={(event) => setGrant((c) => ({ ...c, seconds: Number(event.target.value) }))}
-                        className={`${fieldClass} ml-1 w-14`}
-                      />
-                    </label>}
-                    <button
-                      type="button"
-                      data-testid="grant-budget"
-                      disabled={!canCommand || runStatus === 'completed' || runStatus === 'stopping' || (model <= 0 && tool <= 0 && seconds <= 0)}
-                      onClick={() => {
-                        const body = commandFor('grant_budget', {
-                          additional_model_calls: model,
-                          additional_tool_calls: tool,
-                          additional_seconds: seconds,
-                        });
-                        if (body) void sendCommand(body);
-                      }}
-                      className="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-40"
-                    >
-                      追加授权
-                    </button>
-                  </>
-                );
-              })()}
-            </div>
+        {/* Structured Advanced Controls Tray (Compact) */}
+        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-gray-800/80 bg-gray-900/60 p-2 text-xs">
+          <div className="flex flex-wrap items-center gap-1.5 border-r border-gray-800 pr-3">
+            <span className="font-semibold text-gray-300">代次控制:</span>
+            <label className="text-gray-400">原因
+              <input
+                data-testid="epoch-reason"
+                placeholder="例如: 停止后继续探索"
+                value={epochReason}
+                onChange={(event) => setEpochReason(event.target.value)}
+                className={`${fieldClass} ml-1`}
+              />
+            </label>
+            <label className="text-gray-400">摘要
+              <input
+                aria-label="代次摘要"
+                placeholder="可选摘要"
+                value={epochSummary}
+                onChange={(event) => setEpochSummary(event.target.value)}
+                className={`${fieldClass} ml-1`}
+              />
+            </label>
+            <button
+              type="button"
+              data-testid="start-epoch"
+              disabled={!canEpoch || epochReason.trim() === ''}
+              onClick={() => {
+                const body = commandFor('start_epoch', { reason: epochReason.trim(), ...(epochSummary.trim() ? { summary: epochSummary.trim() } : {}) });
+                if (body) void sendCommand(body);
+              }}
+              className="rounded bg-indigo-600 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-40"
+            >
+              继续任务（新 Epoch）
+            </button>
           </div>
 
-        {/* Structured Metric Cards Row */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-semibold text-gray-300">追加授权:</span>
+            {(() => {
+              const flags = limitFlags(snap?.budget);
+              if (flags.known && !flags.model && !flags.tool && !flags.seconds) {
+                return <span data-testid="grant-unneeded" className="text-gray-400">无需追加授权</span>;
+              }
+              const model = flags.model ? grant.model : 0;
+              const tool = flags.tool ? grant.tool : 0;
+              const seconds = flags.seconds ? grant.seconds : 0;
+              return (
+                <>
+                  {flags.model && <label className="text-gray-400">模型
+                    <input
+                      data-testid="grant-model-calls"
+                      type="number"
+                      value={grant.model}
+                      onChange={(event) => setGrant((c) => ({ ...c, model: Number(event.target.value) }))}
+                      className={`${fieldClass} ml-1 w-14`}
+                    />
+                  </label>}
+                  {flags.tool && <label className="text-gray-400">工具
+                    <input
+                      aria-label="追加工具次数"
+                      type="number"
+                      value={grant.tool}
+                      onChange={(event) => setGrant((c) => ({ ...c, tool: Number(event.target.value) }))}
+                      className={`${fieldClass} ml-1 w-14`}
+                    />
+                  </label>}
+                  {flags.seconds && <label className="text-gray-400">秒数
+                    <input
+                      aria-label="追加秒数"
+                      type="number"
+                      value={grant.seconds}
+                      onChange={(event) => setGrant((c) => ({ ...c, seconds: Number(event.target.value) }))}
+                      className={`${fieldClass} ml-1 w-14`}
+                    />
+                  </label>}
+                  <button
+                    type="button"
+                    data-testid="grant-budget"
+                    disabled={!canCommand || runStatus === 'completed' || runStatus === 'stopping' || (model <= 0 && tool <= 0 && seconds <= 0)}
+                    onClick={() => {
+                      const body = commandFor('grant_budget', {
+                        additional_model_calls: model,
+                        additional_tool_calls: tool,
+                        additional_seconds: seconds,
+                      });
+                      if (body) void sendCommand(body);
+                    }}
+                    className="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-40"
+                  >
+                    追加授权
+                  </button>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* Structured Metric Cards Row (Compact) */}
         {snap && (
-          <div className="mt-2.5 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-            <div className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-2">
+          <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+            <div className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-1.5">
               <p className="text-[11px] text-gray-400">Worker 容量池</p>
-              <p data-testid="worker-capacity" className="mt-0.5 font-mono text-gray-200">
+              <p data-testid="worker-capacity" className="mt-0.5 font-mono text-[11px] text-gray-200">
                 requested {snap.worker_capacity.requested} / effective {snap.worker_capacity.effective} / active {snap.worker_capacity.active} / queued {snap.worker_capacity.queued}
               </p>
               <p data-testid="worker-count" className="text-[10px] text-gray-500">方向 {snap.directions.length}</p>
             </div>
 
-            <div className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-2">
+            <div className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-1.5">
               <p className="text-[11px] text-gray-400">模型并发与记录</p>
-              <p data-testid="model-capacity" className="mt-0.5 font-mono text-gray-200">
+              <p data-testid="model-capacity" className="mt-0.5 font-mono text-[11px] text-gray-200">
                 limit {snap.model_capacity.limit} / in_flight {snap.model_capacity.in_flight} / queued {snap.model_capacity.queued}
               </p>
               <p data-testid="model-call-count" className="text-[10px] text-gray-500">
@@ -590,14 +621,14 @@ function WorkbenchSession() {
               </p>
             </div>
 
-            <div className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-2">
+            <div className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-1.5">
               <p className="text-[11px] text-gray-400">源站控制</p>
-              <p data-testid="origin-pacing" className="mt-0.5 font-mono text-gray-200">
+              <p data-testid="origin-pacing" className="mt-0.5 font-mono text-[11px] text-gray-200">
                 源站等待 {snap.origin_pacing?.waiting ? '是' : '否'}{snap.origin_pacing?.reason ? ` · ${snap.origin_pacing.reason}` : ''}
               </p>
             </div>
 
-            <div className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-2">
+            <div className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-1.5">
               <p className="text-[11px] text-gray-400">全局预算配额</p>
               <p data-testid="budget-summary" className="mt-0.5 font-mono text-[10px] text-gray-300">
                 {budgetSummaryText(snap.budget)}
@@ -625,6 +656,166 @@ function WorkbenchSession() {
         )}
       </header>}
 
+      {/* Modern Workspace Tabs Bar */}
+      {runId && !creating && (
+        <div className="shrink-0 border-b border-gray-800 bg-gray-900/70 px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 backdrop-blur">
+          {/* Main workspace tab list */}
+          <div role="tablist" aria-label="工作台主分区" className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={workbenchTab === 'main'}
+              onClick={() => { setWorkbenchTab('main'); setActiveView('execute'); setPane('execute'); }}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all',
+                workbenchTab === 'main'
+                  ? 'bg-blue-600/20 text-blue-300 border border-blue-500/40 shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/60'
+              )}
+            >
+              <MessageSquare className="size-3.5" />
+              <span>会话协作 (Main Agent)</span>
+              {messages.length > 0 && (
+                <span className="rounded-full bg-blue-500/30 px-1.5 py-0.2 font-mono text-[10px] text-blue-300">
+                  {messages.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={workbenchTab === 'directions'}
+              onClick={() => { setWorkbenchTab('directions'); setActiveView('execute'); setPane('execute'); }}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all',
+                workbenchTab === 'directions'
+                  ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/60'
+              )}
+            >
+              <Layers className="size-3.5" />
+              <span>Worker 并行方向</span>
+              {snap && (
+                <span className="rounded-full bg-emerald-500/30 px-1.5 py-0.2 font-mono text-[10px] text-emerald-300">
+                  {snap.directions.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={workbenchTab === 'activity'}
+              onClick={() => { setWorkbenchTab('activity'); setActiveView('execute'); setPane('execute'); }}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all',
+                workbenchTab === 'activity'
+                  ? 'bg-amber-600/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/60'
+              )}
+            >
+              <Activity className="size-3.5" />
+              <span>活动流与 Planner 控制</span>
+              {snap && (
+                <span className="rounded-full bg-amber-500/30 px-1.5 py-0.2 font-mono text-[10px] text-amber-300">
+                  {snap.events.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={workbenchTab === 'inspector'}
+              onClick={() => { setWorkbenchTab('inspector'); setPane('inspect'); }}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all',
+                workbenchTab === 'inspector'
+                  ? 'bg-purple-600/20 text-purple-300 border border-purple-500/40 shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/60'
+              )}
+            >
+              <Sliders className="size-3.5" />
+              <span>审计检查器 (Inspector)</span>
+              {selection.workItemId && (
+                <span className="rounded-full bg-purple-500/30 px-1.5 py-0.2 font-mono text-[10px] text-purple-300">
+                  {selection.workItemId.slice(0, 6)}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              role="button"
+              onClick={() => { setWorkbenchTab('graph'); setActiveView('graph'); setPane('execute'); }}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all',
+                workbenchTab === 'graph'
+                  ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/40 shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/60'
+              )}
+            >
+              <Network className="size-3.5" />
+              <span>探索链路画板 (Graph)</span>
+              {graphNodes.length > 0 && (
+                <span className="rounded-full bg-indigo-500/30 px-1.5 py-0.2 font-mono text-[10px] text-indigo-300">
+                  {graphNodes.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={workbenchTab === 'resources'}
+              onClick={() => { setWorkbenchTab('resources'); setPane('inspect'); }}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all',
+                workbenchTab === 'resources'
+                  ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/60'
+              )}
+            >
+              <Database className="size-3.5" />
+              <span>全景能力与资源</span>
+            </button>
+          </div>
+
+          {/* Mode switch & Sidebar toggle */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setLayoutMode(layoutMode === 'tabs' ? 'split' : 'tabs')}
+              className="flex items-center gap-1.5 rounded border border-gray-800 bg-gray-900/90 px-2.5 py-1 text-[11px] text-gray-300 hover:bg-gray-800 transition-colors"
+              title="切换单标签卡沉浸模式与多栏并排模式"
+            >
+              {layoutMode === 'tabs' ? (
+                <>
+                  <Maximize2 className="size-3 text-blue-400" />
+                  <span>📑 标签卡模式</span>
+                </>
+              ) : (
+                <>
+                  <LayoutGrid className="size-3 text-purple-400" />
+                  <span>🪟 分栏并排模式</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="hidden lg:flex items-center gap-1.5 rounded border border-gray-800 bg-gray-900/90 px-2.5 py-1 text-[11px] text-gray-300 hover:bg-gray-800 transition-colors"
+              title={sidebarOpen ? '收起任务侧边栏' : '展开任务侧边栏'}
+            >
+              {sidebarOpen ? <PanelLeftClose className="size-3" /> : <PanelLeftOpen className="size-3" />}
+              <span>{sidebarOpen ? '收起侧栏' : '展开侧栏'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Pane tabs for mobile */}
       <div role="tablist" aria-label="工作台分区" className="flex shrink-0 gap-1 border-b border-gray-800 px-2 py-1 lg:hidden">
         {([
@@ -632,22 +823,40 @@ function WorkbenchSession() {
           ['execute', '执行'],
           ['inspect', '检查'],
         ] as const).map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={pane === id} data-testid={`pane-${id}`} onClick={() => setPane(id)} className={`rounded px-2 py-1 text-xs ${pane === id ? 'bg-gray-800 text-white' : 'text-gray-400'}`}>{label}</button>
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={pane === id}
+            data-testid={`pane-${id}`}
+            onClick={() => {
+              setPane(id);
+              if (id === 'inspect') setWorkbenchTab('inspector');
+              else if (id === 'execute') setWorkbenchTab('main');
+            }}
+            className={`rounded px-2 py-1 text-xs ${pane === id ? 'bg-gray-800 text-white' : 'text-gray-400'}`}
+          >
+            {label}
+          </button>
         ))}
       </div>
 
       {/* Main Workspace Body */}
-      <div className="flex min-h-[20rem] flex-1">
+      <div className="flex min-h-[20rem] flex-1 min-h-0">
         {/* Left Navigation */}
-        <aside className={`${pane === 'nav' ? 'flex' : 'hidden'} min-h-0 w-full shrink-0 flex-col overflow-auto border-r border-gray-800 lg:flex lg:w-64`}>
-          <div className="flex items-center justify-between px-3 py-2">
+        <aside className={cn(
+          'min-h-0 shrink-0 flex-col overflow-auto border-r border-gray-800 bg-gray-950',
+          pane === 'nav' ? 'flex w-full' : 'hidden',
+          sidebarOpen ? 'lg:flex lg:w-60' : 'lg:hidden'
+        )}>
+          <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800/60">
             <h2 className="text-sm font-semibold">任务</h2>
-            <button type="button" data-testid="open-create" onClick={() => { setCreating(true); setPane('execute'); }} className="text-xs text-blue-300">新任务</button>
+            <button type="button" data-testid="open-create" onClick={() => { setCreating(true); setPane('execute'); }} className="text-xs text-blue-300 hover:underline">新任务</button>
           </div>
           {tasks.error && <p role="alert" className="px-3 text-xs text-red-200">{tasks.error}</p>}
           {tasks.data === null && !tasks.error && <p className="px-3 text-xs text-gray-400">正在读取任务</p>}
           {tasks.data && tasks.data.length === 0 && <p className="px-3 text-xs text-gray-400">没有任务。</p>}
-          <ul className="space-y-1 px-2">
+          <ul className="space-y-1 p-2">
             {(tasks.data || []).map((task) => (
               <li key={task.id}>
                 <Link
@@ -657,17 +866,17 @@ function WorkbenchSession() {
                     setCreating(false);
                     setPane('execute');
                   }}
-                  className={`block rounded px-2 py-1 text-xs ${task.id === taskId ? 'bg-gray-800 text-white' : 'text-gray-300'}`}
+                  className={`block rounded px-2.5 py-1.5 text-xs transition-colors ${task.id === taskId ? 'bg-gray-800 font-medium text-white' : 'text-gray-300 hover:bg-gray-900'}`}
                 >
                   {task.name}
                 </Link>
               </li>
             ))}
           </ul>
-          <h2 className="px-3 pt-3 text-sm font-semibold">Run</h2>
+          <h2 className="px-3 pt-3 pb-1 text-sm font-semibold border-t border-gray-800/60">Run 运行记录</h2>
           {runs.error && <p role="alert" className="px-3 text-xs text-red-200">{runs.error}</p>}
           {taskId && runs.data === null && !runs.error && <p className="px-3 text-xs text-gray-400">正在读取运行</p>}
-          <ul className="space-y-1 px-2">
+          <ul className="space-y-1 p-2">
             {(runs.data || []).map((run) => (
               <li key={run.id}>
                 <Link
@@ -677,23 +886,28 @@ function WorkbenchSession() {
                     setCreating(false);
                     setPane('execute');
                   }}
-                  className={`block rounded px-2 py-1 text-xs ${run.id === runId ? 'bg-gray-800 text-white' : 'text-gray-300'}`}
+                  className={`block rounded px-2.5 py-1.5 text-xs transition-colors ${run.id === runId ? 'bg-gray-800 font-medium text-white' : 'text-gray-300 hover:bg-gray-900'}`}
                 >
                   {run.id.slice(0, 8)} · 记录 {run.status}
                 </Link>
               </li>
             ))}
           </ul>
-          {snap && <p className="px-3 pt-3 text-xs text-gray-300">Planner {snap.planner.status}</p>}
-          {runId && taskId && <Link data-testid="old-run-link" href={`/tasks/${taskId}/runs/${runId}`} className="px-3 py-2 text-xs text-blue-300">旧运行页</Link>}
+          {snap && <p className="px-3 pt-2 text-xs text-gray-400">Planner {snap.planner.status}</p>}
+          {runId && taskId && <Link data-testid="old-run-link" href={`/tasks/${taskId}/runs/${runId}`} className="px-3 py-2 text-xs text-blue-300 hover:underline">旧运行页</Link>}
           {runRecord.error && <p role="alert" className="px-3 text-xs text-red-200">{runRecord.error}</p>}
           {snapshot.status === 'error' && !snap && runRecord.data && <p className="px-3 text-xs text-amber-200">这是旧运行记录，不是 workbench.v1。统一命令已禁用。</p>}
         </aside>
 
-        {/* Center Execution / Canvas Area */}
-        <section className={`${pane === 'execute' ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:flex`}>
+        {/* Center Main Execution / Active View Area */}
+        <section className={cn(
+          'min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
+          pane === 'execute' || pane === 'inspect' ? 'flex' : 'hidden lg:flex'
+        )}>
           {creating ? (
-            <div data-testid="create-task-scroll" className="min-h-0 flex-1 overflow-y-auto p-3"><CreateTaskForm onCancel={() => setCreating(false)} /></div>
+            <div data-testid="create-task-scroll" className="min-h-0 flex-1 overflow-y-auto p-3">
+              <CreateTaskForm onCancel={() => setCreating(false)} />
+            </div>
           ) : !runId ? (
             taskId ? (
               <div data-testid="task-overview" className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 space-y-4">
@@ -824,287 +1038,559 @@ function WorkbenchSession() {
               </div>
             )
           ) : (
+            /* Run Workspace (Tabbed or Split) */
             <div className="flex min-h-0 flex-1 flex-col">
-              {/* View Switcher Bar */}
-              <div className="flex shrink-0 items-center justify-between border-b border-gray-800 bg-gray-900/40 px-3 py-1.5">
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setActiveView('execute')}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-colors',
-                      activeView === 'execute'
-                        ? 'bg-blue-600/20 text-blue-300 border border-blue-500/40 shadow-sm'
-                        : 'text-gray-400 hover:text-gray-200'
-                    )}
-                  >
-                    <Radio className="size-3.5" />
-                    执行与会话 (Sessions)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveView('graph')}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-colors',
-                      activeView === 'graph'
-                        ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/40 shadow-sm'
-                        : 'text-gray-400 hover:text-gray-200'
-                    )}
-                  >
-                    <Network className="size-3.5" />
-                    探索链路画板 (Graph)
-                    {graphNodes.length > 0 && (
-                      <span className="rounded-full bg-indigo-500/30 px-1.5 py-0.2 font-mono text-[10px] text-indigo-300">
-                        {graphNodes.length}
-                      </span>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* View 1: Exploration Canvas */}
-              {activeView === 'graph' ? (
+              {/* Conditional Views */}
+              {workbenchTab === 'graph' ? (
+                /* Tab: Exploration Canvas */
                 <div className="relative min-h-0 flex-1">
-                  <ExplorationCanvas key={runId} nodes={graphNodes} edges={graphEdges}
+                  <ExplorationCanvas
+                    key={runId}
+                    nodes={graphNodes}
+                    edges={graphEdges}
                     notice={graphError ? `${graphError}${graph ? '；显示上次成功读取的数据' : ''}` : !graph ? '正在读取探索图…' : undefined}
-                    hasError={Boolean(graphError)} onOpenWork={openWork} />
+                    hasError={Boolean(graphError)}
+                    onOpenWork={openWork}
+                  />
+                </div>
+              ) : workbenchTab === 'resources' ? (
+                /* Tab: Full Capabilities & Resources */
+                <div className="min-h-0 flex-1 overflow-auto p-4">
+                  <ExplorationResources runId={runId} />
                 </div>
               ) : (
-                /* View 2: Direction Board + Main Conversation */
-                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-                  {(taskRecord.error || (taskRecord.data && runRecord.data && gaps.length > 0)) && (
-                    <div data-testid="execution-gaps" className="border-b border-gray-800 px-3 py-2 text-xs text-amber-200">
-                      {taskRecord.error && <p role="alert">{taskRecord.error}</p>}
-                      {gaps.length > 0 && <p>执行输入未保留：{gaps.join(', ')}。界面不会把这些字段显示成已经生效。</p>}
-                    </div>
-                  )}
+                /* Run Workspace: Tabbed or Split */
+                <div className={cn(
+                  'flex min-h-0 flex-1',
+                  layoutMode === 'split' ? 'flex-col lg:flex-row' : 'flex-col'
+                )}>
+                  {/* Left (or full-width) workspace area for Main / Directions / Activity */}
+                  <div className={cn(
+                    'flex min-h-0 flex-1 flex-col overflow-hidden',
+                    ((workbenchTab === 'inspector' || (snapshot.status === 'error' && !snap && Boolean(runRecord.data))) && layoutMode === 'tabs') ||
+                    (pane === 'inspect' && layoutMode !== 'split')
+                      ? 'hidden'
+                      : 'flex'
+                  )}>
+                    {/* Tab Panel 1: Main Agent Conversation */}
+                    <div
+                      role="tabpanel"
+                      aria-label="Main Agent 会话协作"
+                      className={cn(
+                        'flex min-h-0 flex-1 flex-col overflow-hidden',
+                        workbenchTab !== 'main' && 'hidden'
+                      )}
+                    >
+                      {(taskRecord.error || (taskRecord.data && runRecord.data && gaps.length > 0)) && (
+                        <div data-testid="execution-gaps" className="border-b border-gray-800 px-3 py-1.5 text-xs text-amber-200">
+                          {taskRecord.error && <p role="alert">{taskRecord.error}</p>}
+                          {gaps.length > 0 && <p>执行输入未保留：{gaps.join(', ')}。界面不会把这些字段显示成已经生效。</p>}
+                        </div>
+                      )}
 
-                  {/* Direction Board */}
-                  <div data-testid="direction-board" className="grid max-h-56 shrink-0 gap-2.5 overflow-auto border-b border-gray-800 bg-gray-950 p-3 sm:grid-cols-2">
-                    {snapshot.status === 'loading' && !snap && <p className="text-xs text-gray-400">正在读取工作台快照...</p>}
-                    {snap && snap.directions.length === 0 && <p data-testid="direction-empty" className="text-xs text-gray-400">当前快照没有方向。</p>}
-                    {snap?.directions.map((item) => (
-                      <article
-                        key={item.work_item_id}
-                        data-testid="direction-card"
-                        data-work-item-id={item.work_item_id}
-                        data-status={item.status}
-                        className={cn(
-                          'rounded-lg border p-2.5 text-xs transition-all',
-                          item.work_item_id === selection.workItemId
-                            ? 'border-blue-500 bg-blue-950/20 shadow-md ring-1 ring-blue-500/30'
-                            : 'border-gray-800 bg-gray-900/60 hover:border-gray-700'
+                      {/* Main Conversation Stream - Full height, comfortable, spacious view */}
+                      <div data-testid="main-conversation" className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4" aria-live="polite">
+                        <div className="flex items-center justify-between border-b border-gray-800/80 pb-2">
+                          <div className="flex items-center gap-2">
+                            <MessageSquare className="size-4 text-blue-400" />
+                            <h2 className="text-sm font-semibold text-gray-200">Main Agent 战略对话与协同</h2>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-mono text-xs text-gray-500">{messages.length} 条会话消息</span>
+                            <button
+                              type="button"
+                              onClick={() => { setWorkbenchTab('directions'); setActiveView('execute'); setPane('execute'); }}
+                              className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
+                            >
+                              <Layers className="size-3" />
+                              Worker 并行方向 ({snap?.directions.length || 0}) →
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setWorkbenchTab('activity'); setActiveView('execute'); setPane('execute'); }}
+                              className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                            >
+                              <Activity className="size-3" />
+                              活动事件与 Planner →
+                            </button>
+                          </div>
+                        </div>
+
+                        {messageError && <p role="alert" className="text-xs text-red-200">{messageError.message}</p>}
+
+                        {messages.map((message) => {
+                          const isUser = message.role === 'user';
+                          return (
+                            <article
+                              key={message.seq}
+                              data-testid="message-row"
+                              data-command-id={message.command_id || undefined}
+                              className={cn(
+                                'rounded-xl border p-3.5 text-xs leading-relaxed transition-shadow',
+                                isUser
+                                  ? 'border-blue-500/40 bg-blue-950/20 ml-12 shadow-sm'
+                                  : 'border-gray-800 bg-gray-900/60 mr-12 shadow-sm'
+                              )}
+                            >
+                              <div className="flex items-center justify-between text-[11px] text-gray-400 pb-1.5 border-b border-gray-800/40">
+                                <span className={cn('font-semibold flex items-center gap-1.5', isUser ? 'text-blue-300' : 'text-gray-300')}>
+                                  {message.role === 'user' ? '👤 用户 (Operator)' : message.role === 'assistant' ? '🤖 Main Agent' : message.role} · seq {message.seq}{message.turn_status ? ` · ${message.turn_status}` : ''}
+                                </span>
+                              </div>
+                              {message.text && (
+                                <p className="mt-2 text-gray-200 whitespace-pre-wrap leading-relaxed text-[13px]">{message.text}</p>
+                              )}
+                              <p className="mt-2.5 font-mono text-[10px] text-gray-500 pt-1.5 border-t border-gray-800/30">
+                                {message.command_id ? `command ${message.command_id}` : ''}
+                                {message.model_call_id ? ` · model_call ${message.model_call_id}` : ''}
+                                {message.tool_call_id ? ` · tool_call ${message.tool_call_id}` : ''}
+                                {message.work_item_id ? ` · work_item ${message.work_item_id}` : ''}
+                              </p>
+                            </article>
+                          );
+                        })}
+
+                        {messages.length === 0 && !messageError && (
+                          <div className="py-16 text-center text-xs text-gray-500">
+                            <MessageSquare className="size-8 text-gray-600 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm font-medium text-gray-400">暂无主对话消息</p>
+                            <p className="mt-1 text-gray-600">在下方输入指令指导 Main Agent 或调整全局探索策略。</p>
+                          </div>
                         )}
+                      </div>
+
+                      {/* Submission form */}
+                      <form
+                        className="shrink-0 border-t border-gray-800 bg-gray-950 p-3 sm:p-4 shadow-lg"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          if (!snap || !draft.trim() || submission.phase === 'pending') return;
+                          void submitMessage(idemKey, { message: draft.trim(), expected_epoch: snap.run.epoch_number });
+                        }}
                       >
-                        <span data-testid={`direction-card-${item.work_item_id}`} className="sr-only">{item.work_item_id}</span>
-                        <div className="flex items-start justify-between gap-2">
+                        <label className="block text-xs font-medium text-gray-300">
+                          给 Main Agent 的消息
+                          <textarea
+                            aria-label="给 Main Agent 的消息"
+                            placeholder="输入指令指导 Main Agent 或调整探索策略... (按 Ctrl+Enter 快捷发送)"
+                            value={draft}
+                            onChange={(event) => { setDraft(event.target.value); setIdemKey(newRequestID()); }}
+                            onKeyDown={(event) => {
+                              if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                                event.preventDefault();
+                                if (snap && draft.trim() && submission.phase !== 'pending') {
+                                  void submitMessage(idemKey, { message: draft.trim(), expected_epoch: snap.run.epoch_number });
+                                }
+                              }
+                            }}
+                            rows={3}
+                            className={`${fieldClass} mt-1.5 w-full resize-y text-xs`}
+                          />
+                        </label>
+
+                        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="submit"
+                              data-testid="send-message"
+                              disabled={!snap || !draft.trim() || submission.phase === 'pending'}
+                              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-40 transition-colors shadow-sm"
+                            >
+                              <Send className="size-3" />
+                              发送
+                            </button>
+                            {submission.canResend && lastSubmit && (
+                              <button
+                                type="button"
+                                data-testid="resend-message"
+                                onClick={() => void submitMessage(lastSubmit.key, lastSubmit.body)}
+                                className="text-xs text-blue-300 hover:underline"
+                              >
+                                重发上一请求
+                              </button>
+                            )}
+                            {lastSubmit && draft.trim() && draft.trim() !== lastSubmit.body.message && (
+                              <button
+                                type="button"
+                                data-testid="conflict-resend"
+                                onClick={() => void submitMessage(lastSubmit.key, { message: draft.trim(), expected_epoch: lastSubmit.body.expected_epoch })}
+                                className="text-xs text-amber-200 hover:underline"
+                              >
+                                用上一把钥匙提交当前草稿
+                              </button>
+                            )}
+                          </div>
+
+                          <p role="status" data-testid="submission-status" className="text-xs text-gray-400">
+                            {submission.message}
+                            {submission.httpStatus != null ? ` · HTTP ${submission.httpStatus}` : ''}
+                            {submission.messageId ? ` · message ${submission.messageId}` : ''}
+                            {submission.turnId ? ` · turn ${submission.turnId}` : ''}
+                            {submission.sessionId ? ` · session ${submission.sessionId}` : ''}
+                            {submission.key ? ` · key ${submission.key}` : ''}
+                          </p>
+                        </div>
+                      </form>
+                    </div>
+
+                    {/* Tab Panel 2: Worker 并行方向 Fleet Grid */}
+                    <div
+                      role="tabpanel"
+                      aria-label="Worker 并行方向"
+                      className={cn(
+                        'min-h-0 flex-1 overflow-y-auto p-4',
+                        workbenchTab !== 'directions' && 'hidden'
+                      )}
+                    >
+                      <div className="flex items-center justify-between pb-3 border-b border-gray-800 mb-4">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Layers className="size-4 text-emerald-400" />
+                            <h2 className="text-sm font-semibold text-white">Worker 并行方向集群 (Worker Fleet)</h2>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            查看各 Worker 探索方向的实时状态、最新步骤与局部额度审计。点击卡片可深入单方向检查器。
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-emerald-500/20 text-emerald-300 px-3 py-1 text-xs font-mono font-medium">
+                            方向总数: {snap?.directions.length || 0}
+                          </span>
                           <button
                             type="button"
-                            onClick={() => openWork(item.work_item_id)}
-                            className="text-left text-xs font-semibold text-white hover:text-blue-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                            onClick={() => { setWorkbenchTab('graph'); setActiveView('graph'); }}
+                            className="rounded border border-gray-700 bg-gray-900 px-2.5 py-1 text-xs text-gray-300 hover:bg-gray-800 flex items-center gap-1"
                           >
-                            {item.objective || '未提供目标'}
+                            <Network className="size-3 text-indigo-400" />
+                            查看探索链路画板 →
                           </button>
-                          <span
+                        </div>
+                      </div>
+
+                      <div
+                        data-testid="direction-board"
+                        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                      >
+                        {snapshot.status === 'loading' && !snap && (
+                          <p className="text-xs text-gray-400 col-span-full py-8 text-center">正在读取工作台快照...</p>
+                        )}
+                        {snap && snap.directions.length === 0 && (
+                          <p data-testid="direction-empty" className="text-xs text-gray-400 col-span-full py-8 text-center">当前快照没有方向。</p>
+                        )}
+                        {snap?.directions.map((item) => (
+                          <article
+                            key={item.work_item_id}
+                            data-testid="direction-card"
+                            data-work-item-id={item.work_item_id}
+                            data-status={item.status}
                             className={cn(
-                              'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium',
-                              item.status === 'running'
-                                ? 'bg-blue-500/20 text-blue-300'
-                                : item.status === 'completed' || item.status === 'done'
-                                ? 'bg-emerald-500/20 text-emerald-300'
-                                : 'bg-gray-800 text-gray-400'
+                              'group relative rounded-xl border p-3.5 text-xs transition-all flex flex-col justify-between shadow-sm',
+                              item.work_item_id === selection.workItemId
+                                ? 'border-emerald-500 bg-emerald-950/20 shadow-md ring-1 ring-emerald-500/30'
+                                : 'border-gray-800 bg-gray-900/60 hover:border-gray-700 hover:bg-gray-900/90'
                             )}
                           >
-                            状态 {item.status}
-                          </span>
-                        </div>
-                        <div className="mt-2 space-y-1 text-gray-400">
-                          <p>来源 {item.source_refs?.length ? item.source_refs.join(', ') : '未提供'}</p>
-                          <p>最新步骤 {item.latest_step || '未提供'}</p>
-                          <p className="font-mono text-gray-500">Attempt {item.attempt_id || '无'}</p>
-                          <p className="break-all font-mono text-[11px] text-gray-400">
-                            局部额度 {item.local_budget ? JSON.stringify(item.local_budget) : '未提供'}
-                          </p>
-                          {item.error && (
-                            <p className="text-rose-300">失败范围 {item.error.scope} · {item.error.code} · {item.error.message}</p>
-                          )}
-                        </div>
-                      </article>
-                    ))}
-                  </div>
+                            <span data-testid={`direction-card-${item.work_item_id}`} className="sr-only">{item.work_item_id}</span>
+                            <div>
+                              <div className="flex items-start justify-between gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => openWork(item.work_item_id)}
+                                  className="text-left font-semibold text-white group-hover:text-emerald-300 line-clamp-2 focus:outline-none"
+                                  title={item.objective || '未提供目标'}
+                                >
+                                  {item.objective || '未提供目标'}
+                                </button>
+                                <span
+                                  className={cn(
+                                    'shrink-0 rounded px-2 py-0.5 text-[10px] font-medium font-mono',
+                                    item.status === 'running'
+                                      ? 'bg-blue-500/20 text-blue-300 animate-pulse'
+                                      : item.status === 'completed' || item.status === 'done'
+                                      ? 'bg-emerald-500/20 text-emerald-300'
+                                      : item.status === 'killed' || item.status === 'failed'
+                                      ? 'bg-rose-500/20 text-rose-300'
+                                      : 'bg-gray-800 text-gray-400'
+                                  )}
+                                >
+                                  状态 {item.status}
+                                </span>
+                              </div>
 
-                  {/* Main Conversation Stream */}
-                  <div data-testid="main-conversation" className="min-h-0 flex-1 space-y-2.5 overflow-auto p-3" aria-live="polite">
-                    <div className="flex items-center justify-between border-b border-gray-800/80 pb-2">
-                      <h2 className="text-xs font-semibold text-gray-300">Main Agent 对话记录</h2>
-                      <span className="font-mono text-[10px] text-gray-500">{messages.length} 条消息</span>
+                              <div className="mt-2.5 space-y-1.5 text-gray-400 text-[11px]">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-500">Attempt:</span>
+                                  <span className="font-mono text-gray-300 truncate">{item.attempt_id || '无'}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-500">最新步骤:</span>
+                                  <strong className="text-gray-200 font-normal truncate">{item.latest_step || '未提供'}</strong>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-500">来源:</span>
+                                  <span className="truncate">{item.source_refs?.length ? item.source_refs.join(', ') : '未提供'}</span>
+                                </div>
+                                <div className="font-mono text-[10px] text-gray-500 bg-gray-950/60 rounded p-1.5 border border-gray-800/60 break-all">
+                                  局部额度: {item.local_budget ? JSON.stringify(item.local_budget) : '未提供'}
+                                </div>
+                                {item.error && (
+                                  <p className="mt-1 text-[11px] text-rose-300 rounded bg-rose-950/30 p-1.5 border border-rose-800/40">
+                                    失败 {item.error.code}: {item.error.message}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="mt-3 pt-2.5 border-t border-gray-800/80 flex items-center justify-between">
+                              <span className="font-mono text-[10px] text-gray-500 truncate">{item.work_item_id.slice(0, 8)}...</span>
+                              <button
+                                type="button"
+                                onClick={() => openWork(item.work_item_id)}
+                                className="rounded bg-emerald-600/20 px-2.5 py-1 text-xs font-medium text-emerald-300 hover:bg-emerald-600/30 transition-colors"
+                              >
+                                进入详细检查器 →
+                              </button>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
                     </div>
 
-                    {messageError && <p role="alert" className="text-xs text-red-200">{messageError.message}</p>}
-
-                    {messages.map((message) => {
-                      const isUser = message.role === 'user';
-                      return (
-                        <article
-                          key={message.seq}
-                          data-testid="message-row"
-                          data-command-id={message.command_id || undefined}
-                          className={cn(
-                            'rounded-lg border p-2.5 text-xs',
-                            isUser
-                              ? 'border-blue-500/40 bg-blue-950/20 ml-6'
-                              : 'border-gray-800 bg-gray-900/60 mr-6'
-                          )}
-                        >
-                          <div className="flex items-center justify-between text-[11px] text-gray-400">
-                            <span className={cn('font-medium', isUser ? 'text-blue-300' : 'text-gray-300')}>
-                              {message.role} · seq {message.seq}{message.turn_status ? ` · ${message.turn_status}` : ''}
-                            </span>
+                    {/* Tab Panel 3: 活动事件流与 Planner 控制 */}
+                    <div
+                      role="tabpanel"
+                      aria-label="活动事件流与 Planner 控制"
+                      className={cn(
+                        'min-h-0 flex-1 overflow-y-auto p-4',
+                        workbenchTab !== 'activity' && 'hidden'
+                      )}
+                    >
+                      <div className="flex items-center justify-between pb-3 border-b border-gray-800 mb-4">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Activity className="size-4 text-amber-400" />
+                            <h2 className="text-sm font-semibold text-white">活动事件流与 Planner 控制 (Activity & Planner)</h2>
                           </div>
-                          {message.text && (
-                            <p className="mt-1.5 leading-relaxed text-gray-200 whitespace-pre-wrap">{message.text}</p>
-                          )}
-                          <p className="mt-1 font-mono text-[10px] text-gray-500">
-                            {message.command_id ? `command ${message.command_id}` : ''}
-                            {message.model_call_id ? ` model_call ${message.model_call_id}` : ''}
-                            {message.tool_call_id ? ` tool_call ${message.tool_call_id}` : ''}
-                            {message.work_item_id ? ` work_item ${message.work_item_id}` : ''}
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            实时追踪完整事件序列、监控 Planner 状态并注入指导提示或追加探索意图。
                           </p>
-                        </article>
-                      );
-                    })}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-amber-500/20 text-amber-300 px-3 py-1 text-xs font-mono font-medium">
+                            事件数: {snap?.events.length || 0}
+                          </span>
+                          {snap?.planner?.status && (
+                            <span className="rounded-full bg-blue-500/20 text-blue-300 px-2.5 py-0.5 text-xs font-mono">
+                              Planner: {snap.planner.status}
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
-                    {messages.length === 0 && !messageError && (
-                      <p className="py-4 text-center text-xs text-gray-500">还没有主对话消息。</p>
-                    )}
-                  </div>
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        {/* Event Timeline */}
+                        <div className="lg:col-span-2 flex flex-col rounded-xl border border-gray-800 bg-gray-900/40 p-3">
+                          <div className="flex items-center justify-between pb-2 border-b border-gray-800/80 mb-2">
+                            <span className="text-xs font-semibold text-gray-300">事件序列 (Event Timeline)</span>
+                            {snap?.has_more_events && <span className="text-[11px] text-amber-400">事件页未读完...</span>}
+                          </div>
 
-                  {/* Submission form */}
-                  <form
-                    className="shrink-0 border-t border-gray-800 bg-gray-950 p-3"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      if (!snap || !draft.trim() || submission.phase === 'pending') return;
-                      void submitMessage(idemKey, { message: draft.trim(), expected_epoch: snap.run.epoch_number });
-                    }}
-                  >
-                    <label className="block text-xs font-medium text-gray-300">
-                      给 Main Agent 的消息
-                      <textarea
-                        aria-label="给 Main Agent 的消息"
-                        placeholder="输入指令指导 Main Agent 或调整探索策略..."
-                        value={draft}
-                        onChange={(event) => { setDraft(event.target.value); setIdemKey(newRequestID()); }}
-                        rows={2}
-                        className={`${fieldClass} mt-1 w-full`}
-                      />
-                    </label>
+                          <div
+                            data-testid="activity-stream"
+                            className="space-y-1.5 overflow-y-auto max-h-[640px] pr-1"
+                          >
+                            <h2 className="sr-only">活动</h2>
+                            {snap?.events.map((event) => (
+                              <div
+                                key={event.seq}
+                                className="flex items-start gap-2 rounded-lg border border-gray-800/60 bg-gray-950/70 p-2 text-xs hover:border-gray-700 transition-colors"
+                              >
+                                <span className="shrink-0 rounded bg-blue-950/80 border border-blue-800/60 px-1.5 py-0.5 font-mono text-[10px] text-blue-300 font-bold">
+                                  #{event.seq}
+                                </span>
+                                <span className="shrink-0 rounded bg-gray-800/90 px-1.5 py-0.5 font-mono text-[10px] text-gray-200">
+                                  {event.type}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-mono text-[11px] text-gray-300 break-all">
+                                    {event.payload ? JSON.stringify(event.payload) : ''}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
 
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <button
-                        type="submit"
-                        data-testid="send-message"
-                        disabled={!snap || !draft.trim() || submission.phase === 'pending'}
-                        className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-40"
-                      >
-                        发送
-                      </button>
-                      {submission.canResend && lastSubmit && (
-                        <button type="button" data-testid="resend-message" onClick={() => void submitMessage(lastSubmit.key, lastSubmit.body)} className="text-xs text-blue-300">
-                          重发上一请求
-                        </button>
-                      )}
-                      {lastSubmit && draft.trim() && draft.trim() !== lastSubmit.body.message && (
-                        <button type="button" data-testid="conflict-resend" onClick={() => void submitMessage(lastSubmit.key, { message: draft.trim(), expected_epoch: lastSubmit.body.expected_epoch })} className="text-xs text-amber-200">
-                          用上一把钥匙提交当前草稿
-                        </button>
-                      )}
+                            {snap && snap.events.length === 0 && (
+                              <div className="py-12 text-center text-xs text-gray-500">
+                                快照暂无事件记录。
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Planner Status & Controls */}
+                        <div className="space-y-4">
+                          {/* Planner Status Card */}
+                          <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-3">
+                            <h3 className="text-xs font-semibold text-gray-300 flex items-center gap-1.5">
+                              <Brain className="size-3.5 text-purple-400" />
+                              <span>Planner 态势监视</span>
+                            </h3>
+                            <div className="mt-2 space-y-2 text-xs">
+                              <div className="flex items-center justify-between rounded bg-gray-950/60 p-2 border border-gray-800/60">
+                                <span className="text-gray-400">调度器状态</span>
+                                <span className="font-mono font-medium text-blue-300">{snap?.planner?.status || '未知'}</span>
+                              </div>
+                              {snap?.planner?.reason && (
+                                <div className="rounded bg-gray-950/60 p-2 border border-gray-800/60">
+                                  <span className="text-gray-400 block text-[11px]">当前原因 (Reason)</span>
+                                  <span className="font-mono text-gray-200 mt-0.5 block break-all">
+                                    {snap.planner.reason}
+                                  </span>
+                                </div>
+                              )}
+                              {snap?.planner?.session_id && (
+                                <div className="rounded bg-gray-950/60 p-2 border border-gray-800/60">
+                                  <span className="text-gray-400 block text-[11px]">Planner 会话 (Session)</span>
+                                  <span className="font-mono text-gray-400 mt-0.5 block break-all">
+                                    {snap.planner.session_id}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Planner Controls Card */}
+                          <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-3 space-y-3">
+                            <div>
+                              <h3 className="text-xs font-semibold text-gray-300">Planner 指导与意图控制</h3>
+                              <p className="text-[11px] text-gray-400 mt-0.5">
+                                在线纠偏 Planner 的探索路径，或安排全新的目标意图。
+                              </p>
+                            </div>
+
+                            {/* Hint input */}
+                            <div className="rounded-lg border border-gray-800/80 bg-gray-950/50 p-2.5">
+                              <label className="block text-xs font-medium text-gray-300">
+                                注入提示 (Hint)
+                                <span className="block text-[10px] text-gray-500 font-normal mt-0.5">给 Planner 注入指引信息（如重点关注子路径）</span>
+                                <input
+                                  aria-label="hint"
+                                  value={hint}
+                                  onChange={(event) => setHint(event.target.value)}
+                                  placeholder="例如：优先检查管理后台入口与未授权接口..."
+                                  className={`${fieldClass} mt-1.5 w-full text-xs`}
+                                />
+                              </label>
+                              <div className="mt-2 flex justify-end">
+                                <button
+                                  type="button"
+                                  disabled={!canCommand || !hint.trim()}
+                                  onClick={() => {
+                                    const body = commandFor('hint', { text: hint.trim() });
+                                    if (body) void sendCommand(body);
+                                  }}
+                                  className="rounded bg-blue-600/80 px-3 py-1 text-xs font-medium text-white hover:bg-blue-600 disabled:opacity-40 transition-colors"
+                                >
+                                  提交 Hint
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Add intent input */}
+                            <div className="rounded-lg border border-gray-800/80 bg-gray-950/50 p-2.5">
+                              <label className="block text-xs font-medium text-gray-300">
+                                追加意图 (Add Intent)
+                                <span className="block text-[10px] text-gray-500 font-normal mt-0.5">为后续规划安排新探索目标</span>
+                                <input
+                                  aria-label="add_intent"
+                                  value={intent}
+                                  onChange={(event) => setIntent(event.target.value)}
+                                  placeholder="例如：对所发现的 8080 端口服务进行深度指纹识别..."
+                                  className={`${fieldClass} mt-1.5 w-full text-xs`}
+                                />
+                              </label>
+                              <div className="mt-2 flex justify-end">
+                                <button
+                                  type="button"
+                                  disabled={!canCommand || !intent.trim()}
+                                  onClick={() => {
+                                    const body = commandFor('add_intent', { summary: intent.trim() });
+                                    if (body) void sendCommand(body);
+                                  }}
+                                  className="rounded bg-emerald-600/80 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-600 disabled:opacity-40 transition-colors"
+                                >
+                                  提交意图
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-
-                    <p role="status" data-testid="submission-status" className="mt-2 text-xs text-gray-400">
-                      {submission.message}
-                      {submission.httpStatus != null ? ` · HTTP ${submission.httpStatus}` : ''}
-                      {submission.messageId ? ` · message ${submission.messageId}` : ''}
-                      {submission.turnId ? ` · turn ${submission.turnId}` : ''}
-                      {submission.sessionId ? ` · session ${submission.sessionId}` : ''}
-                      {submission.key ? ` · key ${submission.key}` : ''}
-                    </p>
-                  </form>
-
-                  {/* Activity stream and Planner details */}
-                  <div data-testid="activity-stream" className="max-h-28 overflow-auto border-t border-gray-800 bg-gray-900/30 px-3 py-2 text-xs">
-                    <h2 className="font-medium text-gray-300">活动</h2>
-                    {snap?.events.map((event) => <p key={event.seq} className="text-gray-400">{event.seq} · {event.type} · {event.payload ? JSON.stringify(event.payload) : ''}</p>)}
-                    {snap && snap.events.length === 0 && <p className="text-gray-500">快照没有事件。</p>}
-                    {snap?.has_more_events && <p className="text-gray-500">事件页未读完。</p>}
                   </div>
 
-                  <details className="border-t border-gray-800 bg-gray-900/20 px-3 py-2 text-xs">
-                    <summary className="cursor-pointer text-gray-400 hover:text-gray-200">Planner 输入控制</summary>
-                    <label className="mt-2 block text-gray-400">hint
-                      <input aria-label="hint" value={hint} onChange={(event) => setHint(event.target.value)} className={`${fieldClass} mt-1 w-full`} />
-                    </label>
-                    <button type="button" disabled={!canCommand || !hint.trim()} onClick={() => { const body = commandFor('hint', { text: hint.trim() }); if (body) void sendCommand(body); }} className="mt-1 rounded border border-gray-700 px-2 py-1 disabled:opacity-40">
-                      提交 hint
-                    </button>
-                    <label className="mt-2 block text-gray-400">add_intent
-                      <input aria-label="add_intent" value={intent} onChange={(event) => setIntent(event.target.value)} className={`${fieldClass} mt-1 w-full`} />
-                    </label>
-                    <button type="button" disabled={!canCommand || !intent.trim()} onClick={() => { const body = commandFor('add_intent', { summary: intent.trim() }); if (body) void sendCommand(body); }} className="mt-1 rounded border border-gray-700 px-2 py-1 disabled:opacity-40">
-                      提交意图
-                    </button>
-                  </details>
+                  {/* Right (or full-width) Inspector Panel */}
+                  {((workbenchTab === 'inspector' || (snapshot.status === 'error' && !snap && Boolean(runRecord.data))) || layoutMode === 'split' || pane === 'inspect') && (
+                    <aside className={cn(
+                      'min-h-0 flex-col overflow-hidden bg-gray-950',
+                      (workbenchTab === 'inspector' || (snapshot.status === 'error' && !snap && Boolean(runRecord.data))) && layoutMode === 'tabs'
+                        ? 'flex flex-1'
+                        : layoutMode === 'split'
+                        ? 'hidden lg:flex lg:w-[460px] xl:w-[540px] border-l border-gray-800'
+                        : pane === 'inspect'
+                        ? 'flex w-full'
+                        : 'hidden'
+                    )}>
+                      {/* Worker directions quick switcher in Inspector */}
+                      {snap && snap.directions.length > 0 && (
+                        <div className="shrink-0 border-b border-gray-800 bg-gray-900/60 px-3 py-2">
+                          <div className="flex items-center justify-between pb-1.5">
+                            <span className="text-[11px] font-semibold text-gray-400">选择 Worker 方向切换审计:</span>
+                            <span className="font-mono text-[10px] text-gray-500">共 {snap.directions.length} 个方向</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2 overflow-x-auto pb-1">
+                            {snap.directions.map((d) => (
+                              <button
+                                key={d.work_item_id}
+                                type="button"
+                                onClick={() => openWork(d.work_item_id)}
+                                className={cn(
+                                  'flex items-center gap-2 rounded-lg border px-2.5 py-1 text-xs transition-all',
+                                  d.work_item_id === selection.workItemId
+                                    ? 'border-purple-500 bg-purple-950/40 text-purple-200 ring-1 ring-purple-500/50 font-medium'
+                                    : 'border-gray-800 bg-gray-900/60 text-gray-300 hover:border-gray-700'
+                                )}
+                              >
+                                <span className="truncate max-w-[160px]">{d.objective || d.work_item_id.slice(0, 8)}</span>
+                                <span className="font-mono text-[10px] text-gray-400">状态 {d.status}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
+                        <InspectorPane
+                          runId={runId}
+                          workItemId={selection.workItemId}
+                          direction={direction}
+                          snapshotAt={snap?.snapshot_at}
+                          runStatus={runStatus || runRecord.data?.status || ''}
+                          commandPending={commandPending || !snap}
+                          showLegacy={snapshot.status === 'error' && !snap && Boolean(runRecord.data)}
+                          onCommand={(type, payload) => {
+                            const body = commandFor(type, payload, selection.workItemId, direction?.attempt_id);
+                            if (body) void sendCommand(body);
+                          }}
+                        />
+                      </div>
+                    </aside>
+                  )}
                 </div>
               )}
             </div>
           )}
         </section>
-
-        {/* Right Inspector Panel */}
-        <aside className={`${pane === 'inspect' ? 'flex' : 'hidden'} min-h-0 w-full shrink-0 flex-col overflow-hidden border-l border-gray-800 lg:flex lg:w-96`}>
-          {runId ? (
-            <>
-              <InspectorPane
-                runId={runId}
-                workItemId={selection.workItemId}
-                direction={direction}
-                snapshotAt={snap?.snapshot_at}
-                runStatus={runStatus || runRecord.data?.status || ''}
-                commandPending={commandPending || !snap}
-                showLegacy={snapshot.status === 'error' && !snap && Boolean(runRecord.data)}
-                onCommand={(type, payload) => {
-                  const body = commandFor(type, payload, selection.workItemId, direction?.attempt_id);
-                  if (body) void sendCommand(body);
-                }}
-              />
-              <div className="max-h-40 overflow-auto border-t border-gray-800">
-                <ExplorationResources runId={runId} />
-              </div>
-            </>
-          ) : taskId && taskRecord.data ? (
-            <div className="p-3 text-xs space-y-3 overflow-y-auto">
-              <h3 className="font-semibold text-gray-200">任务配置与入口</h3>
-              <div className="rounded border border-gray-800 bg-gray-900/50 p-2.5 space-y-1.5">
-                <p className="text-gray-400">任务 ID: <span className="font-mono text-gray-200">{taskRecord.data.id}</span></p>
-                <p className="text-gray-400">创建时间: <span className="text-gray-200">{new Date(taskRecord.data.created_at).toLocaleString()}</span></p>
-              </div>
-              <div className="rounded border border-gray-800 bg-gray-900/50 p-2.5">
-                <p className="font-medium text-gray-300 mb-1">范围配置 (Scope)</p>
-                <pre className="font-mono text-[11px] text-gray-400 whitespace-pre-wrap break-all">
-                  {JSON.stringify(taskRecord.data.scope, null, 2)}
-                </pre>
-              </div>
-              <div className="rounded border border-gray-800 bg-gray-900/50 p-2.5">
-                <p className="font-medium text-gray-300 mb-1">执行配置 (Config)</p>
-                <pre className="font-mono text-[11px] text-gray-400 whitespace-pre-wrap break-all">
-                  {JSON.stringify(taskRecord.data.config, null, 2)}
-                </pre>
-              </div>
-            </div>
-          ) : (
-            <p className="p-3 text-xs text-gray-400">选择任务和 Run 后查看检查器。</p>
-          )}
-        </aside>
       </div>
     </div>
   );

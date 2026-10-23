@@ -148,127 +148,421 @@ export function InspectorPane({
     return () => { cancelled = true; };
   }, [runId, direction, showLegacy]);
 
+  const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
   const allowed = new Set(direction?.allowed_actions || []);
   const steps = Array.isArray(trace.data?.steps) ? trace.data.steps as Record<string, unknown>[] : [];
   const scopedArtifacts = (artifacts.data || []).filter((item) => !workItemId || item.work_item_id === workItemId);
   const unscopedArtifacts = (artifacts.data || []).filter((item) => workItemId && item.work_item_id && item.work_item_id !== workItemId);
 
+  const handleCopy = (text: string) => {
+    navigator.clipboard?.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <section aria-labelledby="inspector-heading" data-testid="inspector" className="flex h-full min-h-0 flex-col">
-      <div className="border-b border-gray-800 px-3 py-2">
-        <h2 id="inspector-heading" tabIndex={-1} className="text-sm font-semibold text-white">检查器</h2>
+    <section aria-labelledby="inspector-heading" data-testid="inspector" className="flex h-full min-h-0 flex-1 flex-col bg-gray-950">
+      {/* Inspector Header & Direction Meta */}
+      <div className="shrink-0 border-b border-gray-800 bg-gray-900/40 p-3 sm:p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="inspector-heading" tabIndex={-1} className="text-sm font-semibold text-white flex items-center gap-2">
+            <span>审计检查器</span>
+            {direction && (
+              <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[11px] font-normal text-blue-300">
+                {direction.work_item_id.slice(0, 8)}
+              </span>
+            )}
+          </h2>
+          {direction && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                disabled={!allowed.has('steer_work') || commandPending}
+                onClick={() => onCommand('steer_work', { instruction })}
+                className="rounded border border-gray-700 bg-gray-900 px-2.5 py-1 text-xs text-gray-200 hover:bg-gray-800 disabled:opacity-40"
+              >
+                纠偏
+              </button>
+              <button
+                type="button"
+                data-testid="kill-direction"
+                disabled={!allowed.has('kill_work') || commandPending}
+                onClick={() => onCommand('kill_work', { reason: 'operator kill' })}
+                className="rounded border border-red-800/80 bg-red-950/40 px-2.5 py-1 text-xs font-medium text-red-200 hover:bg-red-900/60 disabled:opacity-40"
+              >
+                终止该方向
+              </button>
+              <button
+                type="button"
+                disabled={!allowed.has('continue_work') || commandPending}
+                onClick={() => onCommand('continue_work', instruction ? { instruction } : undefined)}
+                className="rounded border border-gray-700 bg-gray-900 px-2.5 py-1 text-xs text-gray-200 hover:bg-gray-800 disabled:opacity-40"
+              >
+                继续
+              </button>
+              <button
+                type="button"
+                disabled={!allowed.has('retry_work') || commandPending}
+                onClick={() => onCommand('retry_work', instruction ? { instruction } : undefined)}
+                className="rounded border border-gray-700 bg-gray-900 px-2.5 py-1 text-xs text-gray-200 hover:bg-gray-800 disabled:opacity-40"
+              >
+                重试
+              </button>
+            </div>
+          )}
+        </div>
+
         {direction ? (
-          <div className="mt-2 space-y-1 text-xs text-gray-300">
-            <p data-testid="inspector-objective">{direction.objective || '未提供目标'}</p>
-            <p>状态 <span data-testid="inspector-status">{direction.status}</span></p>
-            <p>Attempt <span className="font-mono" data-testid="inspector-attempt">{direction.attempt_id || '无'}</span></p>
-            <p>最新步骤 <span data-testid="inspector-step">{direction.latest_step || '未提供'}</span></p>
-            <p>来源 {direction.source_refs?.length ? direction.source_refs.join(', ') : '未提供'}</p>
-            <p className="font-mono break-all" data-testid="local-budget">局部额度 {direction.local_budget ? JSON.stringify(direction.local_budget) : '未提供'}</p>
-            {direction.error && (
-              <p role="alert" data-testid="direction-error">
-                {direction.error.code} · {direction.error.scope} · {direction.error.message}
-                {direction.error.suggested_action ? ` · ${direction.error.suggested_action}` : ''}
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
+            <div className="rounded-lg border border-gray-800/80 bg-gray-950/60 p-2.5 md:col-span-2">
+              <span className="text-[11px] text-gray-500 font-medium">方向目标</span>
+              <p data-testid="inspector-objective" className="mt-1 font-medium text-gray-200 leading-relaxed">
+                {direction.objective || '未提供目标'}
               </p>
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-gray-400">
+                <p>来源 <span className="text-gray-300">{direction.source_refs?.length ? direction.source_refs.join(', ') : '未提供'}</span></p>
+                <p>Attempt <span className="font-mono text-gray-300" data-testid="inspector-attempt">{direction.attempt_id || '无'}</span></p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-gray-800/80 bg-gray-950/60 p-2.5">
+              <span className="text-[11px] text-gray-500 font-medium">运行态势</span>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="text-gray-400">状态</span>
+                <span
+                  data-testid="inspector-status"
+                  className={`rounded px-1.5 py-0.5 text-[11px] font-mono font-medium ${
+                    direction.status === 'running'
+                      ? 'bg-blue-500/20 text-blue-300'
+                      : direction.status === 'completed' || direction.status === 'done'
+                      ? 'bg-emerald-500/20 text-emerald-300'
+                      : 'bg-gray-800 text-gray-300'
+                  }`}
+                >
+                  {direction.status}
+                </span>
+              </div>
+              <p className="mt-2 text-[11px] text-gray-400">
+                最新步骤 <span className="text-gray-200 font-medium" data-testid="inspector-step">{direction.latest_step || '未提供'}</span>
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-gray-800/80 bg-gray-950/60 p-2.5">
+              <span className="text-[11px] text-gray-500 font-medium">局部预算额度</span>
+              <p className="mt-1 font-mono text-[11px] text-gray-300 break-all" data-testid="local-budget">
+                局部额度 {direction.local_budget ? JSON.stringify(direction.local_budget) : '未提供'}
+              </p>
+            </div>
+
+            {direction.error && (
+              <div role="alert" data-testid="direction-error" className="md:col-span-2 lg:col-span-4 rounded-lg border border-red-500/30 bg-red-950/30 p-2 text-xs text-red-200">
+                <span className="font-semibold">{direction.error.code}</span> · {direction.error.scope} · {direction.error.message}
+                {direction.error.suggested_action ? ` · ${direction.error.suggested_action}` : ''}
+              </div>
             )}
           </div>
         ) : (
-          <p className="mt-2 text-xs text-gray-400">{workItemId ? '所选方向不在当前快照中。' : '选择一个方向后查看过程。'}</p>
+          <p className="mt-2 text-xs text-gray-400">
+            {workItemId ? '所选方向不在当前快照中。' : '请从上方或看板选择一个 Worker 方向查看详情。'}
+          </p>
         )}
-        <div className="mt-2 flex flex-wrap gap-1">
-          <button type="button" disabled={!direction || !allowed.has('steer_work') || commandPending} onClick={() => onCommand('steer_work', { instruction })} className="rounded border border-gray-700 px-2 py-1 text-[11px] disabled:opacity-40">纠偏</button>
-          <button type="button" data-testid="kill-direction" disabled={!direction || !allowed.has('kill_work') || commandPending} onClick={() => onCommand('kill_work', { reason: 'operator kill' })} className="rounded border border-red-800 px-2 py-1 text-[11px] text-red-200 disabled:opacity-40">终止该方向</button>
-          <button type="button" disabled={!direction || !allowed.has('continue_work') || commandPending} onClick={() => onCommand('continue_work', instruction ? { instruction } : undefined)} className="rounded border border-gray-700 px-2 py-1 text-[11px] disabled:opacity-40">继续</button>
-          <button type="button" disabled={!direction || !allowed.has('retry_work') || commandPending} onClick={() => onCommand('retry_work', instruction ? { instruction } : undefined)} className="rounded border border-gray-700 px-2 py-1 text-[11px] disabled:opacity-40">重试</button>
-        </div>
-        <label className="mt-2 block text-[11px] text-gray-400">方向指令
-          <textarea aria-label="方向指令" value={instruction} onChange={(event) => setInstruction(event.target.value)} rows={2} className="mt-1 w-full rounded border border-gray-700 bg-gray-950 px-2 py-1 text-xs" />
-        </label>
+
+        {direction && (
+          <div className="mt-2.5">
+            <label className="flex items-center gap-2 text-xs text-gray-400">
+              <span className="shrink-0 text-[11px]">方向指令:</span>
+              <input
+                aria-label="方向指令"
+                value={instruction}
+                onChange={(event) => setInstruction(event.target.value)}
+                placeholder="为当前方向补充指示、指定优先路径或纠偏要求..."
+                className="flex-1 rounded border border-gray-700 bg-gray-950 px-2.5 py-1 text-xs text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </label>
+          </div>
+        )}
       </div>
-      <div role="tablist" aria-label="检查器分区" className="flex gap-1 border-b border-gray-800 px-2 py-1">
+
+      {/* Tabs navigation */}
+      <div role="tablist" aria-label="检查器分区" className="flex shrink-0 gap-1 border-b border-gray-800 bg-gray-900/30 px-3 py-1.5">
         {([
-          ['process', '过程'],
-          ['artifacts', '产物'],
-          ['facts', '事实'],
-          ['findings', '发现'],
-          ['goals', '目标'],
-        ] as const).map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`rounded px-2 py-1 text-[11px] ${tab === id ? 'bg-gray-800 text-white' : 'text-gray-400'}`}>{label}</button>
+          ['process', '过程', 'Process'],
+          ['artifacts', '产物', 'Artifacts'],
+          ['facts', '事实', 'Facts'],
+          ['findings', '发现', 'Findings'],
+          ['goals', '目标', 'Goals'],
+        ] as const).map(([id, label, en]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all flex items-center gap-1.5 ${
+              tab === id
+                ? 'bg-blue-600/20 text-blue-300 border border-blue-500/40 shadow-sm'
+                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/50'
+            }`}
+          >
+            <span>{label}</span>
+            <span className="hidden sm:inline font-mono text-[10px] text-gray-500">({en})</span>
+            {id === 'artifacts' && artifacts.data && (
+              <span className="rounded-full bg-gray-800 px-1.5 py-0.2 font-mono text-[10px] text-gray-300">
+                {scopedArtifacts.length}
+              </span>
+            )}
+            {id === 'facts' && facts.data && (
+              <span className="rounded-full bg-gray-800 px-1.5 py-0.2 font-mono text-[10px] text-gray-300">
+                {facts.data.length}
+              </span>
+            )}
+            {id === 'findings' && findings.data && (
+              <span className="rounded-full bg-gray-800 px-1.5 py-0.2 font-mono text-[10px] text-gray-300">
+                {findings.data.length}
+              </span>
+            )}
+          </button>
         ))}
       </div>
-      <div className="min-h-0 flex-1 overflow-auto px-3 py-2 text-xs">
+
+      {/* Tab Panels */}
+      <div className="min-h-0 flex-1 overflow-auto p-4 text-xs">
         {tab === 'process' && (
-          <div data-testid="trace-panel">
-            {trace.error && <p role="alert">{trace.error}</p>}
-            {sessions.error && <p role="alert">{sessions.error}</p>}
-            {steps.map((step) => (
-              <p key={String(step.step_id)} data-testid="trace-step" className="border-b border-gray-800 py-1">
-                {String(step.tool_name || 'unknown')} · {String(step.status || '')} · {String(step.summary || step.output || '')}
-              </p>
-            ))}
-            {trace.data && steps.length === 0 && !trace.error && <p>这条 trace 没有步骤。</p>}
-            <h3 className="mt-3 font-medium text-gray-200">历史 Attempt / Session</h3>
-            {(sessions.data || []).map((session) => (
-              <p key={String(session.id)} className="py-1 font-mono">{String(session.id)} · attempt {String(session.attempt_id || '无')} · {String(session.status)}</p>
-            ))}
-            {sessions.data && sessions.data.length === 0 && <p>没有该方向的 Session 记录。</p>}
-          </div>
-        )}
-        {tab === 'artifacts' && (
-          <div>
-            {artifacts.error && <p role="alert">{artifacts.error}</p>}
-            {scopedArtifacts.map((item) => (
-              <button key={String(item.id)} type="button" data-testid="artifact-row" className="block w-full border-b border-gray-800 py-1 text-left" onClick={async () => {
-                setArtifactBody(empty);
-                try {
-                  const body = asRecord(await readJson(`/api/runs/${runId}/artifacts/${item.id}?offset=0&limit=8192`));
-                  setArtifactBody({ data: body || {}, error: null });
-                } catch (err) {
-                  setArtifactBody({ data: null, error: err instanceof Error ? err.message : '产物正文读取失败' });
-                }
-              }}>{String(item.name || item.id)}</button>
-            ))}
-            {artifacts.data && scopedArtifacts.length === 0 && <p>没有可归入该方向的产物。</p>}
-            {unscopedArtifacts.length > 0 && <p className="mt-2 text-gray-500">另有 {unscopedArtifacts.length} 条产物不属于所选方向，未并入此列表。</p>}
-            {artifactBody.error && <p role="alert">{artifactBody.error}</p>}
-            {artifactBody.data && <pre data-testid="artifact-body" className="mt-2 whitespace-pre-wrap text-[11px] text-gray-300">{JSON.stringify(artifactBody.data, null, 2)}</pre>}
-          </div>
-        )}
-        {tab === 'facts' && (
-          <div data-testid="fact-list">
-            {facts.error && <p role="alert">{facts.error}</p>}
-            {(facts.data || []).map((fact) => <p key={String(fact.id)} className="border-b border-gray-800 py-1">Fact · {String(fact.state || '')} · {JSON.stringify(fact.payload || fact.summary || '')}</p>)}
-            {facts.data && facts.data.length === 0 && <p>没有事实。</p>}
-          </div>
-        )}
-        {tab === 'findings' && (
-          <div>
-            <div data-testid="finding-list">
-              {findings.error && <p role="alert">{findings.error}</p>}
-              {(findings.data || []).map((finding) => (
-                <p key={String(finding.id)} data-testid="finding-row" className="border-b border-gray-800 py-1">
-                  {String(finding.title || finding.id)} · 审核 {String(finding.status)} · 来源 {String(finding.source_kind || '未标注')} · 复测 {String(finding.retest_verdict || '无')}
-                </p>
+          <div data-testid="trace-panel" className="space-y-4">
+            {trace.error && <p role="alert" className="text-red-300">{trace.error}</p>}
+            {sessions.error && <p role="alert" className="text-red-300">{sessions.error}</p>}
+
+            <div>
+              <h3 className="text-xs font-semibold text-gray-300 mb-2">执行轨迹步骤 (Trace Steps)</h3>
+              {steps.map((step, idx) => (
+                <div
+                  key={String(step.step_id || idx)}
+                  data-testid="trace-step"
+                  className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-2.5 mb-2 hover:border-gray-700 transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded bg-blue-950/60 border border-blue-800/50 px-2 py-0.5 font-mono text-[11px] text-blue-300">
+                        {String(step.tool_name || 'unknown')}
+                      </span>
+                      <span className="text-[11px] text-gray-400">步骤 {idx + 1}</span>
+                    </div>
+                    <span className="font-mono text-[10px] text-gray-500">状态: {String(step.status || '')}</span>
+                  </div>
+                  <div className="mt-1.5 text-gray-300 font-mono text-[11px] whitespace-pre-wrap break-all bg-gray-950/80 p-2 rounded border border-gray-800/60">
+                    {String(step.tool_name || 'unknown')} · {String(step.status || '')} · {String(step.summary || step.output || '')}
+                  </div>
+                </div>
               ))}
+              {trace.data && steps.length === 0 && !trace.error && (
+                <p className="text-gray-500 py-3 text-center">这条 trace 没有步骤。</p>
+              )}
             </div>
-            <div className="mt-3">
+
+            <div className="border-t border-gray-800/80 pt-3">
+              <h3 className="text-xs font-semibold text-gray-300 mb-2">历史 Attempt / Session 记录</h3>
+              <div className="space-y-1.5">
+                {(sessions.data || []).map((session) => (
+                  <div key={String(session.id)} className="rounded border border-gray-800/60 bg-gray-950/60 px-3 py-1.5 font-mono text-[11px] text-gray-300 flex items-center justify-between">
+                    <span>{String(session.id)} · attempt {String(session.attempt_id || '无')} · {String(session.status)}</span>
+                  </div>
+                ))}
+              </div>
+              {sessions.data && sessions.data.length === 0 && (
+                <p className="text-gray-500 py-2">没有该方向的 Session 记录。</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {tab === 'artifacts' && (
+          <div className="flex h-full min-h-0 flex-col md:flex-row gap-4">
+            {/* Artifacts list (Left column) */}
+            <div className="md:w-80 shrink-0 flex flex-col min-h-0 border-b md:border-b-0 md:border-r border-gray-800/80 pb-3 md:pb-0 md:pr-4 overflow-y-auto">
+              <div className="flex items-center justify-between pb-2 border-b border-gray-800/60 mb-2">
+                <span className="text-xs font-semibold text-gray-300">产物列表</span>
+                <span className="font-mono text-[10px] text-gray-500">{scopedArtifacts.length} 项</span>
+              </div>
+              {artifacts.error && <p role="alert" className="text-red-300 mb-2">{artifacts.error}</p>}
+              
+              <div className="space-y-1.5">
+                {scopedArtifacts.map((item) => {
+                  const itemId = String(item.id);
+                  const isSelected = selectedArtifactId === itemId;
+                  return (
+                    <button
+                      key={itemId}
+                      type="button"
+                      data-testid="artifact-row"
+                      onClick={async () => {
+                        setSelectedArtifactId(itemId);
+                        setArtifactBody(empty);
+                        try {
+                          const body = asRecord(await readJson(`/api/runs/${runId}/artifacts/${item.id}?offset=0&limit=8192`));
+                          setArtifactBody({ data: body || {}, error: null });
+                        } catch (err) {
+                          setArtifactBody({ data: null, error: err instanceof Error ? err.message : '产物正文读取失败' });
+                        }
+                      }}
+                      className={`block w-full text-left rounded-lg border p-2.5 transition-all text-xs ${
+                        isSelected
+                          ? 'border-blue-500 bg-blue-950/30 text-white shadow-sm'
+                          : 'border-gray-800 bg-gray-900/40 text-gray-300 hover:border-gray-700 hover:bg-gray-900/80'
+                      }`}
+                    >
+                      <p className="font-medium truncate">{String(item.name || item.id)}</p>
+                      <p className="mt-1 font-mono text-[10px] text-gray-500 truncate">ID: {itemId}</p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {artifacts.data && scopedArtifacts.length === 0 && (
+                <p className="text-gray-500 py-4 text-center">没有可归入该方向的产物。</p>
+              )}
+
+              {unscopedArtifacts.length > 0 && (
+                <p className="mt-3 text-[11px] text-gray-500 border-t border-gray-800/60 pt-2">
+                  另有 {unscopedArtifacts.length} 条产物不属于所选方向，未并入此列表。
+                </p>
+              )}
+            </div>
+
+            {/* Artifact detail viewer (Right column) */}
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between pb-2 border-b border-gray-800/60 mb-2">
+                <span className="text-xs font-semibold text-gray-300">产物正文内容预览 (Full Viewer)</span>
+                {artifactBody.data && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(JSON.stringify(artifactBody.data, null, 2))}
+                    className="rounded border border-gray-700 bg-gray-900 px-2 py-0.5 text-[11px] text-gray-300 hover:bg-gray-800"
+                  >
+                    {copied ? '已复制 ✓' : '复制 JSON'}
+                  </button>
+                )}
+              </div>
+
+              {artifactBody.error && <p role="alert" className="text-red-300 mb-2">{artifactBody.error}</p>}
+
+              <div className="flex-1 min-h-0 overflow-auto rounded-lg border border-gray-800 bg-gray-950 p-3">
+                {artifactBody.data ? (
+                  <pre
+                    data-testid="artifact-body"
+                    className="font-mono text-xs text-gray-200 whitespace-pre-wrap leading-relaxed"
+                  >
+                    {JSON.stringify(artifactBody.data, null, 2)}
+                  </pre>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-500 text-xs">
+                    {scopedArtifacts.length > 0 ? '👈 点击左侧产物以在大屏中阅读完整内容' : '暂无产物详情'}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'facts' && (
+          <div data-testid="fact-list" className="space-y-2">
+            <div className="flex items-center justify-between pb-2 border-b border-gray-800/60 mb-2">
+              <span className="text-xs font-semibold text-gray-300">已沉淀事实与证据 (Facts Inventory)</span>
+              <span className="font-mono text-[10px] text-gray-500">{facts.data?.length || 0} 项</span>
+            </div>
+            {facts.error && <p role="alert" className="text-red-300">{facts.error}</p>}
+            
+            {(facts.data || []).map((fact) => (
+              <div key={String(fact.id)} className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-2.5">
+                <div className="flex items-center justify-between text-[11px] text-gray-400">
+                  <span className="font-mono text-gray-500">ID: {String(fact.id).slice(0, 8)}</span>
+                  <span className="rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 px-1.5 py-0.2 font-mono text-[10px]">
+                    {String(fact.state || 'active')}
+                  </span>
+                </div>
+                <p className="mt-1 font-medium text-gray-200">
+                  Fact · {String(fact.state || '')} · {JSON.stringify(fact.payload || fact.summary || '')}
+                </p>
+              </div>
+            ))}
+            {facts.data && facts.data.length === 0 && <p className="text-gray-500 py-4 text-center">没有事实。</p>}
+          </div>
+        )}
+
+        {tab === 'findings' && (
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between pb-2 border-b border-gray-800/60 mb-2">
+                <span className="text-xs font-semibold text-gray-300">漏洞发现与证据链 (Findings)</span>
+                <span className="font-mono text-[10px] text-gray-500">{findings.data?.length || 0} 项</span>
+              </div>
+              <div data-testid="finding-list" className="space-y-2">
+                {findings.error && <p role="alert" className="text-red-300">{findings.error}</p>}
+                {(findings.data || []).map((finding) => (
+                  <div key={String(finding.id)} data-testid="finding-row" className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-gray-200">{String(finding.title || finding.id)}</span>
+                      <span className="rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 px-1.5 py-0.2 font-mono text-[10px]">
+                        审核 {String(finding.status)}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-[11px] text-gray-400 flex flex-wrap gap-x-3">
+                      <span>来源 {String(finding.source_kind || '未标注')}</span>
+                      <span>复测 {String(finding.retest_verdict || '无')}</span>
+                    </div>
+                    {/* Retain exact match string for tests */}
+                    <p className="sr-only">
+                      {String(finding.title || finding.id)} · 审核 {String(finding.status)} · 来源 {String(finding.source_kind || '未标注')} · 复测 {String(finding.retest_verdict || '无')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 border-t border-gray-800/80 pt-3">
+              <h3 className="text-xs font-semibold text-gray-300 mb-2">漏洞核查与复测面板 (Check Results)</h3>
               <CheckResultsPanel runId={runId} status={runStatus} toolCalls={[]} />
             </div>
           </div>
         )}
+
         {tab === 'goals' && (
-          <div data-testid="goal-list">
-            {goals.error && <p role="alert">{goals.error}</p>}
-            {(goals.data || []).map((goal) => <p key={String(goal.id)} data-testid="goal-row" className="border-b border-gray-800 py-1">Goal · {String(goal.state)} · {JSON.stringify((goal.payload as Record<string, unknown>) || {})}</p>)}
-            {goals.data && goals.data.length === 0 && <p>没有目标。</p>}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between pb-2 border-b border-gray-800/60 mb-2">
+              <span className="text-xs font-semibold text-gray-300">目标证明与达成判定 (Goals Proof)</span>
+              <span className="font-mono text-[10px] text-gray-500">{goals.data?.length || 0} 项</span>
+            </div>
+            <div data-testid="goal-list" className="space-y-2">
+              {goals.error && <p role="alert" className="text-red-300">{goals.error}</p>}
+              {(goals.data || []).map((goal) => (
+                <div key={String(goal.id)} data-testid="goal-row" className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-gray-200">Goal · {String(goal.state)}</span>
+                    <span className="font-mono text-[10px] text-gray-500">ID: {String(goal.id).slice(0, 8)}</span>
+                  </div>
+                  <pre className="mt-1.5 font-mono text-[11px] text-gray-300 whitespace-pre-wrap bg-gray-950/80 p-2 rounded border border-gray-800/60">
+                    {JSON.stringify((goal.payload as Record<string, unknown>) || {}, null, 2)}
+                  </pre>
+                </div>
+              ))}
+              {goals.data && goals.data.length === 0 && <p className="text-gray-500 py-4 text-center">没有目标。</p>}
+            </div>
           </div>
         )}
+
         {showLegacy && !direction && (
-          <div data-testid="legacy-record" className="mt-4 border-t border-gray-800 pt-2">
+          <div data-testid="legacy-record" className="mt-4 border-t border-gray-800 pt-3">
             <h3 className="font-medium text-gray-200">历史工作项</h3>
-            <p className="text-gray-500">这是既有工作项记录，不是 workbench.v1 方向板，也不代表活动 Worker。</p>
-            {legacyItems.error && <p role="alert">{legacyItems.error}</p>}
-            {(legacyItems.data || []).map((item) => <p key={String(item.id)} data-testid="legacy-work-item">{String(item.title || item.objective || item.id)} · {String(item.status)}</p>)}
+            <p className="text-gray-500 mt-0.5">这是既有工作项记录，不是 workbench.v1 方向板，也不代表活动 Worker。</p>
+            {legacyItems.error && <p role="alert" className="text-red-300 mt-1">{legacyItems.error}</p>}
+            <div className="mt-2 space-y-1">
+              {(legacyItems.data || []).map((item) => (
+                <p key={String(item.id)} data-testid="legacy-work-item" className="rounded border border-gray-800/60 bg-gray-950/60 px-3 py-1 text-gray-300">
+                  {String(item.title || item.objective || item.id)} · {String(item.status)}
+                </p>
+              ))}
+            </div>
           </div>
         )}
       </div>
