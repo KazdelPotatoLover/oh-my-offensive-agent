@@ -36,7 +36,7 @@ func (t *ReportFindingTool) Parameters() json.RawMessage {
 		"properties": {
 			"title": {
 				"type": "string",
-				"description": "Short, clear title of the vulnerability"
+				"description": "Short, clear title of the vulnerability in Simplified Chinese (简体中文漏洞标题，将直接展示在探索链路画板发现节点上)"
 			},
 			"category": {
 				"type": "string",
@@ -49,11 +49,11 @@ func (t *ReportFindingTool) Parameters() json.RawMessage {
 			},
 			"description": {
 				"type": "string",
-				"description": "Comprehensive description of the flaw and potential consequences"
+				"description": "Comprehensive description of the flaw and potential consequences in Simplified Chinese (简体中文漏洞详细描述)"
 			},
 			"remediation": {
 				"type": "string",
-				"description": "Recommended defensive actions or patches"
+				"description": "Recommended defensive actions or patches in Simplified Chinese (简体中文修复建议)"
 			},
 			"source_kind": {
 				"type": "string",
@@ -70,7 +70,7 @@ func (t *ReportFindingTool) Parameters() json.RawMessage {
 			},
 			"reproduce_steps": {
 				"type": "string",
-				"description": "Step-by-step reproducible instructions"
+				"description": "Step-by-step reproducible instructions in Simplified Chinese (简体中文复现步骤)"
 			},
 			"source_tool_call_id": {
 				"type": "string",
