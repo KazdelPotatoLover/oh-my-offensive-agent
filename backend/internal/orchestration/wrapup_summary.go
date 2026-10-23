@@ -53,7 +53,7 @@ func (e *Engine) summarizeWithReservedCall(cleanupCtx context.Context, cause mod
 		)...,
 	)
 	messages := []provider.ChatMessage{
-		{Role: provider.RoleSystem, Content: "Execution has stopped. Summarize only the persisted evidence inventory below. State unfinished coverage and the termination cause. Do not claim unobserved findings or request tools."},
+		{Role: provider.RoleSystem, Content: "Execution has stopped. Summarize only the persisted evidence inventory below. State unfinished coverage and the termination cause. Do not claim unobserved findings or request tools. Provide the summary in Simplified Chinese (简体中文)."},
 		{Role: provider.RoleUser, Content: fallback},
 	}
 	type summaryResult struct {

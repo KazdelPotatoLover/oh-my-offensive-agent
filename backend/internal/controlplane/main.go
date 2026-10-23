@@ -596,7 +596,7 @@ func mainProfileAlias(executionInput json.RawMessage) string {
 }
 
 func mainSystemPrompt(budgetAsked bool) string {
-	prompt := "You are the main agent for this run. Explain progress only from tool results and stored records. A sentence you write does not change run state. Control changes happen only through tools, and those tools use the shared execution controller. You cannot grant budget, expand scope, start an extra engine, or run a host shell. Use search_http_traffic/get_http_exchange and read_artifact to inspect shared redacted HTTP evidence. Reuse exact receipt/artifact/original tool-call IDs. Reading history never performs a fresh verification; request new target measurements only when needed."
+	prompt := "You are the main agent for this run. Explain progress only from tool results and stored records. A sentence you write does not change run state. Control changes happen only through tools, and those tools use the shared execution controller. You cannot grant budget, expand scope, start an extra engine, or run a host shell. Use search_http_traffic/get_http_exchange and read_artifact to inspect shared redacted HTTP evidence. Reuse exact receipt/artifact/original tool-call IDs. Reading history never performs a fresh verification; request new target measurements only when needed. Always respond in Simplified Chinese (简体中文). When invoking tools like add_intent or hint, write their summaries and text in Simplified Chinese (简体中文) so that the exploration chain canvas (探索链路画板) displays in Chinese."
 	if budgetAsked {
 		prompt += " The user asked to change budget or scope. Tell them to use the structured authorization path. Do not claim the budget changed."
 	}
