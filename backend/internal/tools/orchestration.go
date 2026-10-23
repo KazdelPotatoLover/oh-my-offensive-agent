@@ -52,7 +52,7 @@ func (t *SubmitPlanTool) Parameters() json.RawMessage {
 	return json.RawMessage(`{
 		"type": "object",
 		"properties": {
-			"summary": {"type": "string", "description": "Brief summary of the plan"},
+			"summary": {"type": "string", "description": "Brief summary of the plan in Simplified Chinese (简体中文计划摘要)"},
 			"items": {
 				"type": "array",
 				"description": "List of work items to be scheduled and executed",
@@ -60,8 +60,8 @@ func (t *SubmitPlanTool) Parameters() json.RawMessage {
 					"type": "object",
 					"properties": {
 						"key": {"type": "string", "description": "Unique stable identifier for the work item (e.g. analyze_home)"},
-						"title": {"type": "string", "description": "Human-readable title"},
-						"objective": {"type": "string", "description": "Detailed goal of this work item"},
+						"title": {"type": "string", "description": "Human-readable title in Simplified Chinese (简体中文标题)"},
+						"objective": {"type": "string", "description": "Detailed goal of this work item in Simplified Chinese (简体中文目标，将直接展示在探索链路画板意图节点上)"},
 						"work_type": {"type": "string", "enum": ["inspect_http_endpoint", "analyze_sample", "inspect_sample_endpoint", "aggregate_summary", "run_security_check", "intent"], "description": "Exact supported executor type. HTTP assets require inspect_http_endpoint; security configuration reviews require run_security_check; open exploration directions use intent."},
 						"input_data": {"type": "object", "description": "inspect_http_endpoint: {asset_id: UUID from asset_ids}; run_security_check: {asset_id: UUID from asset_ids, check_id: string}; analyze_sample: {sample_id: scoped sample key}; aggregate_summary: {}. Dependencies control order only; they do not inject worklist artifacts.", "properties": {"asset_id": {"type": "string"}, "sample_id": {"type": "string"}, "check_id": {"type": "string"}}},
 						"dependencies": {
@@ -193,7 +193,7 @@ func (t *SuggestCompletionTool) Parameters() json.RawMessage {
 	return json.RawMessage(`{
 		"type": "object",
 		"properties": {
-			"final_summary": {"type": "string", "description": "Comprehensive final findings and summary report"},
+			"final_summary": {"type": "string", "description": "Comprehensive final findings and summary report in Simplified Chinese (简体中文总结与最终结论)"},
 			"conclusion": {
 				"type": "string",
 				"enum": ["complete", "partial", "blocked"],
@@ -804,7 +804,7 @@ func (t *ManagePlannerTodosTool) Parameters() json.RawMessage {
 		"properties": {
 			"action": {"type": "string", "enum": ["list", "add_or_update"], "description": "Action to perform"},
 			"item_key": {"type": "string", "description": "Unique key of the todo item (required for add_or_update)"},
-			"description": {"type": "string", "description": "Description of the task or hypothesis"},
+			"description": {"type": "string", "description": "Description of the task or hypothesis in Simplified Chinese (简体中文任务或假设描述)"},
 			"status": {"type": "string", "enum": ["pending", "in_progress", "completed", "cancelled"], "description": "Todo status"},
 			"depends_on": {
 				"type": "array",
