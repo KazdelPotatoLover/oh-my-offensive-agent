@@ -176,7 +176,7 @@ test('https seeds keep their scheme and explicit network grant, and dropped fiel
   assert.equal(scope.ok, true);
   if (scope.ok) {
     assert.equal(scope.scope.seeds[0], 'https://127.0.0.1:29090/');
-    assert.equal(scope.scope.network_policy.template, 'readonly');
+    assert.equal(scope.scope.network_policy.template, 'active');
   }
   const httpScope = buildDiscoveryScope({ origin: 'http://127.0.0.1:29090', seedPath: '/login' });
   assert.equal(httpScope.ok, true);

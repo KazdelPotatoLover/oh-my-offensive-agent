@@ -936,12 +936,12 @@ func TestPhase8_ClosedLoop_OrchestrationWithSummary(t *testing.T) {
 	_, _ = env.runService.TransitionState(ctx, run.ID, model.RunStatusQueued, model.RunStatusRunning, nil)
 
 	runAssets, _ := env.runService.ListAssetsByRun(ctx, run.ID)
-	var homeAsset, loginAsset, healthAsset model.Asset
+	var homeAsset, loginAsset model.Asset
 	for _, a := range runAssets {
 		if strings.Contains(a.ExternalKey, "/login") {
 			loginAsset = a
 		} else if strings.Contains(a.ExternalKey, "/health") {
-			healthAsset = a
+			continue
 		} else {
 			homeAsset = a
 		}
@@ -1038,7 +1038,7 @@ func TestPhase8_ClosedLoop_OrchestrationWithSummary(t *testing.T) {
 	}
 	_ = env.runService.FinishWorkItem(ctx, wiCheckLogin.ID, attCheckLogin.ID, sessCheckLogin.ID, true, json.RawMessage(outCheckLogin), "completed")
 
-	// Notice: healthAsset was NOT checked -> it should appear in Unchecked Assets!
+	// The optional rule suite does not define overall exploration coverage.
 
 	// Generate programmatic summary report
 	summary := orchestration.GenerateProgrammaticSummary(ctx, run.ID, env.runService, model.CauseCompleted)
@@ -1050,11 +1050,8 @@ func TestPhase8_ClosedLoop_OrchestrationWithSummary(t *testing.T) {
 	if !strings.Contains(summary, "Candidate Findings Snapshot at Closeout") {
 		t.Fatalf("expected summary to contain 'Candidate Findings Snapshot at Closeout', got:\n%s", summary)
 	}
-	if !strings.Contains(summary, "Unchecked Assets") {
-		t.Fatalf("expected summary to contain 'Unchecked Assets', got:\n%s", summary)
-	}
-	if !strings.Contains(summary, healthAsset.ID.String()) {
-		t.Fatalf("expected summary to list unchecked health asset %s, got:\n%s", healthAsset.ID, summary)
+	if strings.Contains(summary, "Unchecked Assets") {
+		t.Fatalf("missing optional configuration checks must not imply incomplete exploration:\n%s", summary)
 	}
 	if !strings.Contains(summary, "**Termination Cause**: completed") {
 		t.Fatalf("expected summary to retain termination cause, got:\n%s", summary)

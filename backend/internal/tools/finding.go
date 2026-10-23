@@ -38,7 +38,7 @@ func (t *ReportFindingTool) Name() string {
 }
 
 func (t *ReportFindingTool) Description() string {
-	return "Report an empirical or speculative security finding with verified evidence and reproduce steps."
+	return "Report a security vulnerability with demonstrated impact and reproducible evidence, or a concrete speculative vulnerability lead. Put missing hardening settings, banners and generic error pages in record_fact instead. Reuse an existing finding for the same root cause; do not report one per page or leaked file."
 }
 
 func (t *ReportFindingTool) Parameters() json.RawMessage {
@@ -69,7 +69,7 @@ func (t *ReportFindingTool) Parameters() json.RawMessage {
 			"source_kind": {
 				"type": "string",
 				"enum": ["empirical", "speculative"],
-				"description": "'empirical' for proven, reproducible exploits; 'speculative' for suspected weaknesses"
+				"description": "Explicitly choose 'empirical' only for a reproduced vulnerability with actual security impact; 'speculative' for a concrete unverified vulnerability lead. A real response alone does not establish exploitability. Configuration baselines belong in record_fact."
 			},
 			"asset_id": {
 				"type": "string",
@@ -106,7 +106,7 @@ func (t *ReportFindingTool) Parameters() json.RawMessage {
 				"description": "Structured proof evidence (HTTP request/response excerpts, payload output, etc.)"
 			}
 		},
-		"required": ["title", "category", "severity", "description", "asset_id"]
+		"required": ["title", "category", "severity", "description", "asset_id", "source_kind"]
 	}`)
 }
 
@@ -123,12 +123,16 @@ func (t *ReportFindingTool) Validate(argumentsJSON []byte) error {
 		Severity    string `json:"severity"`
 		Description string `json:"description"`
 		AssetID     string `json:"asset_id"`
+		SourceKind  string `json:"source_kind"`
 	}
 	if err := json.Unmarshal(argumentsJSON, &in); err != nil {
 		return fmt.Errorf("invalid report_finding arguments JSON: %w", err)
 	}
 	if in.Title == "" || in.Category == "" || in.Severity == "" || in.Description == "" || in.AssetID == "" {
 		return fmt.Errorf("title, category, severity, description, and asset_id are required")
+	}
+	if in.SourceKind != "empirical" && in.SourceKind != "speculative" {
+		return fmt.Errorf("source_kind must explicitly be empirical or speculative; use record_fact for configuration observations")
 	}
 	return nil
 }
@@ -180,16 +184,16 @@ func (t *ReportFindingTool) Execute(ctx context.Context, argumentsJSON []byte) (
 	}
 
 	finding, err := t.runService.ReportFinding(ctx, t.runID, service.ReportFindingInput{
-		AssetID:          assetUUID,
-		Title:            in.Title,
-		Category:         in.Category,
-		Severity:         in.Severity,
-		Description:      in.Description,
-		Remediation:      in.Remediation,
-		SourceKind:       in.SourceKind,
-		SourceToolCallID: sourceToolCallUUID,
-		EvidenceRef:      evidenceBytes,
-		Verification:     in.Verification,
+		AssetID:           assetUUID,
+		Title:             in.Title,
+		Category:          in.Category,
+		Severity:          in.Severity,
+		Description:       in.Description,
+		Remediation:       in.Remediation,
+		SourceKind:        in.SourceKind,
+		SourceToolCallID:  sourceToolCallUUID,
+		EvidenceRef:       evidenceBytes,
+		Verification:      in.Verification,
 		TriggerCondition:  in.TriggerCondition,
 		ReproduceSteps:    in.ReproduceSteps,
 		TrustedWorkItemID: t.workItemID,

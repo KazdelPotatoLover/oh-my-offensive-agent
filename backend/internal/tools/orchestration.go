@@ -45,7 +45,7 @@ func (t *SubmitPlanTool) Name() string {
 }
 
 func (t *SubmitPlanTool) Description() string {
-	return "Submit work directions. Use intent with an authorized input_data.profile, a concrete objective, scoped asset_ids and source_fact_ids for open exploration; the Worker chooses available tools. list_capability_profiles lists authorized capabilities. Legacy inspect_http_endpoint/analyze_sample/run_security_check adapters remain available. Never invent tools or expand scope."
+	return "Submit open exploration directions using intent with an authorized input_data.profile, a concrete objective, scoped asset_ids and source_fact_ids; the Worker chooses tools based on evidence. list_capability_profiles lists authorized capabilities. Legacy inspection and summary adapters remain compatible. Configuration audits require an explicitly enabled run_security_check capability. Never invent tools or expand scope."
 }
 
 func (t *SubmitPlanTool) Parameters() json.RawMessage {
@@ -62,8 +62,8 @@ func (t *SubmitPlanTool) Parameters() json.RawMessage {
 						"key": {"type": "string", "description": "Unique stable identifier for the work item (e.g. analyze_home)"},
 						"title": {"type": "string", "description": "Human-readable title in Simplified Chinese (简体中文标题)"},
 						"objective": {"type": "string", "description": "Detailed goal of this work item in Simplified Chinese (简体中文目标，将直接展示在探索链路画板意图节点上)"},
-						"work_type": {"type": "string", "enum": ["inspect_http_endpoint", "analyze_sample", "inspect_sample_endpoint", "aggregate_summary", "run_security_check", "intent"], "description": "Exact supported executor type. HTTP assets require inspect_http_endpoint; security configuration reviews require run_security_check; open exploration directions use intent."},
-						"input_data": {"type": "object", "description": "inspect_http_endpoint: {asset_id: UUID from asset_ids}; run_security_check: {asset_id: UUID from asset_ids, check_id: string}; analyze_sample: {sample_id: scoped sample key}; aggregate_summary: {}. Dependencies control order only; they do not inject worklist artifacts.", "properties": {"asset_id": {"type": "string"}, "sample_id": {"type": "string"}, "check_id": {"type": "string"}}},
+						"work_type": {"type": "string", "enum": ["inspect_http_endpoint", "analyze_sample", "inspect_sample_endpoint", "aggregate_summary", "run_security_check", "intent"], "description": "Prefer intent for evidence-driven exploration of HTTP or other authorized assets. Other types are legacy adapters; run_security_check requires explicit configuration-audit capability."},
+						"input_data": {"type": "object", "description": "intent: {profile: authorized capability profile}; inspect_http_endpoint: {asset_id: UUID from asset_ids}; optional run_security_check: {asset_id: UUID, check_id: registered identifier}; analyze_sample: {sample_id: scoped sample key}; aggregate_summary: {}. Dependencies control order only; they do not inject worklist artifacts.", "properties": {"profile": {"type": "string"}, "asset_id": {"type": "string"}, "sample_id": {"type": "string"}, "check_id": {"type": "string"}}},
 						"dependencies": {
 							"type": "array",
 							"items": {"type": "string"},

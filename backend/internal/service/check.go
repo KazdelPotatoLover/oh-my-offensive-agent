@@ -416,7 +416,9 @@ func (s *RunService) ListFindingsByRun(ctx context.Context, runID uuid.UUID) ([]
 		       source_kind, verification_state, retest_verdict, retest_notes, retest_at
 		FROM findings
 		WHERE run_id = $1
-		ORDER BY created_at ASC`, runID)
+		ORDER BY CASE source_kind WHEN 'empirical' THEN 0 WHEN 'speculative' THEN 1 ELSE 2 END,
+		         CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END,
+		         created_at ASC, id`, runID)
 	if err != nil {
 		return nil, fmt.Errorf("list findings: %w", err)
 	}
@@ -677,7 +679,9 @@ func (s *RunService) GetFindingReport(ctx context.Context, runID uuid.UUID) (*mo
 		FROM findings f
 		JOIN check_results cr ON cr.id = f.check_result_id
 		WHERE f.run_id = $1
-		ORDER BY f.created_at ASC`, runID)
+		ORDER BY CASE f.source_kind WHEN 'empirical' THEN 0 WHEN 'speculative' THEN 1 ELSE 2 END,
+		         CASE f.severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END,
+		         f.created_at ASC, f.id`, runID)
 	if err != nil {
 		return nil, fmt.Errorf("query finding report: %w", err)
 	}

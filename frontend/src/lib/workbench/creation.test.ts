@@ -45,6 +45,12 @@ test('a full target URL keeps its path/query while the authority remains same-or
   if (!result.ok) return;
   assert.equal(result.scope.seeds[0], 'https://example.com/app/?view=1');
   assert.equal(result.scope.discovery_policy.origin, 'https://example.com');
-  assert.deepEqual(result.scope.network_policy.allowed_methods, ['GET', 'HEAD']);
+  assert.equal(result.scope.network_policy.template, 'active');
+  assert.deepEqual(result.scope.network_policy.allowed_methods, ['GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE']);
+  const readonly = buildDiscoveryScope({ origin: 'https://example.com/app/?view=1', seedPath: '', networkMode: 'readonly' });
+  assert.ok(readonly.ok);
+  assert.equal(readonly.scope.network_policy.template, 'readonly');
+  assert.deepEqual(readonly.scope.network_policy.allowed_methods, ['GET', 'HEAD']);
+  assert.deepEqual(readonly.scope.seeds, result.scope.seeds);
   assert.equal(buildDiscoveryScope({ origin: 'https://user:password@example.com/', seedPath: '' }).ok, false);
 });

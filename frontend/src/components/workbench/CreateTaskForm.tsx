@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, newRequestID } from '@/lib/api';
-import { buildAgentsConfig, buildDiscoveryScope, buildTaskConfig } from '@/lib/workbench/budget';
+import { buildAgentsConfig, buildDiscoveryScope, buildTaskConfig, type NetworkMode } from '@/lib/workbench/budget';
 import { creationBudget, creationName, durationSummary, unlimitedTimeoutPolicy, type CreationDefaults, type DurationMode } from '@/lib/workbench/creation';
 import { workbenchHref } from '@/lib/workbench/links';
 
@@ -19,6 +19,7 @@ export function CreateTaskForm({ onCancel }: { onCancel: () => void }) {
   const [profile, setProfile] = useState('');
   const [model, setModel] = useState('');
   const [enableCommands, setEnableCommands] = useState(false);
+  const [networkMode, setNetworkMode] = useState<NetworkMode>('active');
   const [profilesText, setProfilesText] = useState('');
   const [workers, setWorkers] = useState('');
   const [minutes, setMinutes] = useState('');
@@ -43,7 +44,7 @@ export function CreateTaskForm({ onCancel }: { onCancel: () => void }) {
       setError('请填写任务目标。');
       return;
     }
-    const scope = buildDiscoveryScope({ origin: origin.trim(), seedPath });
+    const scope = buildDiscoveryScope({ origin: origin.trim(), seedPath, networkMode });
     if (!scope.ok) {
       setError(scope.error);
       return;
@@ -51,7 +52,7 @@ export function CreateTaskForm({ onCancel }: { onCancel: () => void }) {
     try {
       const budget = creationBudget(workers, minutes);
       const executionPolicy = unlimitedTimeoutPolicy(durationMode, minutes);
-      const toolNames = ['get_endpoint', 'http_request', 'read_sample', 'extract_endpoint_links', 'extract_api_endpoints', 'run_security_check', 'record_observation', 'record_observation_batch', 'inspect_artifact', 'register_asset', 'search_http_traffic', 'get_http_exchange', 'list_skills', 'read_skill'];
+      const toolNames = ['get_endpoint', 'http_request', 'read_sample', 'extract_endpoint_links', 'extract_api_endpoints', 'record_observation', 'record_observation_batch', 'inspect_artifact', 'register_asset', 'search_http_traffic', 'get_http_exchange', 'list_skills', 'read_skill'];
       if (enableCommands) toolNames.push('run_command', 'write_file', 'read_file', 'inspect_command');
       let profiles: unknown[] = [{ name: 'explore', version: '1', tools: toolNames.map(name => ({ name, version: '1' })) }];
       if (profilesText.trim()) {
@@ -92,12 +93,12 @@ export function CreateTaskForm({ onCancel }: { onCancel: () => void }) {
       </div>
       {error && <p role="alert" data-testid="create-error" className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</p>}
       <label className="block text-xs text-gray-300">任务目标
-        <textarea id="create-task-objective" required value={objective} onChange={event => setObjective(event.target.value)} rows={3} placeholder="例如：检查网站的安全配置与暴露接口，保存证据并给出加固建议" className={`${fieldClass} mt-1`} />
+        <textarea id="create-task-objective" required value={objective} onChange={event => setObjective(event.target.value)} rows={3} placeholder="例如：验证网站是否存在未授权访问或文件读取漏洞，保存可复现证据并评估影响" className={`${fieldClass} mt-1`} />
       </label>
       <label className="block text-xs text-gray-300">授权网站地址
         <input id="scope-origin" required type="url" value={origin} onChange={event => setOrigin(event.target.value)} placeholder="https://example.com/" className={`${fieldClass} mt-1`} />
       </label>
-      <p className="text-[11px] text-gray-400">支持带路径的网址；仅访问该网站的同源地址，默认允许 GET/HEAD。</p>
+      <p className="text-[11px] text-gray-400">仅访问该网站的同源地址。{networkMode === 'active' ? '主动验证允许 GET/HEAD/OPTIONS/POST/PUT/PATCH/DELETE，支持登录、表单及 API 测试。' : '只读侦察仅允许 GET/HEAD。'}可在高级设置中切换。</p>
       <div data-testid="creation-defaults" className="rounded-md border border-gray-800 bg-gray-900/50 px-3 py-2 text-xs text-gray-400">
         {provider === 'mock' ? '本地演示模式 · 不调用真实模型' : '使用服务器模型'}
         {defaults && <> · {workers || defaults.budget.max_parallel_workers} 个并发 Worker · {durationSummary(minutes, durationMode, defaults)}</>}
@@ -110,6 +111,12 @@ export function CreateTaskForm({ onCancel }: { onCancel: () => void }) {
       <details className="rounded-md border border-gray-800 p-3" data-testid="creation-advanced">
         <summary className="cursor-pointer text-xs text-gray-300">高级设置（可选）</summary>
         <div className="mt-3 space-y-3">
+          <label className="block text-xs text-gray-300">执行方式
+            <select id="network-mode" value={networkMode} onChange={event => setNetworkMode(event.target.value as NetworkMode)} className={`${fieldClass} mt-1`}>
+              <option value="active">主动验证（默认，支持登录、表单与 API 请求）</option>
+              <option value="readonly">只读侦察（GET/HEAD）</option>
+            </select>
+          </label>
           <label className="block text-xs text-gray-300">任务名（可选）
             <input id="create-task-name" value={name} onChange={event => setName(event.target.value)} placeholder="留空时根据目标生成" className={`${fieldClass} mt-1`} />
           </label>

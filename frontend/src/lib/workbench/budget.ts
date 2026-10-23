@@ -67,7 +67,9 @@ export type ScopeResult =
   | { ok: true; scope: { mode: 'discovery'; seeds: string[]; discovery_policy: Record<string, unknown>; network_policy: Record<string, unknown> } }
   | { ok: false; error: string };
 
-export function buildDiscoveryScope(input: { origin: string; seedPath: string }): ScopeResult {
+export type NetworkMode = 'active' | 'readonly';
+
+export function buildDiscoveryScope(input: { origin: string; seedPath: string; networkMode?: NetworkMode }): ScopeResult {
   let parsed: URL;
   try {
     parsed = new URL(input.origin);
@@ -80,12 +82,16 @@ export function buildDiscoveryScope(input: { origin: string; seedPath: string })
   const seedPath = input.seedPath.trim() || `${parsed.pathname}${parsed.search}`;
   const path = seedPath.startsWith('/') ? seedPath : `/${seedPath}`;
   const origin = `${parsed.protocol}//${parsed.host}`;
+  const networkMode = input.networkMode ?? 'active';
+  const allowedMethods = networkMode === 'readonly'
+    ? ['GET', 'HEAD']
+    : ['GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE'];
   return {
     ok: true,
     scope: {
       mode: 'discovery',
       network_policy: {
-        template: 'readonly', allowed_methods: ['GET', 'HEAD'],
+        template: networkMode, allowed_methods: allowedMethods,
         origins: [{ scheme: parsed.protocol.slice(0, -1), host: parsed.hostname.replace(/^\[|\]$/g, ''), port: parsed.port || (parsed.protocol === 'https:' ? '443' : '80'), path_mode: 'same_origin', allow_private: true }],
         max_pages: 20, max_requests: 100, request_interval_ms: 500,
       },

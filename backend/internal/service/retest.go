@@ -49,10 +49,13 @@ func (s *RunService) ReportFinding(ctx context.Context, runID uuid.UUID, in Repo
 
 	sourceKind := strings.TrimSpace(in.SourceKind)
 	if sourceKind == "" {
-		sourceKind = "empirical"
+		sourceKind = "speculative"
 	}
 	if sourceKind != "check_rule" && sourceKind != "speculative" && sourceKind != "empirical" {
 		return nil, fmt.Errorf("invalid source_kind: %s", sourceKind)
+	}
+	if observationOnlyCategory(in.Category) {
+		return nil, fmt.Errorf("%w: configuration baselines, banners and generic error handling belong in record_fact, not report_finding; report a demonstrated exploit under its actual vulnerability category", ErrInvalidEvidence)
 	}
 
 	verificationState := "unverified"
@@ -228,6 +231,20 @@ func (s *RunService) ReportFinding(ctx context.Context, runID uuid.UUID, in Repo
 		return nil, fmt.Errorf("commit finding report: %w", err)
 	}
 	return &f, nil
+}
+
+// These categories describe observations, not a demonstrated security impact.
+// Real header-related exploits (e.g. response splitting or exploitable CORS)
+// still use their own vulnerability category and the normal evidence checks.
+func observationOnlyCategory(category string) bool {
+	switch strings.ReplaceAll(strings.ToLower(strings.TrimSpace(category)), "-", "_") {
+	case "security_misconfiguration", "configuration_risk", "configuration_review",
+		"security_headers", "http_security_headers", "missing_security_headers",
+		"banner_disclosure", "version_disclosure", "fingerprint", "improper_error_handling":
+		return true
+	default:
+		return false
+	}
 }
 
 // CreateFindingRetest starts an independent verification session to independently reproduce or verify fix.

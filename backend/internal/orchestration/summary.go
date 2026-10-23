@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"agent-workbench/backend/internal/checker"
 	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/service"
 	"github.com/google/uuid"
@@ -146,10 +147,17 @@ func GenerateProgrammaticSummary(ctx context.Context, runID uuid.UUID, runServic
 	checkResults, crErr := runService.ListCheckResultsByRun(ctx, runID)
 	findings, fErr := runService.ListFindingsByRun(ctx, runID)
 	if crErr == nil {
+		checks := checkResults[:0]
+		for _, result := range checkResults {
+			if checker.IsRegisteredCheck(result.CheckID) {
+				checks = append(checks, result)
+			}
+		}
+		checkResults = checks
+	}
+	if crErr == nil && len(checkResults) > 0 {
 		passCount, attnCount, naCount, insuffCount, errCount := 0, 0, 0, 0, 0
-		checkedAssets := make(map[uuid.UUID]bool)
 		for _, cr := range checkResults {
-			checkedAssets[cr.AssetID] = true
 			switch cr.Status {
 			case model.CheckStatusPass:
 				passCount++
@@ -175,41 +183,21 @@ func GenerateProgrammaticSummary(ctx context.Context, runID uuid.UUID, runServic
 				cr.Status, cr.CheckName, cr.CheckVersion, cr.AssetID, cr.Explanation, sourceRef))
 		}
 
-		// Candidate Findings Snapshot at Closeout
-		if fErr == nil {
-			sb.WriteString(fmt.Sprintf("\n### Candidate Findings Snapshot at Closeout (%d):\n", len(findings)))
-			if len(findings) == 0 {
-				sb.WriteString("  - None recorded at closeout.\n")
-			}
-			for _, f := range findings {
-				srcRef := "none"
-				if f.SourceToolCallID != nil {
-					srcRef = f.SourceToolCallID.String()
-				}
-				sb.WriteString(fmt.Sprintf("  - [%s|%s] %s (finding %s, check_result %s, evidence %s): %s\n",
-					f.Severity, f.Status, f.Title, f.ID, f.CheckResultID, srcRef, f.Description))
-			}
-		}
+	}
 
-		// Unchecked Assets (未检查资产)
-		runAssets, _ := runService.ListRunAssets(ctx, runID)
-		var unchecked []model.RunAsset
-		for _, ra := range runAssets {
-			if !checkedAssets[ra.AssetID] {
-				unchecked = append(unchecked, ra)
-			}
+	// Findings are independent of the optional legacy configuration checks.
+	if fErr == nil {
+		sb.WriteString(fmt.Sprintf("\n### Candidate Findings Snapshot at Closeout (%d):\n", len(findings)))
+		if len(findings) == 0 {
+			sb.WriteString("  - None recorded at closeout.\n")
 		}
-		sb.WriteString(fmt.Sprintf("\n### Unchecked Assets (%d):\n", len(unchecked)))
-		if len(unchecked) == 0 {
-			sb.WriteString("  - All in-scope assets received security checks.\n")
-		} else {
-			for _, ra := range unchecked {
-				var snapshot struct {
-					ExternalKey string `json:"external_key"`
-				}
-				_ = json.Unmarshal(ra.Snapshot, &snapshot)
-				sb.WriteString(fmt.Sprintf("  - Unchecked: %s (asset %s)\n", snapshot.ExternalKey, ra.AssetID))
+		for _, f := range findings {
+			srcRef := "none"
+			if f.SourceToolCallID != nil {
+				srcRef = f.SourceToolCallID.String()
 			}
+			sb.WriteString(fmt.Sprintf("  - [%s|%s|%s|%s] %s (finding %s, check_result %s, evidence %s): %s\n",
+				f.Severity, f.Status, f.SourceKind, f.VerificationState, f.Title, f.ID, f.CheckResultID, srcRef, f.Description))
 		}
 	}
 

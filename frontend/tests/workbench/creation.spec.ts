@@ -10,7 +10,7 @@ test('two fields create a real-model task with inherited settings and an automat
   await expect(page.getByLabel('总模型次数', { exact: true })).toHaveCount(0);
   await expect(page.getByLabel('Planner 预留', { exact: true })).toHaveCount(0);
   await expect(page.getByLabel('能力 profile 配置')).not.toBeVisible();
-  await page.locator('#create-task-objective').fill('检查网站安全配置');
+  await page.locator('#create-task-objective').fill('验证网站未授权访问与文件读取');
   await page.locator('#scope-origin').fill('https://example.com/app/?view=1');
   await page.screenshot({ path: '/tmp/omoa-create-simplified-2026-10-23.png' });
   const taskRequest = page.waitForRequest(r => r.method() === 'POST' && new URL(r.url()).pathname === '/api/tasks');
@@ -18,8 +18,11 @@ test('two fields create a real-model task with inherited settings and an automat
   await page.getByTestId('create-task-submit').click();
   const task = (await taskRequest).postDataJSON();
   const run = (await runRequest).postDataJSON();
-  expect(task.name).toBe('检查网站安全配置');
+  expect(task.name).toBe('验证网站未授权访问与文件读取');
   expect(task.scope.seeds).toEqual(['https://example.com/app/?view=1']);
+  expect(task.scope.network_policy.template).toBe('active');
+  expect(task.scope.network_policy.allowed_methods).toContain('POST');
+  expect(task.config.profiles[0].tools.map((tool: { name: string }) => tool.name)).not.toContain('run_security_check');
   expect(task.config.provider).toBe('openai');
   expect(task.config).not.toHaveProperty('budget');
   expect(task.config).not.toHaveProperty('agents');
@@ -32,6 +35,8 @@ test('optional overrides send only concurrency and minutes, clearing fields rest
   await page.goto('/workbench');
   await page.getByTestId('open-create').click();
   await page.getByTestId('creation-advanced').locator('summary').first().click();
+  await page.locator('#network-mode').selectOption('readonly');
+  await expect(page.getByTestId('create-task-form')).toContainText('只读侦察仅允许 GET/HEAD');
   await page.locator('#worker-count').fill('5');
   await page.locator('#run-minutes').fill('45');
   await expect(page.getByTestId('creation-defaults')).toContainText('5 个并发 Worker · 最长 45 分钟');
@@ -41,8 +46,12 @@ test('optional overrides send only concurrency and minutes, clearing fields rest
   await page.locator('#create-task-name').fill('自定任务名');
   await page.locator('#create-task-objective').fill('检查入口');
   await page.locator('#scope-origin').fill('http://127.0.0.1:29090/');
+  const taskRequest = page.waitForRequest(r => r.method() === 'POST' && new URL(r.url()).pathname === '/api/tasks');
   const request = page.waitForRequest(r => r.method() === 'POST' && /\/api\/tasks\/[^/]+\/runs$/.test(new URL(r.url()).pathname));
   await page.getByTestId('create-task-submit').click();
+  const task = (await taskRequest).postDataJSON();
+  expect(task.scope.network_policy.template).toBe('readonly');
+  expect(task.scope.network_policy.allowed_methods).toEqual(['GET', 'HEAD']);
   expect((await request).postDataJSON().budget).toEqual({ max_parallel_workers: 5, run_timeout_seconds: 2700 });
   await expect(page.getByTestId('worker-capacity')).toContainText('requested 5');
 });

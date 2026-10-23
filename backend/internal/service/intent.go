@@ -15,6 +15,28 @@ import (
 )
 
 func prepareIntent(ctx context.Context, tx pgx.Tx, runID uuid.UUID, item *PlanItemSpec, input []byte) (string, error) {
+	if item.WorkType == "run_security_check" {
+		var mode struct {
+			Exploration bool `json:"exploration"`
+		}
+		if err := json.Unmarshal(input, &mode); err != nil {
+			return "", err
+		}
+		if mode.Exploration {
+			profiles, err := model.ProfilesFromInput(input)
+			if err != nil {
+				return "", err
+			}
+			for _, profile := range profiles {
+				for _, tool := range profile.Tools {
+					if tool.Name == "run_security_check" && !tool.Disabled {
+						return "", nil
+					}
+				}
+			}
+			return "", fmt.Errorf("%w: run_security_check is an optional legacy adapter; enable it explicitly in a capability profile for a configuration audit", model.ErrInvalidProfile)
+		}
+	}
 	if item.WorkType != "intent" {
 		return "", nil
 	}

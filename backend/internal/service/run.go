@@ -451,8 +451,8 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 		agentConfig := map[string]interface{}{
 			"executor":       executor,
 			"provider":       providerType,
-			"prompt_version": "v4",
-			"tools_version":  "v2",
+			"prompt_version": "v5",
+			"tools_version":  "v3",
 			"budget":         budget,
 		}
 		if providerType == "mock" {

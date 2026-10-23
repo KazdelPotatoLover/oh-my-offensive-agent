@@ -152,7 +152,7 @@ func GetNativeToolCatalog() []ToolCatalogItem {
 			CategoryName:    "HTTP 与网络交互",
 			Description:     "执行高度可定制的 HTTP/HTTPS 请求（支持各类请求方法、请求头与请求载荷）",
 			Roles:           []string{"worker"},
-			DefaultProfiles: []string{"active_probe", "browser"},
+			DefaultProfiles: []string{"explore", "active_probe", "browser"},
 			Parameters: json.RawMessage(`{
 				"type": "object",
 				"properties": {
@@ -170,7 +170,7 @@ func GetNativeToolCatalog() []ToolCatalogItem {
 			CategoryName:    "HTTP 与网络交互",
 			Description:     "按 URL 关键字、HTTP 方法、状态码或响应内容全文检索捕获的通信流量",
 			Roles:           []string{"worker", "planner", "main_agent"},
-			DefaultProfiles: []string{"api_recon", "active_probe", "browser"},
+			DefaultProfiles: []string{"explore", "api_recon", "active_probe", "browser"},
 			Parameters: json.RawMessage(`{
 				"type": "object",
 				"properties": {
@@ -187,7 +187,7 @@ func GetNativeToolCatalog() []ToolCatalogItem {
 			CategoryName:    "HTTP 与网络交互",
 			Description:     "获取特定网络交互的完整请求头、请求体、响应头与响应正文详情",
 			Roles:           []string{"worker", "planner", "main_agent"},
-			DefaultProfiles: []string{"api_recon", "active_probe", "browser"},
+			DefaultProfiles: []string{"explore", "api_recon", "active_probe", "browser"},
 			Parameters: json.RawMessage(`{
 				"type": "object",
 				"properties": {
@@ -230,11 +230,11 @@ func GetNativeToolCatalog() []ToolCatalogItem {
 			}`),
 		},
 		{
-			Name:            "record_hint",
-			Category:        "knowledge",
-			CategoryName:    "知识图谱与态势",
-			Description:     "记录横向探索线索、启发提示或待检验假设",
-			Roles:           []string{"planner", "main_agent"},
+			Name:         "record_hint",
+			Category:     "knowledge",
+			CategoryName: "知识图谱与态势",
+			Description:  "记录横向探索线索、启发提示或待检验假设",
+			Roles:        []string{"planner", "main_agent"},
 			Parameters: json.RawMessage(`{
 				"type": "object",
 				"properties": {
@@ -244,11 +244,11 @@ func GetNativeToolCatalog() []ToolCatalogItem {
 			}`),
 		},
 		{
-			Name:            "graph_overview",
-			Category:        "knowledge",
-			CategoryName:    "知识图谱与态势",
-			Description:     "获取当前探索链路拓扑图的宏观概览（节点数、边数、连通态势）",
-			Roles:           []string{"planner", "main_agent"},
+			Name:         "graph_overview",
+			Category:     "knowledge",
+			CategoryName: "知识图谱与态势",
+			Description:  "获取当前探索链路拓扑图的宏观概览（节点数、边数、连通态势）",
+			Roles:        []string{"planner", "main_agent"},
 			Parameters: json.RawMessage(`{
 				"type": "object",
 				"properties": {}
@@ -275,35 +275,36 @@ func GetNativeToolCatalog() []ToolCatalogItem {
 			Name:            "report_finding",
 			Category:        "finding",
 			CategoryName:    "漏洞与安全发现",
-			Description:     "上报经技术验证确认的安全脆弱性或疑似漏洞条目",
+			Description:     "上报有实际影响及复现证据的漏洞或具体待验证线索；配置基线、版本指纹和通用错误页用 record_fact",
 			Roles:           []string{"worker"},
 			DefaultProfiles: []string{"explore", "api_recon", "active_probe", "browser"},
 			Parameters: json.RawMessage(`{
 				"type": "object",
 				"properties": {
 					"title": { "type": "string", "description": "漏洞简明标题（必须简体中文）" },
+					"category": { "type": "string", "description": "实际漏洞机理，例如 path_traversal 或 auth_bypass" },
+					"source_kind": { "type": "string", "enum": ["empirical", "speculative"] },
 					"severity": { "type": "string", "enum": ["low", "medium", "high", "critical"], "description": "严重等级" },
 					"description": { "type": "string", "description": "漏洞详细成因及危害（简体中文）" },
 					"remediation": { "type": "string", "description": "修复建议（简体中文）" },
-					"target": { "type": "string", "description": "受影响目标端点" }
+					"asset_id": { "type": "string", "description": "受影响目标资产 UUID" }
 				},
-				"required": ["title", "severity", "description"]
+				"required": ["title", "category", "severity", "description", "asset_id", "source_kind"]
 			}`),
 		},
 		{
-			Name:            "run_security_check",
-			Category:        "finding",
-			CategoryName:    "漏洞与安全发现",
-			Description:     "针对目标端点运行内置的安全合规检查规则项（如安全标头、CORS、敏感字段暴露等）",
-			Roles:           []string{"worker"},
-			DefaultProfiles: []string{"explore", "active_probe"},
+			Name:         "run_security_check",
+			Category:     "finding",
+			CategoryName: "漏洞与安全发现",
+			Description:  "可选的历史配置审查适配器，须显式启用；不属于默认自主探索流程",
+			Roles:        []string{"worker"},
 			Parameters: json.RawMessage(`{
 				"type": "object",
 				"properties": {
-					"check_id": { "type": "string", "description": "安全检查项规则 ID（如 check_security_headers）" },
-					"target": { "type": "string", "description": "被测端点或目标 URL" }
+					"check_id": { "type": "string", "description": "已注册的配置审查规则 ID" },
+					"asset_id": { "type": "string", "description": "被测资产 UUID" }
 				},
-				"required": ["check_id", "target"]
+				"required": ["check_id", "asset_id"]
 			}`),
 		},
 
@@ -513,11 +514,11 @@ func GetNativeToolCatalog() []ToolCatalogItem {
 			}`),
 		},
 		{
-			Name:            "get_worker_output",
-			Category:        "artifact",
-			CategoryName:    "工件与执行轨迹",
-			Description:     "提取 Worker 执行结束后的最终交付总结文本",
-			Roles:           []string{"planner", "main_agent"},
+			Name:         "get_worker_output",
+			Category:     "artifact",
+			CategoryName: "工件与执行轨迹",
+			Description:  "提取 Worker 执行结束后的最终交付总结文本",
+			Roles:        []string{"planner", "main_agent"},
 			Parameters: json.RawMessage(`{
 				"type": "object",
 				"properties": {
