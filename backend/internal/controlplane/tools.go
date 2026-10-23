@@ -262,9 +262,9 @@ func controlSchema(name string) json.RawMessage {
 	case contract.CmdSteerWork, contract.CmdKillWork, contract.CmdContinueWork, contract.CmdRetryWork:
 		return json.RawMessage(`{"type":"object","properties":{"work_item_id":{"type":"string","format":"uuid","description":"Exact work item UUID from current progress"},"expected_attempt_id":{"type":"string","format":"uuid","description":"Optional CURRENT attempt UUID. Omit when unknown; never use a work item UUID, placeholder, or stale attempt."},"instruction":{"type":"string"},"reason":{"type":"string"}},"required":["work_item_id"]}`)
 	case contract.CmdHint:
-		return json.RawMessage(`{"type":"object","properties":{"text":{"type":"string"}},"required":["text"]}`)
+		return json.RawMessage(`{"type":"object","properties":{"text":{"type":"string","description":"Hint text in Simplified Chinese (简体中文提示，将展示在探索链路画板上)"}},"required":["text"]}`)
 	case contract.CmdAddIntent:
-		return json.RawMessage(`{"type":"object","properties":{"summary":{"type":"string"}},"required":["summary"]}`)
+		return json.RawMessage(`{"type":"object","properties":{"summary":{"type":"string","description":"Summary of the intent in Simplified Chinese (简体中文意图摘要，将展示在探索链路画板上)"}},"required":["summary"]}`)
 	case contract.CmdStartEpoch:
 		return json.RawMessage(`{"type":"object","properties":{"reason":{"type":"string"},"summary":{"type":"string"}},"required":["reason"]}`)
 	default:
