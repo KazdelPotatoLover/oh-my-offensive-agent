@@ -1,221 +1,303 @@
-# oh-my-offensive-agent — Phase 1: Task Execution Foundation (Agent Workbench)
+# Oh My Offensive Agent (OMA)
 
-A monolithic application for managing tasks and their execution runs, with a Go backend, Next.js frontend, and PostgreSQL database. Phase 1 establishes the core task lifecycle — creating tasks, starting runs with a simulated worker, tracking progress through events, and handling stop/failure/restart scenarios — without any LLM or real tool integration.
+<div align="center">
 
-## Architecture
+![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)
+![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat&logo=next.js)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat&logo=postgresql)
+![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED?style=flat&logo=docker)
+![License](https://img.shields.io/badge/License-Apache--2.0-green.svg?style=flat)
 
-The application consists of three components:
+**面向实战对抗的自主多智能体（Multi-Agent）安全渗透测试与攻防协同系统**
 
-| Component | Technology | Role |
-|-----------|-----------|------|
-| **Backend** | Go (net/http) | REST API server + FakeWorker execution engine |
-| **Frontend** | Next.js (React) | Dashboard UI with polling-based updates |
-| **Database** | PostgreSQL 16 | Persistent storage for tasks, runs, and events |
+[特性亮点](#-核心特性) • [系统架构](#-系统架构) • [快速开始](#-快速开始) • [实战工作流](#-实战工作流) • [技术栈](#-技术栈) • [安全免责声明](#-安全合规与免责声明)
 
-### Backend Modules
+</div>
 
-| Module | Responsibility |
-|--------|---------------|
-| `handler/` | HTTP request routing, JSON serialization/deserialization, error responses |
-| `service/` | Business logic, validation, transaction management, idempotency enforcement |
-| `worker/` | FakeWorker execution engine — runs tasks as goroutines, emits progress events |
-| `db/` | Database connection pool, schema migrations, startup recovery of interrupted runs |
-| `model/` | Data structures and type definitions (Task, Run, RunEvent, enums) |
+---
 
-### Frontend Modules
+## 📖 项目简介
 
-| Module | Responsibility |
-|--------|---------------|
-| `lib/api.ts` | API client wrapping all backend endpoints, with 2-second polling for run status |
-| `components/` | Reusable UI components (task list, run detail, event timeline, status badges) |
+**Oh My Offensive Agent (OMA)** 是一个基于**认知探索图**与**事件驱动调度机制**构建的工业级自主多智能体攻防对抗平台。
 
-## Data Model
+传统的自动化安全工具往往局限于固定的规则扫描，而初级 LLM 安全 Agent 经常面临“单线串行效率低、Token 爆炸导致任务中断、缺乏实证产生虚假漏洞幻觉、Worker 各自为战重复发包”等工程瓶颈。
 
-### Entities
+OMA 参考先进的自主攻防智能体架构理念（如 ARTEX 等），从底层重构了攻防任务的状态流转、多 Agent 分工协同与证据链存证体系，实现了**战略规划（Lead Planner）**、**战术渗透（Domain Worker）**与**统一调度（Main Agent）**的高效协同，形成从目标设定、资产侦查、漏洞验证到结构化复测的完整自动化闭环。
 
-- **Task** — A named unit of work (e.g., "Summarize document"). Tasks are containers for runs.
-- **Run** — A single execution attempt of a task. Each run progresses through a state machine and records its history as events.
-- **RunEvent** — An immutable log entry recording something that happened during a run (state change, progress step, error).
+---
 
-### Relationships
+## ⚡ 核心痛点与 OMA 解决思路
+
+| 维度 | 传统自动化扫描 / 简易 Agent | Oh My Offensive Agent (OMA) |
+| :--- | :--- | :--- |
+| **协作拓扑** | 单一线性流水线，或伪多智能体串行阻塞 | **事件驱动的 Lead Planner + N 槽位并发 Domain Worker**，解耦规划与执行 |
+| **认知底座** | 简单的页面链接树，缺乏因果关联 | **物理资产图（Asset Graph）与认知探索图（Exploration Graph）解耦**的双图架构 |
+| **漏洞真实性** | 仅凭模型文本自述，容易出现“200 OK 即漏洞”的幻觉 | **防幻觉事实网关（Fact Gate）与严格实证契约**：必须绑定真实成功的工具调用与资产一致性 |
+| **流量协同** | Worker 日志孤岛，各自向目标重复发包，容易打草惊蛇 | **统一网关透明抓包**，支持全 Agent 共享 HTTP 流量与材料零冗余复用 |
+| **执行安全** | 宿主机直接运行危险命令或 PoC 脚本 | **Execution Broker 隔离沙箱**，基于 Docker 容器与严格命令白名单（Python/Playwright 等） |
+| **长任务容错** | 局部额度耗尽任务直接崩溃退出 | **分层预算控制与合成协议闭合（Synthetic Protocol Closure）**，支持跨 Attempt 会话无缝恢复 |
+| **人在环路** | 仅能在任务结束后被动看报告 | **全生命周期受控交互**：支持运行时双屏障暂停、动态纠偏（Steer）、定点终止与预算追加 |
+
+---
+
+## 🌟 核心特性
+
+### 1. 🤖 分层非对称多智能体协同（Planner-Worker Hierarchy）
+- **Lead Planner（战略规划中枢）**：负责全局态势感知、目标拆解与动态派工。每轮规划采用全新轻量 Session，仅注入最新双图拓扑与持久化待办（Planner Todos），彻底告别历史上下文无限膨胀。具备事件防抖唤醒机制，避免高频空转。
+- **Domain Worker（战术攻坚节点）**：具备 N 槽位独立并发执行能力，专注于特定意图（Intent）的纵深探测与漏洞利用。跨 Attempt 自动维护稳定会话。
+- **共享模型准入池（Shared Model Admission）**：内置基于 Token Bucket 的并发限流机制，统一管理全系统对大语言模型的请求吞吐，并为规划调度中枢预留高优先级通道，防止多 Worker 并发时打爆上游 RPM/TPM 导致系统饥饿。
+
+### 2. 🗺️ 物理资产图与认知探索图（Dual-Graph Architecture）
+- **物理资产图（Asset Graph）**：严格归一化域名、IP、端口服务与 HTTP/API 端点物理实体。强制施加安全范围检查（Scope Gate），严禁向未经授权的资产发送探测流量。
+- **认知探索图（Exploration Graph）**：以认知因果血缘为主线，维护 `Goal`（最终目标）、`Intent`（行动意图）、`Fact`（可复用事实）、`Hint`（线索假设）与 `Finding`（漏洞发现）的因果闭环。
+- **全景可视化画布（Exploration Canvas）**：基于现代前端流图组件呈现，真实反映因果推导链路，不掩盖未验证节点，杜绝前端虚假连线。
+
+### 3. 🛡️ 防幻觉事实网关与实证闭环（Anti-Hallucination & Verification）
+- **事实置信度检验（Fact Gate）**：事实分为 `observed`（直接观察）与 `inferred`（推理猜测）。只有通过真实且成功的工具执行产出的事实才被标记为 `verified`，纯文本猜测一律降级。
+- **四重实证校验矩阵**：智能体上报实证漏洞（Finding）时，系统自动核验：
+  1. 必须引用真实且执行成功的工具调用；
+  2. 请求参数中的资产与报告资产必须一致（防止将资产 A 的证据挪用至资产 B）；
+  3. 执行代次（Execution Epoch）精确匹配，杜绝旧凭证充当新证据；
+  4. 工具类型必须属于验证类操作。
+- **独立结构化复测器（Retest Executor）**：由独立 Verifier 会话执行复测，拒绝基于自由文本匹配判定修复，通过状态码与报文特征结构化研判，完整保留审计历史。
+
+### 4. 📡 跨智能体共享流量与材料复用（Shared HTTP Traffic）
+- **透明流量存证与收据（Receipt）**：所有网络探测由统一网关透传捕获，对响应报文执行脱敏与 SHA-256 哈希存证，生成唯一的 `receipt_id`。
+- **协同检索工具集**：提供 `search_http_traffic`、`get_http_exchange` 与 `read_artifact`。Worker A 在资产勘测时抓取的页面数据，Worker B 可直接在本地读取解析，无需二次发包，大幅减少对目标环境的冲击。
+
+### 5. 🐳 安全沙箱与 SOP 领域技能树（Execution Broker & Skills）
+- **隔离容器沙箱（OMA Execution Broker）**：支持执行 Python、Node.js、cURL 以及 Headless Playwright 浏览器自动化。通过受限 Broker 服务中转，施加命令白名单、只读挂载与超时保护，绝不在宿主机裸跑外部脚本。
+- **领域技能库（Skills System）**：内置标准化 SOP 规范（API 资产侦查、实证契约对齐、Playwright 交互指引等），智能体按需调阅，兼顾专业知识注入与上下文精简。
+
+### 6. 🎛️ 人在环路（HITL）受控交互与统一工作台
+- **运行时动态干预**：支持双屏障暂停（Pause）、安全恢复（Resume）、人工线索纠偏（Steer）、定点终止单个 Worker（Kill）以及动态追加全局或局部预算（Grant Budget）。
+- **统一工作台（Workbench UI）**：基于 Next.js 打造的全景控制台，支持任务配置、实时拓扑图谱交互、事件流水监控、漏洞审核确认与复测追踪。
+
+---
+
+## 🏗️ 系统架构
 
 ```
-Task 1 ──── * Run 1 ──── * RunEvent
+┌────────────────────────────────────────────────────────────────────────┐
+│                        统一攻防工作台 (Next.js 14 UI)                  │
+│   任务大盘  •  探索拓扑画布  •  Worker 状态流  •  漏洞存证审核  •  HITL 控制台 │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ HTTP / SSE
+┌───────────────────────────────────▼────────────────────────────────────┐
+│                  控制面与调度中枢 (Go Backend & Controller)              │
+│  ┌──────────────────────┐  ┌────────────────────────────────────────┐  │
+│  │   Lead Planner       │  │  Domain Worker Pool (N 并发槽位)        │  │
+│  │ (态势感知/意图拆解)    │  │  (会话恢复 / 合成协议闭合 / 纵深利用)  │  │
+│  └──────────┬───────────┘  └───────────────────┬────────────────────┘  │
+│             │                                  │                       │
+│  ┌──────────▼──────────────────────────────────▼─────────────────────┐  │
+│  │    共享模型准入池 (Shared LLM Admission / Token Bucket / RPM 保护)   │  │
+│  └──────────────────────────────────┬────────────────────────────────┘  │
+│                                     │                                  │
+│  ┌──────────────────────────────────▼────────────────────────────────┐  │
+│  │    工具执行与存证网关 (Tool Registry / Traffic Capture / Gate)     │  │
+│  │   • 范围拦截 (Scope Gate)            • 事实校验 (Fact Gate)         │  │
+│  │   • 共享流量检索 (search_traffic)    • 存证哈希 (Artifact Receipt)  │  │
+│  └──────────────┬───────────────────────────────────┬────────────────┘  │
+└─────────────────┼───────────────────────────────────┼───────────────────┘
+                  │                                   │
+      ┌───────────▼───────────┐           ┌───────────▼───────────┐
+      │   PostgreSQL 16 数据库 │           │  Execution Broker     │
+      │ • 物理资产图 / 探索图  │           │  (受限 Docker 沙箱)   │
+      │ • 状态机 / 审计轨迹   │           │ • Python3 / Node      │
+      │ • 待办 / 事实 / 漏洞  │           │ • Playwright 无头浏览 │
+      └───────────────────────┘           └───────────┬───────────┘
+                                                      │
+                                          ┌───────────▼───────────┐
+                                          │ 授权测试目标 / Web 靶场 │
+                                          └───────────────────────┘
 ```
 
-A task can have many runs (retries, re-executions), and each run can have many events.
+---
 
-### Key Constraints
+## 🛠️ 技术栈
 
-- **At most one active run per task** — enforced via a partial unique index on `(task_id) WHERE status NOT IN ('completed', 'failed', 'stopped', 'interrupted')`. This prevents concurrent execution of the same task.
-- **Idempotency key uniqueness per task** — each `(task_id, idempotency_key)` pair must be unique, enabling safe request retries without creating duplicate runs.
-- **Execution Input Snapshot** — each run preserves an immutable `execution_input` JSON snapshot containing `objective`, `scope`, `config`, and request parameters (`parameters`). Any subsequent edits to the parent Task do not alter historical Run inputs. Legacy records missing original inputs are explicitly marked with `{"_historical_missing": true, "note": "[historical_unavailable]"}`.
+| 模块 | 核心技术 / 依赖 | 说明 |
+| :--- | :--- | :--- |
+| **后端架构** | Go 1.22+, Chi Router, pgx | 高性能并发控制、严格事务隔离与事件流驱动 |
+| **前端平台** | Next.js 14 (App Router), React 18, Tailwind CSS | 现代化统一攻防工作台，响应式交互大盘 |
+| **拓扑画布** | `@xyflow/react` (React Flow) | 双图联动与探索因果血缘全景可视化 |
+| **数据持久化** | PostgreSQL 16 | 存储物理资产、认知因果图、执行快照与审计日志 |
+| **执行沙箱** | Docker, Execution Broker, Playwright, Python 3 | 隔离执行 PoC、浏览器自动化与外部脚本 |
+| **模型接入** | 标准 OpenAI API 规范接口 (Chat Completions) | 兼容主流大语言模型（如 GPT-4o、DeepSeek、Claude 等） |
 
-## State Transitions
+---
 
-Runs follow a strict state machine validated via `IsAllowedTransition`:
+## 🚀 快速开始
 
+### 1. 环境准备
+确保本机已安装以下基础环境：
+- **Docker** 24.0+ 与 **Docker Compose** v2+
+- **Python** 3.10+
+- **Git**
+
+### 2. 克隆项目与配置环境变量
+```bash
+git clone git@github.com:KazdelPotatoLover/oh-my-offensive-agent.git
+cd oh-my-offensive-agent
+
+# 复制环境变量配置模版
+cp .env.example .env
 ```
-queued ──┬──> running ──┬──> completed
-         │              ├──> failed (at configured step)
-         │              └──> stopping ──┬──> stopped
-         ├──> stopping ────> stopped    └──> interrupted (on restart)
-         └──> interrupted (on restart)
+
+编辑 `.env` 文件，填入你的大模型配置及端口（默认为安全的高位端口）：
+```bash
+# 模型接口配置（支持 OpenAI 兼容格式）
+LLM_API_FORMAT=chat_completions
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=gpt-4o
+LLM_API_KEY=your_actual_api_key_here
+
+# 共享模型并发与流控
+LLM_MAX_INFLIGHT=2
+LLM_MAX_OUTPUT_TOKENS=4096
 ```
 
-### State Transition Rules
+### 3. 初始化本地运行时凭据
+运行脚本自动生成执行 Broker 所需的安全 Token 及宿主机工作目录：
+```bash
+python3 scripts/prepare-runtime.py
+```
 
-| From | To | Allowed | Rationale / Behavior |
-| :--- | :--- | :---: | :--- |
-| `queued` | `running` | Yes | Worker picks up and starts execution |
-| `queued` | `stopping` | Yes | User requests stop before worker registration or while in queue |
-| `queued` | `interrupted` | Yes | Server restarted while run was queued |
-| `queued` | Others | No | Direct jump to terminal states (`completed`, `failed`) is forbidden |
-| `running` | `stopping` | Yes | User requests stop while executing |
-| `running` | `completed` | Yes | All steps completed successfully |
-| `running` | `failed` | Yes | Error or simulated step failure |
-| `running` | `interrupted` | Yes | Server restarted while run was actively running |
-| `running` | `queued` | No | Rewinding state is strictly forbidden |
-| `stopping` | `stopped` | Yes | Worker completes cancellation and cleans up resources |
-| `stopping` | `interrupted` | Yes | Server restarted while run was stopping |
-| `stopping` | Others | No | Stop intent is persistent and cannot be undone |
-| Terminal (`completed`, `failed`, `stopped`, `interrupted`) | Any | No | Terminal states are final and immutable |
+### 4. 一键构建并启动服务
+使用项目提供的一键启动脚本启动所有容器服务（包含数据库、执行 Broker、沙箱镜像、后端 API 及工作台前端）：
+```bash
+./scripts/start-local.sh
+```
 
-### Rules
+也可以直接通过 Docker Compose 启动：
+```bash
+# 构建沙箱执行环境基础镜像
+docker build -f deploy/execution/Dockerfile -t oma-executor:ma4 backend
 
-- **Terminal states are final** — once a run reaches `completed`, `failed`, `stopped`, or `interrupted`, no further state changes or progress events are accepted (`SELECT ... FOR UPDATE` prevents races).
-- **Transactional consistency** — state changes and their corresponding events are always saved in the same database transaction.
-- **Stop convergence** — stop intent is persistent. Even if a stop is requested before worker registration or races with progress writes, the run converges safely into `stopped`.
-- **Orderly Shutdown** — during shutdown: stop accepting new runs (HTTP 503) -> cancel active runs -> wait for worker exit with timeout -> close database pool.
-- **FakeWorker behavior** — outputs 1 progress event per second for 10 steps (configurable via `total_steps`), then completes. If `fail_at_step` is set, the worker fails at that step instead of completing.
+# 启动整套环境
+docker compose -p oh-my-offensive-agent up -d --build
+```
 
-## Quick Start
+### 5. 访问系统
+服务启动完成后，可在浏览器中访问：
+- 🖥️ **攻防工作台前端**：`http://localhost:23000`
+- ⚙️ **后端 API 服务**：`http://localhost:28080`
+- 🎯 **内置演练靶场服务（Fixture）**：`http://localhost:29090`
+- 🗄️ **PostgreSQL 数据库**：`localhost:25432` (账号/密码: `postgres` / `postgres`)
 
-### Option 1: Docker Compose (recommended)
+---
+
+## 💻 本地调试开发模式
+
+如果你希望在本地直接运行 Go 后端与 Next.js 前端进行代码调试：
 
 ```bash
-docker compose up -d --build
-```
+# 1. 仅启动 PostgreSQL 数据库与隔离 Broker
+docker compose up -d db fixture execution-broker
 
-- Frontend Dashboard: [http://localhost:23000](http://localhost:23000)
-- Backend API: [http://localhost:28080](http://localhost:28080)
-- PostgreSQL Port: `25432`
-
-> **提示 (WSL2 / Windows 访问说明)**:
-> - 浏览器可直接访问 [http://localhost:23000](http://localhost:23000) 或 [http://127.0.0.1:23000](http://127.0.0.1:23000)。
-> - 项目采用容器 Host 网络与 Next.js 反向代理设计，完美兼容 WSL2 Mirrored 镜像网络模式。若开启了 Clash / Mihomo 等系统代理工具，建议访问 `http://localhost:23000` 或在代理规则中确认本地回环已绕过。
-
-
-### Option 2: Local Development
-
-```bash
-# Start PostgreSQL
-docker compose up -d db
-```
-
-```bash
-# Backend (terminal 1)
+# 2. 启动 Go 后端 (终端 1)
 cd backend
 export DATABASE_URL='postgres://postgres:postgres@localhost:25432/agent_workbench?sslmode=disable'
 export PORT=28080
 export CORS_ORIGINS=http://localhost:23000
 go run ./cmd/server
-```
 
-```bash
-# Frontend (terminal 2)
+# 3. 启动前端 Dashboard (终端 2)
 cd frontend
+npm install
 export NEXT_PUBLIC_API_URL=http://localhost:28080
 npm run dev -- -p 23000
 ```
 
-Open [http://localhost:23000](http://localhost:23000) to access the dashboard.
+---
 
-## Verification Scenarios
+## 🔄 实战工作流
 
-Use these scenarios to verify correct behavior after deployment:
+系统启动后，一个典型的自动化攻防实战任务流程如下：
 
-### 1. Normal Completion
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 安全人员 (User)
+    participant UI as 攻防工作台
+    participant Controller as 控制中枢
+    participant Planner as Lead Planner
+    participant Worker as Domain Workers (N 并发)
+    participant Broker as Execution Broker
+    participant Target as 目标靶场环境
 
-Create a task → Start a run → Watch the event timeline as 10 progress steps appear (one per second) → Run status becomes `completed`.
+    User->>UI: 创建任务 (设置目标资产与授权 Scope)
+    UI->>Controller: 初始化 Run (冻结输入快照与预算)
+    Controller->>Planner: 触发初始战略规划
+    Planner->>Planner: 拆解交付目标 (Goal) 与首批探测意图 (Intent)
+    
+    par 多 Worker 并发执行
+        Controller->>Worker: 调度意图至空闲槽位
+        Worker->>Broker: 发起探测请求 (HTTP / Playwright / 脚本)
+        Broker->>Target: 发送受控探测流量 (受限于 Scope Gate)
+        Target-->>Broker: 返回网络响应
+        Broker-->>Worker: 透明抓包存证 (生成 Receipt & Artifact)
+        Worker->>Worker: 提取新资产 / 沉淀可复用事实 (Fact)
+    and 跨 Agent 材料复用
+        Worker->>Worker: 通过 search_http_traffic 检索共享流量 (免重复发包)
+    end
 
-### 2. Duplicate Start Blocked
+    Note over Worker: 发现高危漏洞行为
+    Worker->>Controller: 提交实证漏洞 (ReportFinding)
+    Controller->>Controller: 经过四重实证校验矩阵 (校验工具调用、代次与资产一致性)
+    Controller-->>UI: 探索图实时更新 (标记 Verified Finding 并证明 Goal)
 
-While a run is actively executing, try starting another run on the same task → The API should return an error: **"task already has an active run"**.
+    opt 人在环路动态纠偏
+        User->>UI: 发现探测走偏，点击 Steer / Pause
+        UI->>Controller: 下发纠偏提示词或冻结执行
+    end
 
-### 3. Concurrent Start (Idempotency)
-
-Start a run with header `Idempotency-Key: test-1` → Start another run with the same key and same parameters → The API returns the **same run** (same ID, same status) instead of creating a duplicate.
-
-### 4. Idempotency Conflict
-
-Start a run with `Idempotency-Key: test-2` and `fail_at_step: 3` → Start another run with the same key but `fail_at_step: 5` → The API returns **409 Conflict** because the parameters don't match the original request.
-
-### 5. Specified Failure
-
-Start a run with `fail_at_step: 5` → Watch 4 progress steps appear → Run fails at step 5 with reason **"failed at step 5 (simulated)"**.
-
-### 6. Stop
-
-Start a run → While it's running, click the **Stop** button → Run status transitions to `stopping`, then to `stopped` once the worker acknowledges the cancellation.
-
-### 7. Server Restart Recovery
-
-Start a run → Kill the backend process (Ctrl+C or `kill`) → Restart the backend → The previously active run's status should now be `interrupted` with reason **"server restarted"**.
-
-### 8. History Preserved
-
-After running multiple runs on a single task, open the task detail view → All historical runs are listed with their events, showing the full execution history.
-
-### Automated Test Suite & Verification Results
-
-All 14 core lifecycle scenarios and Phase 1 hardening boundaries are verified via automated integration tests against an isolated PostgreSQL test database:
-
-```bash
-cd backend
-# Integration tests strictly require an independent TEST_DATABASE_URL (no silent fallback)
-TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:25432/agent_workbench_test?sslmode=disable" go test -v -timeout 60s ./test/...
+    Controller->>Planner: 唤醒收尾与达成检查 (suggest_completion)
+    Planner->>Controller: 确认所有目标已证明，结项
+    UI->>User: 导出完整渗透测试报告与实证日志
 ```
 
-Test Results Summary:
-1. `TestScenario_NormalCompletion`: **PASS** (10 progress steps, 13 transactional events with seq 1..13, final status `completed`)
-2. `TestScenario_DuplicateStartBlocked`: **PASS** (Attempting to start a second run while one is active returns `409 Conflict` via DB partial unique index `idx_runs_one_active_per_task`)
-3. `TestScenario_ConcurrentStart`: **PASS** (5 concurrent requests with identical `Idempotency-Key` race safely and return the exact same run)
-4. `TestScenario_IdempotencyConflict`: **PASS** (Same `Idempotency-Key` with differing `fail_at_step` returns `409 Conflict`)
-5. `TestScenario_SpecifiedFailure`: **PASS** (`fail_at_step: 3` executes steps 1 and 2, fails at step 3 with reason `failed at step 3 (simulated)`)
-6. `TestScenario_StopRun`: **PASS** (Stop request transitions run to `stopping`, worker exits, final status transitions to `stopped` with reason `user requested stop`)
-7. `TestScenario_RestartInterruptedAndHistory`: **PASS** (Active runs transitioned to `interrupted` upon restart with event recorded; subsequent new runs execute normally and historical runs are preserved)
-8. `TestScenario_TerminalRunRejectsLateProgressAndReactivation`: **PASS** (Terminal runs reject late progress events and disallow transition back to active status)
-9. `TestRequirement4_RefusesWithoutTestDatabaseConfig`: **PASS** (Strictly refuses to run when `TEST_DATABASE_URL` is omitted, preventing inadvertent modification of dev or production DB)
-10. `TestScenario_StopBeforeWorkerRegistration`: **PASS** (Stop intent registered prior to worker startup safely converges to `stopped` without hanging in `stopping`)
-11. `TestScenario_StopProgressWriteRace`: **PASS** (Worker progress writes racing with user stop requests are rejected and run converges cleanly to `stopped`)
-12. `TestScenario_InvalidStateTransitionsRejected`: **PASS** (Explicit state machine rules reject illegal transitions such as `running -> queued` or terminal reactivation)
-13. `TestScenario_ExecutionInputSnapshotPreserved`: **PASS** (Full execution inputs snapshot preserved across task edits; missing historical inputs explicitly marked)
-14. `TestScenario_WorkerManagerShutdownSequence`: **PASS** (Orderly shutdown sequence: stop accepting work -> cancel active runs -> wait for exit -> close pool)
+---
 
-## API Reference
+## 📂 项目结构
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/tasks` | Create a new task |
-| `GET` | `/api/tasks` | List all tasks |
-| `GET` | `/api/tasks/:id` | Get task details |
-| `PUT` | `/api/tasks/:id` | Update a task |
-| `DELETE` | `/api/tasks/:id` | Delete a task |
-| `POST` | `/api/tasks/:id/runs` | Start a new run for a task |
-| `GET` | `/api/tasks/:id/runs` | List all runs for a task |
-| `GET` | `/api/runs/:id` | Get run details with events |
-| `POST` | `/api/runs/:id/stop` | Request a run to stop |
+```
+oh-my-offensive-agent/
+├── backend/                     # Go 后端核心引擎
+│   ├── cmd/server/              # 服务入口与路由挂载
+│   ├── internal/
+│   │   ├── agent/               # Agent 运行时代次与会话控制
+│   │   ├── controlplane/        # 控制面控制器 (Main Agent / 监督机制)
+│   │   ├── execution/           # 执行环境安全与 Docker 沙箱交互
+│   │   ├── handler/             # HTTP REST API 处理器
+│   │   ├── model/               # 领域模型定义 (Task, Run, Finding, Fact 等)
+│   │   ├── orchestration/       # Lead Planner 提示词、规划与待办管理
+│   │   ├── provider/            # LLM Provider 接入与准入池流控
+│   │   ├── service/             # 业务逻辑与状态机
+│   │   ├── tools/               # 工具集 (HTTP、流量检索、漏洞验证、技能)
+│   │   └── worker/              # Worker 管理器、调度器与会话恢复引擎
+│   └── migrations/              # PostgreSQL 数据库迁移文件
+├── frontend/                    # Next.js 14 前端工作台
+│   ├── src/
+│   │   ├── app/                 # App Router 路由 (工作台、任务、资产)
+│   │   ├── components/          # UI 组件库 (拓扑画布、审查器、任务表单)
+│   │   └── lib/                 # API 客户端与状态流管理
+├── deploy/                      # 部署与容器化配置
+│   └── execution/               # 隔离 Broker 与沙箱 Dockerfile
+├── skills/                      # SOP 领域技能库 (API 勘查、漏洞验证、浏览器操作)
+├── scripts/                     # 运维辅助与本地一键启动脚本
+├── docker-compose.yml           # 全组件编排文件
+└── .env.example                 # 环境变量配置模板
+```
 
-## Known Limitations (Phase 1)
+---
 
-- **No LLM integration** — FakeWorker only; no language model calls
-- **No real tool execution** — worker simulates work with sleep + progress events
-- **No multi-agent support** — single worker type, no agent-to-agent communication
-- **No graph/workflow engine** — runs are flat sequences, no DAG-based orchestration
-- **No MCP protocol support** — no Model Context Protocol integration
-- **No traffic proxy** — direct communication only
-- **No WebSocket/SSE** — frontend uses polling (2-second interval) for status updates
-- **No authentication/authorization** — all endpoints are unauthenticated
-- **No automatic retry of interrupted runs** — interrupted runs stay in terminal state
-- **Single-node only** — no distributed locking or multi-instance coordination
+## 🔒 安全合规与免责声明
+
+> [!WARNING]
+> **重要声明**：本项目仅供获得合法授权的安全测试、网络安全教学与学术研究使用。
+>
+> 1. 请在法律法规允许的范围内使用本系统，严禁用于未获得书面授权的任何网络攻击或破坏性行为。
+> 2. 内置的 `Scope Gate`（作用域校验）旨在降低越权风险，但使用者仍须自行核实目标环境的所有权与测试授权。
+> 3. 因滥用本工具导致的任何法律责任或安全风险，均由使用者自行承担，本项目作者及贡献者概不承担连带责任。
