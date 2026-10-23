@@ -45,15 +45,15 @@ func HTTPRequestAdapter() Adapter {
 func (t *HTTPRequestTool) Name() string { return "http_request" }
 
 func (t *HTTPRequestTool) Description() string {
-	return "Send an authorized HTTP request. Methods, origins, and credentials come from the frozen run policy and server-held references."
+	return "Send an authorized HTTP request. Use url for a new in-scope endpoint; asset_id, when supplied, must identify that exact URL path, not a parent page or service. A completed capture returns its endpoint receipt.asset_id for observations and findings. Methods, origins, and credentials come from the frozen run policy. Request/page limits do not reset by waiting or changing a work key."
 }
 
 func (t *HTTPRequestTool) Parameters() json.RawMessage {
 	return json.RawMessage(`{
 		"type": "object",
 		"properties": {
-			"asset_id": {"type": "string"},
-			"url": {"type": "string"},
+			"asset_id": {"type": "string", "description": "Optional UUID of the exact endpoint being requested. Do not use an HTML parent page, host or service UUID for another URL path."},
+			"url": {"type": "string", "description": "Absolute authorized URL; use this without asset_id when exploring a new endpoint. Query variants retain the endpoint identity."},
 			"method": {"type": "string"},
 			"query": {"type": "object"},
 			"headers": {"type": "object"},
@@ -118,8 +118,9 @@ func (t *HTTPRequestTool) Execute(ctx context.Context, argumentsJSON []byte) (st
 		return "", err
 	}
 	receipt, err := transport.Do(ctx, scope, in)
+	store := netcap.NewStore(t.runService.Pool())
 	if receipt != nil {
-		if bindErr := netcap.NewStore(t.runService.Pool()).BindPendingToolCall(ctx, scope, receipt.ReceiptID, t.Name(), argumentsJSON); bindErr != nil && err == nil {
+		if bindErr := store.BindPendingToolCall(ctx, scope, receipt.ReceiptID, t.Name(), argumentsJSON); bindErr != nil && err == nil {
 			err = bindErr
 		}
 	}
@@ -137,6 +138,12 @@ func (t *HTTPRequestTool) Execute(ctx context.Context, argumentsJSON []byte) (st
 		"status_code":      receipt.StatusCode,
 		"response_preview": receipt.ResponsePreview,
 	}
+	if receipt.AssetID == nil {
+		if bindErr := store.BindCapturedEndpoint(ctx, scope, receipt); bindErr != nil {
+			out["evidence_warning"] = "Captured response retained, but endpoint binding failed: " + bindErr.Error() + ". Do not repeat the network request to repair a binding error."
+		}
+	}
+	out["asset_bound"] = receipt.AssetID != nil
 	raw, _ := json.Marshal(out)
 	if strings.Contains(string(raw), in.CredentialRef) && strings.Contains(in.CredentialRef, " ") {
 		return "", contractErrorJSON(contract.CodeUnauthorized, "refused to emit a secret")

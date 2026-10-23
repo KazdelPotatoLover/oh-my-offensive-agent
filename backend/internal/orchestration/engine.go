@@ -709,6 +709,13 @@ func (e *Engine) Run(ctx context.Context) {
 		plannerPrompt := fmt.Sprintf(
 			"You are the Lead Security Planner. Break down the task into discrete work items and submit a plan.\nObjective: %s\nScope: %s%s%s\nRemember to write all work item titles, objectives, and plan summaries in Simplified Chinese (简体中文) so that the exploration chain canvas (探索链路画板) displays in Chinese.",
 			objective, string(scopeBytes), assetInfo.String(), todoInfo.String())
+		graph, graphErr := e.runService.GraphOverview(runCtx, e.runID)
+		if graphErr != nil {
+			e.coordinateWrapup(runCtx, model.CauseInternalError, nil, cancelWorkers, &e.workers)
+			return
+		}
+		graphBytes, _ := json.Marshal(graph)
+		plannerPrompt += "\nCurrent exploration graph (prefetched; query details only when missing):\n" + string(graphBytes)
 		plannerMessages := []provider.ChatMessage{
 			{Role: provider.RoleSystem, Content: plannerContract + fmt.Sprintf("\nRun budget: %+v\nBudget snapshot: %+v", e.budgetConfig(), e.budgetSummary())},
 			{Role: provider.RoleUser, Content: plannerPrompt},
@@ -1128,6 +1135,15 @@ func (e *Engine) executeWorkerSession(
 		return
 	}
 	workerPrompt += "\nAssigned assets (asset_id is the UUID; URL is never an asset_id):\n" + string(bindings)
+	graph, graphErr := e.runService.GraphOverview(ctx, e.runID)
+	if graphErr != nil {
+		finish(false, nil, "persistence_error")
+		workerErr.Store("persistence_error")
+		return
+	}
+	// Awareness of peers' results does not assign their work or extend scope.
+	graphBytes, _ := json.Marshal(graph)
+	workerPrompt += "\nShared situational overview (awareness only; advance only your assigned objective, reuse existing results and report lateral clues as facts):\n" + string(graphBytes)
 
 	var workerMessages []provider.ChatMessage
 	initialPersisted := false

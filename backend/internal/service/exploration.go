@@ -1011,6 +1011,8 @@ func (s *RunService) GraphOverview(ctx context.Context, runID uuid.UUID) (map[st
 		_ = json.Unmarshal(f.Payload, &p)
 		factsSummary = append(factsSummary, map[string]any{
 			"id":         f.ID,
+			"state":      f.State,
+			"version":    f.ContentVersion,
 			"summary":    p["summary"],
 			"confidence": p["confidence"],
 			"evidence":   p["evidence"],
@@ -1019,9 +1021,12 @@ func (s *RunService) GraphOverview(ctx context.Context, runID uuid.UUID) (map[st
 
 	// Open Intents & Running Intents
 	intentRows, err := s.pool.Query(ctx,
-		`SELECT n.id,n.payload,COALESCE(w.status,n.state),n.priority,n.work_item_id
+		`SELECT n.id,n.payload,COALESCE(w.status,n.state),n.priority,n.work_item_id,
+	 COALESCE(a.finish_reason,w.blocked_reason,''),left(COALESCE(NULLIF(w.output_data->>'summary',''),last_message.content,''),1200)
 		 FROM exploration_nodes n LEFT JOIN work_items w ON w.id=n.work_item_id
-		 WHERE n.run_id=$1 AND n.kind='intent' ORDER BY n.priority DESC,n.created_at ASC`,
+ LEFT JOIN attempts a ON a.id=w.current_attempt_id
+ LEFT JOIN LATERAL (SELECT content FROM agent_messages WHERE session_id=a.session_id AND role='assistant' AND content!='' ORDER BY seq DESC LIMIT 1) last_message ON true
+		 WHERE n.run_id=$1 AND n.kind='intent' AND n.delete_reason IS NULL ORDER BY COALESCE(w.updated_at,n.updated_at) DESC,n.id DESC`,
 		runID,
 	)
 	if err != nil {
@@ -1031,6 +1036,7 @@ func (s *RunService) GraphOverview(ctx context.Context, runID uuid.UUID) (map[st
 
 	var openIntents []map[string]any
 	var runningIntents []map[string]any
+	recentDone := make([]map[string]any, 0)
 	doneCount := 0
 
 	for intentRows.Next() {
@@ -1039,15 +1045,20 @@ func (s *RunService) GraphOverview(ctx context.Context, runID uuid.UUID) (map[st
 		var state string
 		var prio int
 		var wiID *uuid.UUID
-		if err := intentRows.Scan(&iid, &payload, &state, &prio, &wiID); err == nil {
+		var reason, output string
+		if err := intentRows.Scan(&iid, &payload, &state, &prio, &wiID, &reason, &output); err != nil {
+			return nil, err
+		} else {
 			var p map[string]any
 			_ = json.Unmarshal(payload, &p)
 			item := map[string]any{
-				"id":           iid,
-				"summary":      intentSummary(p),
-				"priority":     prio,
-				"state":        state,
-				"work_item_id": wiID,
+				"id":            iid,
+				"summary":       intentSummary(p),
+				"priority":      prio,
+				"state":         state,
+				"work_item_id":  wiID,
+				"finish_reason": reason,
+				"last_output":   output,
 			}
 			switch state {
 			case "open", "pending":
@@ -1056,9 +1067,35 @@ func (s *RunService) GraphOverview(ctx context.Context, runID uuid.UUID) (map[st
 				runningIntents = append(runningIntents, item)
 			case "done", "completed", "failed", "cancelled", "blocked", "exhausted":
 				doneCount++
+				if len(recentDone) < 20 {
+					recentDone = append(recentDone, item)
+				}
 			}
 		}
 	}
+	if err := intentRows.Err(); err != nil {
+		return nil, err
+	}
+	intentRows.Close()
+
+	findingRows, err := s.pool.Query(ctx, `SELECT id,asset_id,title,category,source_kind,verification_state,status FROM findings WHERE run_id=$1 ORDER BY created_at DESC,id DESC LIMIT 20`, runID)
+	if err != nil {
+		return nil, err
+	}
+	defer findingRows.Close()
+	findings := make([]map[string]any, 0)
+	for findingRows.Next() {
+		var id, assetID uuid.UUID
+		var title, category, source, state, status string
+		if err := findingRows.Scan(&id, &assetID, &title, &category, &source, &state, &status); err != nil {
+			return nil, err
+		}
+		findings = append(findings, map[string]any{"id": id, "asset_id": assetID, "title": title, "category": category, "source_kind": source, "verification_state": state, "status": status})
+	}
+	if err := findingRows.Err(); err != nil {
+		return nil, err
+	}
+	findingRows.Close()
 
 	edgeRows, err := s.pool.Query(ctx,
 		`SELECT id, src_id, dst_id, rel FROM exploration_edges WHERE run_id = $1 AND valid = true ORDER BY created_at ASC`,
@@ -1082,18 +1119,25 @@ func (s *RunService) GraphOverview(ctx context.Context, runID uuid.UUID) (map[st
 	}
 
 	allGoalsMet := totalGoals > 0 && metGoals == totalGoals
+	executionContext, err := s.PlannerExecutionContext(ctx, runID)
+	if err != nil {
+		return nil, err
+	}
 
 	return map[string]any{
-		"goals":              goalsSummary,
-		"hints":              hintsSummary,
-		"facts":              factsSummary,
-		"open_intents":       openIntents,
-		"running_intents":    runningIntents,
-		"edges":              edgesSummary,
-		"done_intents_total": doneCount,
-		"total_goals":        totalGoals,
-		"met_goals":          metGoals,
-		"all_goals_met":      allGoalsMet,
+		"goals":               goalsSummary,
+		"hints":               hintsSummary,
+		"facts":               factsSummary,
+		"open_intents":        openIntents,
+		"running_intents":     runningIntents,
+		"recent_done_intents": recentDone,
+		"recent_findings":     findings,
+		"execution_context":   executionContext,
+		"edges":               edgesSummary,
+		"done_intents_total":  doneCount,
+		"total_goals":         totalGoals,
+		"met_goals":           metGoals,
+		"all_goals_met":       allGoalsMet,
 	}, nil
 }
 
