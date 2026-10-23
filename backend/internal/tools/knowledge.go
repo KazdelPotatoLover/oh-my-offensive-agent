@@ -44,7 +44,7 @@ func (t *SetGoalsTool) Parameters() json.RawMessage {
 				"items": {
 					"type": "object",
 					"properties": {
-						"text": {"type": "string", "description": "Clear description of the verifiable goal"},
+						"text": {"type": "string", "description": "Clear description of the verifiable goal in Simplified Chinese (简体中文目标，将展示在探索链路画板上)"},
 						"vulnclass": {"type": "string", "description": "Optional vulnerability category (e.g., sqli, xss, idor)"}
 					},
 					"required": ["text"]
@@ -216,8 +216,8 @@ func (t *RecordFactTool) Parameters() json.RawMessage {
 	return json.RawMessage(`{
 		"type": "object",
 		"properties": {
-			"summary": {"type": "string", "description": "Concise summary of the observed conclusion (one sentence)"},
-			"detail": {"type": "string", "description": "Supporting details, findings, or features"},
+			"summary": {"type": "string", "description": "Concise summary of the observed conclusion in Simplified Chinese (一句话简体中文事实结论摘要，将直接展示在探索链路画板事实节点上)"},
+			"detail": {"type": "string", "description": "Supporting details, findings, or features in Simplified Chinese (简体中文详细信息)"},
 			"confidence": {"type": "string", "enum": ["observed", "inferred"], "description": "observed (directly seen in tool output) or inferred (deduced)"},
 			"evidence": {"type": "string", "description": "Evidence text INCLUDING the exact _execution.source_tool_call_id from a successful target read, or a saved observation UUID. Without that source reference the fact stays unverified. Never use an asset ID as evidence."},
 			"intent_id": {"type": "string", "description": "UUID of the intent node that produced this fact (defaults to current worker intent if omitted)"},
@@ -391,7 +391,7 @@ func (t *ProveGoalTool) Parameters() json.RawMessage {
 		"properties": {
 			"goal_id": {"type": "string", "description": "UUID of the target goal node"},
 			"evidence_id": {"type": "string", "description": "UUID of the supporting fact or finding node that proves this goal"},
-			"reason": {"type": "string", "description": "Explanation of how this evidence proves the goal"}
+			"reason": {"type": "string", "description": "Explanation of how this evidence proves the goal in Simplified Chinese (简体中文证明理由)"}
 		},
 		"required": ["goal_id", "evidence_id"]
 	}`)
