@@ -45,6 +45,7 @@ services:
       LLM_MAX_INFLIGHT: '${LLM_MAX_INFLIGHT:-2}'
       LLM_MAX_OUTPUT_TOKENS: '${LLM_MAX_OUTPUT_TOKENS:-4096}'
       LLM_MODEL_RECOVERY_ATTEMPTS: '${LLM_MODEL_RECOVERY_ATTEMPTS:-3}'
+      OMA_EXPLORATION_BUDGET: '${OMA_EXPLORATION_BUDGET:-}'
       OMA_BROKER_URL: http://127.0.0.1:${OMA_BROKER_PORT:-28184}
       OMA_BROKER_TOKEN: '${OMA_BROKER_TOKEN:?Run python3 scripts/prepare-runtime.py first}'
       OMA_WORKSPACE_ROOT: '${OMA_WORKSPACE_ROOT:-/tmp/oma-workspaces}'
@@ -53,6 +54,7 @@ services:
       # This service must not mount the Docker socket.
     volumes:
       - ${OMA_WORKSPACE_ROOT:-/tmp/oma-workspaces}:${OMA_WORKSPACE_ROOT:-/tmp/oma-workspaces}
+      - ./skills:/app/skills:ro
     healthcheck:
       test: ["CMD", "/app/server", "--healthcheck"]
       interval: 3s

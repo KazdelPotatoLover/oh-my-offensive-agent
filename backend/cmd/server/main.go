@@ -16,6 +16,7 @@ import (
 	"agent-workbench/backend/internal/controlplane"
 	"agent-workbench/backend/internal/db"
 	"agent-workbench/backend/internal/handler"
+	"agent-workbench/backend/internal/mcp"
 	"agent-workbench/backend/internal/orchestration"
 	"agent-workbench/backend/internal/provider"
 	"agent-workbench/backend/internal/service"
@@ -45,6 +46,11 @@ func main() {
 	}
 	if _, err := provider.LoadProcessModelSettings(); err != nil {
 		slog.Error("invalid model process settings", "error", err)
+		os.Exit(1)
+	}
+
+	if _, err := config.ExplorationBudget(); err != nil {
+		slog.Error("invalid exploration defaults", "error", err)
 		os.Exit(1)
 	}
 
@@ -124,6 +130,8 @@ func main() {
 	// Initialize handlers
 	taskHandler := handler.NewTaskHandler(taskService)
 	assetHandler := handler.NewAssetHandler(runService)
+	mcpManager := mcp.NewManager(pool)
+	mcpHandler := handler.NewMCPHandler(mcpManager)
 
 	// Set up router
 	r := chi.NewRouter()
@@ -142,6 +150,7 @@ func main() {
 
 	// Routes
 	r.Route("/api", func(r chi.Router) {
+		r.Get("/runtime/defaults", handler.RuntimeDefaults)
 		// Assets
 		r.Get("/assets", assetHandler.List)
 		r.Get("/assets/{assetID}", assetHandler.Get)
@@ -217,6 +226,13 @@ func main() {
 		r.Get("/runs/{runID}/findings/{findingID}/retests", runHandler.ListFindingRetests)
 		r.Get("/runs/{runID}/finding-report", runHandler.GetFindingReport)
 		r.Get("/checks/catalog", runHandler.GetCheckCatalog)
+		// MCP Servers
+		r.Get("/mcp/servers", mcpHandler.List)
+		r.Post("/mcp/servers", mcpHandler.Create)
+		r.Get("/mcp/servers/{id}", mcpHandler.Get)
+		r.Put("/mcp/servers/{id}", mcpHandler.Update)
+		r.Delete("/mcp/servers/{id}", mcpHandler.Delete)
+		r.Post("/mcp/servers/{id}/discover", mcpHandler.Discover)
 		handler.MountControlAPI(r, handler.NewControlAPI(controller, workbench, mainAgent))
 	})
 

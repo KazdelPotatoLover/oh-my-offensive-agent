@@ -96,6 +96,8 @@ type BudgetTemplate struct {
 // SuggestedExplorationTemplate is the starting exploration grant from the
 // round plan. Agent 1/2 may propose a measured revision; they must not apply a
 // silent increase inside an existing snapshot.
+// This is a historical explicit preset. New task creation inherits managed
+// defaults from config.ExplorationBudget instead.
 func SuggestedExplorationTemplate() BudgetTemplate {
 	return BudgetTemplate{
 		Name:                      "exploration",

@@ -197,16 +197,17 @@ test('task query redirects to the canonical path and a run query does not drop t
 test('create form defaults to three workers and server model configuration', async ({ page }) => {
   await page.goto('/workbench');
   await page.getByTestId('open-create').click();
-  await expect(page.locator('#worker-count')).toHaveValue('3');
-  await page.locator('#create-task-name').fill('本地探索');
+  await expect(page.getByTestId('creation-defaults')).toContainText('3 个并发 Worker');
+  await expect(page.locator('#worker-count')).not.toBeVisible();
   await page.locator('#create-task-objective').fill('确认入口');
   await page.locator('#scope-origin').fill('http://127.0.0.1:29090');
   const requestPromise = page.waitForRequest((request) => request.method() === 'POST' && /\/api\/tasks\/[^/]+\/runs$/.test(new URL(request.url()).pathname));
   await page.getByTestId('create-task-submit').click();
   const request = await requestPromise;
-  const body = JSON.parse(request.postData() || '{}') as { executor?: string; budget?: { max_parallel_workers?: number } };
+  const body = JSON.parse(request.postData() || '{}') as { executor?: string; provider?: string; budget?: { max_parallel_workers?: number } };
   expect(body.executor).toBe('orchestrator');
-  expect(body.budget?.max_parallel_workers).toBe(3);
+  expect(body.budget).toBeUndefined();
+  expect(body.provider).toBe('openai');
   await expect(page.getByTestId('worker-capacity')).toContainText('requested 3');
 });
 

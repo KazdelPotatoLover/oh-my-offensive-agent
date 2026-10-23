@@ -110,7 +110,84 @@ flowchart TD
 
 ---
 
-## 三、 深水区攻坚：长任务会话恢复与“合成协议闭合”
+## 三、 核心工具矩阵：多角色协同与分层能力契约（Tooling Matrix）
+
+> **设计准则**：不要把所有工具塞给所有 Agent，也不要把参数自由度无限制抛给 LLM。工具是 Agent 与物理环境交互的唯一触手，必须**按角色授权、按阶段加载、严格校验参数与返回结构**。
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        多角色工具授权矩阵                              │
+├────────────────────┬───────────────────────────────────────────────────┤
+│ 角色 / Profile     │ 核心工具集（Tool Set）                            │
+├────────────────────┼───────────────────────────────────────────────────┤
+│ Lead Planner       │ submit_plan, add_intent, continue_work,           │
+│ (规划与监督中枢)   │ retry_work, steer_work, kill_work, set_goals,     │
+│                    │ list_goals, prove_goal, suggest_completion,       │
+│                    │ list_worker_traces, get_worker_trace,             │
+│                    │ search_all_worker_traces, manage_planner_todos,   │
+│                    │ graph_overview, node_detail, list_run_assets      │
+├────────────────────┼───────────────────────────────────────────────────┤
+│ Domain Worker      │ • 网络与流量: http_request, search_http_traffic,  │
+│ (领域执行工蜂)     │   get_http_exchange, read_artifact, get_endpoint  │
+│ (按 Profile 挂载)  │ • 资产侦查: extract_endpoint_links,               │
+│                    │   extract_api_endpoints, register_asset           │
+│                    │ • 沙箱执行: run_command, write_file, read_file,   │
+│                    │   inspect_command                                 │
+│                    │ • 知识提报: record_observation, record_fact,      │
+│                    │   report_finding, run_security_check              │
+│                    │ • 领域技能: list_skills, read_skill               │
+├────────────────────┼───────────────────────────────────────────────────┤
+│ Main Agent         │ steer_work_item, kill_work_item, pause_run,       │
+│ (人机对话控制面)   │ resume_run, grant_budget, create_finding_retest   │
+├────────────────────┼───────────────────────────────────────────────────┤
+│ Verifier           │ http_request, read_artifact (专用复测执行)        │
+│ (独立复测执行器)   │ 严禁挂载知识自述类工具，杜绝凭空捏造 fixed 结论   │
+└────────────────────┴───────────────────────────────────────────────────┘
+```
+
+### 五大核心工具簇深度解析
+
+#### 1. 规划监督与认知管理簇（Planning & Knowledge Tools）
+* **`submit_plan` / `add_intent`**：Planner 向 Frontier 队列提交结构化意图（WorkItem），显式绑定锚定资产、前置依赖与预期目标。
+* **`continue_work` / `retry_work`**：Worker 局部超限或受阻后，Planner 有依据地将工作项重置为 `pending`，由 Dispatcher 原子分配 Attempt N+1。
+* **`steer_work` / `kill_work`**：Planner 主动监督介入正在运行的 Worker，下发针对性指引或熔断无价值分支。
+* **`set_goals` / `list_goals`**：将用户宏观任务（如“尽可能挖掘漏洞”）拆解为可量化验收的阶段性 Goal 节点。
+* **`prove_goal`**：强校验工具。必须传入状态为 `verified` 的 Fact ID 或 Finding ID，将对应 Goal 标为 `met`。
+* **`manage_planner_todos`**：对标 ARTEX TodoStore，提供跨轮次持久化待办便签增删改查，解耦单轮 Session 上下文。
+
+#### 2. 网络探测与透明流量复用簇（Network & Traffic Tools）
+* **`http_request`**：企业级网络网关工具。严格校验同源范围（Scope Gate），支持完整 HTTP/HTTPS 协议参数，透明截获请求/响应头及正文，计算 SHA-256 并生成权威收据 `receipt_id`。
+* **`search_http_traffic`**：**零网络 I/O 检索工具**。支持按 Host、Method、状态码、Epoch、URL 模糊搜索同 Run 捕获的流量索引，返回 `receipt_id` 与正文产物指针。
+* **`get_http_exchange`**：根据 `receipt_id` 提取已脱敏的完整交互报文。标记 `new_verification=false`，仅供分析推断，不可伪装为当前漏洞实证。
+* **`read_artifact`**：针对大体积 HTTP 响应正文，按 UTF-8 安全字符偏移量进行分页切片读取，防止单次工具调用打爆 Token 上下文。
+
+#### 3. 资产侦查与代码挖掘簇（Reconnaissance & Discovery Tools）
+* **`extract_endpoint_links`**：解析已成功请求的 HTML 页面，自动抽取同源页面链接、更新爬取深度，并将新发现端点自动沉淀至物理资产图。
+* **`extract_api_endpoints`**：针对前端静态 JS 脚本或 HTML 内联代码，利用高精度正则萃取 RESTful API 路由、后端参数及接口路径，打破传统爬虫无法触达动态 API 的盲区。
+* **`register_asset`**：允许 Worker 显式注册经过规范化去重（URI Normalization）的新型资产（Domain/Host/Service/Endpoint）。
+
+#### 4. 沙箱容器与命令执行簇（Sandboxed Command Tools）
+* **`run_command`**：受控命令执行工具。通过 OMA Execution Broker 调度至独立的 Docker 容器沙箱内运行。命令白名单限制（`python3`, `curl`, `node`, `playwright-cli`），超时自动熔断，标准输出/错误流完整记账。
+* **`write_file` / `read_file`**：严格限定在隔离工作区相对路径下的安全文件读写，用于放置 PoC 脚本、临时字典或捕获日志。
+* **`inspect_command`**：异步长任务状态查询工具，支持轮询后台任务退出码与执行进度。
+
+#### 5. 实证漏洞与技能剧本簇（Finding & Skills Tools）
+* **`report_finding`**：实证漏洞提报工具。支持声明 `empirical`（实证）与 `speculative`（推测）。在实证模式下必须附带：
+  * `source_tool_call_id`：真实成功的底层工具调用 UUID；
+  * `traffic_refs`：结构化收据引用，明确标注请求角色（`baseline` 正常基线、`proof` 漏洞触发载荷、`verification` 二次确证）；
+  * `verification`：精确的 HTTP 状态码与响应体特征谓词。
+* **`list_skills` / `read_skill`**：SOP 知识库工具。Agent 根据当前目标按需加载 `api-recon`（API 探测手册）、`finding-verification`（证据对齐契约）、`playwright-cli`（浏览器无头自动化 SOP），实现知识的轻量化按需调阅。
+
+### 能力配置文件（Capability Profiles）机制
+系统不将所有工具一股脑全量暴露，而是依据任务模式切分为标准 Profile，将模型注意力集中在核心动作上：
+* **`explore`**：只读网络 + 页面链接/API 静态挖掘 + 事实记录 + 技能查阅（标准探测）；
+* **`api_recon`**：流量检索 + API 端点深度提取 + 观察提报（聚焦隐藏接口）；
+* **`active_probe`**：全功能 `http_request` + 流量复用 + 沙箱命令 + 实证漏洞提报（深度渗透利用）；
+* **`browser`**：无头浏览器 Playwright 驱动（处理复杂前端渲染与登录认证交互）。
+
+---
+
+## 四、 深水区攻坚：长任务会话恢复与“合成协议闭合”
 
 当一个复杂漏洞利用需要执行 15 步交互，而单轮 Worker 的局部配额（如限制最多 5 轮交互）耗尽时，传统系统直接报错或从头来过。本项目实现了**多 Attempt 会话恢复与协议闭合体系**。
 
@@ -151,7 +228,7 @@ sequenceDiagram
 
 ---
 
-## 四、 跨智能体协作升级：共享 HTTP 流量与材料复用
+## 五、 跨智能体协作升级：共享 HTTP 流量与材料复用
 
 很多团队以为多 Agent 协作就是“Agent A 写一段 50 字 Summary 存数据库，Agent B 读这段话”。但在攻防实战中，这种方式会导致 **99% 的关键信息丢失**。
 
@@ -176,7 +253,7 @@ Worker A -> "尝试了某登录接口，返回了 500 报错。" (丢失了 Cook
 
 ---
 
-## 五、 沙箱隔离与领域技能（Skills）体系
+## 六、 沙箱隔离与领域技能（Skills）体系
 
 为了突破单一 Web 请求的限制，让 Agent 具备执行 Python 脚本、Playwright 浏览器自动化与特定漏洞 PoC 的能力，必须引入**受控执行容器**与**SOP 技能包**：
 
@@ -203,7 +280,7 @@ flowchart LR
 
 ---
 
-## 六、 防作弊实证契约与独立复测执行器
+## 七、 防作弊实证契约与独立复测执行器
 
 为了防止 Agent “虚报战功”或“把无关证据张冠李戴”，系统建立了一整套严格的后端数据约束与前置校验矩阵：
 
@@ -231,7 +308,7 @@ flowchart LR
 
 ---
 
-## 七、 那些写在代码深水区的“硬核教训”（Hard-Earned Lessons）
+## 八、 那些写在代码深水区的“硬核教训”（Hard-Earned Lessons）
 
 在真实测试与生产落地中，踩过的坑往往比成功的架构更有参考价值：
 
@@ -257,7 +334,7 @@ flowchart LR
 
 ---
 
-## 八、 技术分享总结与核心金句
+## 九、 技术分享总结与核心金句
 
 ### 1. 软件工程第一定律在 Agent 系统的体现
 > **“LLM 是高度概率化的决策大脑，但工程底座必须是 100% 确定性的闭环骨架。”**
@@ -278,8 +355,9 @@ flowchart LR
 | 时间 | 模块 | 核心讲解重点 | 演示 / 互动建议 |
 | :--- | :--- | :--- | :--- |
 | **00-05 min** | **引子与痛点** | 为什么网上的 AutoGPT/攻防 Demo 一跑就崩？展示 5 大现实死穴。 | 抛出互动：“如果一个漏洞利用需要 15 步交互，你该怎么设计 Agent？” |
-| **05-15 min** | **双图架构与 N Worker** | 物理资产图 vs 认知探索图；真正解耦的派发器与共享模型准入池。 | 展示架构图，对比“网页链接拓扑”与“因果推理图”的本质区别。 |
-| **15-25 min** | **长任务恢复与协议闭合** | 剖析 Attempt 会话恢复与**合成协议闭合（Synthetic Tool Closure）**。 | **全场核心亮点**：展示 OpenAI 报 400 错误的底层原因与优雅闭合方案。 |
-| **25-32 min** | **流量复用与容器隔离** | 共享 HTTP 流量机制（零冗余发包）；Execution Broker 沙箱与 Skills SOP。 | 解释为什么 Agent 不能只靠几十字的 Summary 汇报，而是需要原始请求材料。 |
-| **32-40 min** | **硬核踩坑实录** | 剖析 UTF-8 字节截断、工具 Panic 兜底、前端画板“伪造连线”的反思、死锁治理。 | **最具工程师共鸣环节**：分享真实的 Bug 堆栈与反思。 |
+| **05-12 min** | **双图架构与 N Worker** | 物理资产图 vs 认知探索图；真正解耦的派发器与共享模型准入池。 | 展示架构图，对比“网页链接拓扑”与“因果推理图”的本质区别。 |
+| **12-20 min** | **核心工具矩阵** | **五大工具簇深度剖析**：规划控制、透明流量复用、API萃取、沙箱执行与实证提报。 | 展示 Capability Profile 工具裁剪机制与角色分工表。 |
+| **20-28 min** | **长任务恢复与协议闭合** | 剖析 Attempt 会话恢复与**合成协议闭合（Synthetic Tool Closure）**。 | **全场核心亮点**：展示 OpenAI 报 400 错误的底层原因与优雅闭合方案。 |
+| **28-34 min** | **流量复用与容器隔离** | 共享 HTTP 流量机制（零冗余发包）；Execution Broker 沙箱与 Skills SOP。 | 解释为什么 Agent 不能只靠几十字的 Summary 汇报，而是需要原始请求材料。 |
+| **34-40 min** | **硬核踩坑实录** | 剖析 UTF-8 字节截断、工具 Panic 兜底、前端画板“伪造连线”的反思、死锁治理。 | **最具工程师共鸣环节**：分享真实的 Bug 堆栈与反思。 |
 | **40-45 min** | **总结与 Q & A** | 回顾三大定律，回答听众关于 Token 预算、防误报等实际问题。 | 亮出核心金句收尾。 |

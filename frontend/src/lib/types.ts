@@ -478,3 +478,27 @@ export interface FindingReport {
   summary: FindingReportSummary;
   findings: FindingReportItem[];
 }
+
+export interface MCPTool {
+  id: number;
+  server_id: number;
+  tool_name: string;
+  description: string;
+  schema?: Record<string, unknown>;
+  discovered_at: string;
+}
+
+export interface MCPServer {
+  id: number;
+  name: string;
+  transport: 'stdio' | 'http' | 'sse';
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  url?: string;
+  enabled: boolean;
+  insecure: boolean;
+  created_at: string;
+  updated_at: string;
+  tools?: MCPTool[];
+}

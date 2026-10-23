@@ -8,9 +8,12 @@ test('create through workbench with server defaults, observe a real worker, and 
   await page.goto('/workbench/tasks/00000000-0000-4000-8000-000000000001/runs/00000000-0000-4000-8000-000000000002');
   await page.goto('/workbench');
   await page.getByTestId('open-create').click();
+  await page.getByTestId('creation-advanced').locator('summary').first().click();
   await page.locator('#create-task-name').fill(`Core browser ${Date.now()}`);
   await page.locator('#create-task-objective').fill('Read the authorized slow endpoint and report its status.');
   await page.locator('#scope-origin').fill(fixture);
+  await page.getByText('开发与调试', { exact: true }).click();
+  await page.getByLabel('执行模式', { exact: true }).selectOption('mock');
   await page.locator('#seed-path').fill('/slow');
   await page.locator('#worker-count').fill('2');
   const started = page.waitForResponse(r => /\/api\/tasks\/[^/]+\/runs$/.test(new URL(r.url()).pathname) && r.request().method() === 'POST');

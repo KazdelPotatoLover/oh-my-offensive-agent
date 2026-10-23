@@ -3,6 +3,7 @@
 import http from 'node:http';
 
 const PORT = Number(process.env.WORKBENCH_FIXTURE_PORT || 23196);
+const CREATION_BUDGET = { max_parallel_workers: 3, run_timeout_seconds: 1800, max_model_calls: 240, max_tool_calls: 600 };
 const TASK = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const RUN = '11111111-1111-4111-8111-111111111111';
 const LEGACY = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -236,6 +237,7 @@ const server = http.createServer(async (req, res) => {
       bump();
       return send(res, 200, { retest_verdict: 'fixed', snapshot_at: state.live.snapshotAt });
     }
+    if (req.method === 'GET' && path === '/api/runtime/defaults') return send(res, 200, { budget: CREATION_BUDGET, model_configured: true });
     if (req.method === 'GET' && path === '/api/tasks') {
       return send(res, 200, { tasks: Object.values(state.tasks) });
     }
@@ -254,7 +256,7 @@ const server = http.createServer(async (req, res) => {
     if (taskRun && req.method === 'POST') {
       const body = await readBody(req);
       const id = crypto.randomUUID();
-      const budget = { ...(body.budget || {}) };
+      const budget = { ...CREATION_BUDGET, ...state.tasks[taskRun[1]]?.config?.budget, ...(body.budget || {}) };
       delete budget.planner_reserved_model_calls;
       delete budget.main_reserved_model_calls;
       delete budget.name;

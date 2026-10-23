@@ -368,7 +368,7 @@ function WorkbenchSession() {
       <h1 className="sr-only">统一工作台</h1>
 
       {/* Sleek Modern Header */}
-      <header className="shrink-0 border-b border-gray-800 bg-gray-950/80 px-4 py-2.5 backdrop-blur">
+      {runId && !creating && <header className="shrink-0 border-b border-gray-800 bg-gray-950/80 px-4 py-2.5 backdrop-blur">
         {/* Top row: Status & Actions */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Status Pills */}
@@ -582,7 +582,7 @@ function WorkbenchSession() {
         {commandFeedback?.canResend && lastCommand && (
           <button type="button" className="mt-1 text-xs text-blue-300" onClick={() => void sendCommand(lastCommand.body, lastCommand.key)}>用同一把钥匙重发命令</button>
         )}
-      </header>
+      </header>}
 
       {/* Pane tabs for mobile */}
       <div role="tablist" aria-label="工作台分区" className="flex shrink-0 gap-1 border-b border-gray-800 px-2 py-1 lg:hidden">

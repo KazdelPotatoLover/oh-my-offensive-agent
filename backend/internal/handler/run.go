@@ -146,7 +146,7 @@ func (h *RunHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	present, requested := orchestration.WorkerFieldInJSON(raw)
-	resolved, resolveErr := contract.ResolveRequestedWorkers(present, requested, taskIsExploration(task), contract.MaxParallelWorkers)
+	_, resolveErr := contract.ResolveRequestedWorkers(present, requested, taskIsExploration(task), contract.MaxParallelWorkers)
 	if resolveErr != nil {
 		var coded *contract.Error
 		if errors.As(resolveErr, &coded) {
@@ -156,10 +156,8 @@ func (h *RunHandler) Create(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, resolveErr.Error())
 		return
 	}
-	if req.Budget == nil {
-		req.Budget = &model.BudgetConfig{}
-	}
-	req.Budget.MaxParallelWorkers = resolved
+	// Keep omitted fields omitted: RunService resolves server → task → request
+	// defaults and freezes the result. Never replace a task/global default here.
 
 	// Get idempotency key from header
 	var idempotencyKey *string

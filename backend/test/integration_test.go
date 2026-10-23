@@ -17,6 +17,7 @@ import (
 	"agent-workbench/backend/internal/controlplane"
 	"agent-workbench/backend/internal/db"
 	"agent-workbench/backend/internal/handler"
+	"agent-workbench/backend/internal/mcp"
 	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/orchestration"
 	"agent-workbench/backend/internal/service"
@@ -152,9 +153,12 @@ func setupTestEnv(t *testing.T, execute ...bool) *TestEnv {
 	runHandler.UseSupervision(supervision)
 	workbench := controlplane.NewWorkbench(runService, nil)
 	mainAgent := controlplane.NewMainAgent(runService, controller, workbench, nil, nil)
+	mcpManager := mcp.NewManager(pool)
+	mcpHandler := handler.NewMCPHandler(mcpManager)
 
 	r := chi.NewRouter()
 	r.Route("/api", func(r chi.Router) {
+		r.Get("/runtime/defaults", handler.RuntimeDefaults)
 		r.Get("/tasks", taskHandler.List)
 		r.Post("/tasks", taskHandler.Create)
 		r.Get("/tasks/{taskID}", taskHandler.Get)
@@ -210,6 +214,13 @@ func setupTestEnv(t *testing.T, execute ...bool) *TestEnv {
 		r.Get("/runs/{runID}/findings/{findingID}/retests", runHandler.ListFindingRetests)
 		r.Get("/runs/{runID}/finding-report", runHandler.GetFindingReport)
 		r.Get("/checks/catalog", runHandler.GetCheckCatalog)
+		// MCP Servers
+		r.Get("/mcp/servers", mcpHandler.List)
+		r.Post("/mcp/servers", mcpHandler.Create)
+		r.Get("/mcp/servers/{id}", mcpHandler.Get)
+		r.Put("/mcp/servers/{id}", mcpHandler.Update)
+		r.Delete("/mcp/servers/{id}", mcpHandler.Delete)
+		r.Post("/mcp/servers/{id}/discover", mcpHandler.Discover)
 		handler.MountControlAPI(r, handler.NewControlAPI(controller, workbench, mainAgent))
 	})
 

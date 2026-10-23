@@ -14,7 +14,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates gnupg \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
-    && npm install -g @playwright/cli@latest playwright@latest \
+    && npm install -g @playwright/mcp@latest @playwright/cli@latest playwright@latest \
     && playwright install --with-deps chromium \
     && mkdir -p /ms-playwright && chmod -R 755 /ms-playwright \
     && rm -rf /var/lib/apt/lists/* \

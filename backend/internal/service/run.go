@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"agent-workbench/backend/internal/config"
 	"agent-workbench/backend/internal/contract"
 	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/netcap"
@@ -128,6 +129,22 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 	providerType := "mock"
 	mockScenario := "normal"
 	budget := model.DefaultBudgetConfig()
+	var taskBudget model.BudgetConfig
+	var creationMode struct {
+		Exploration bool `json:"exploration"`
+	}
+	var creationScope struct {
+		Mode string `json:"mode"`
+	}
+	_ = json.Unmarshal(taskConfig, &creationMode)
+	_ = json.Unmarshal(taskScope, &creationScope)
+	managed := creationMode.Exploration || creationScope.Mode == "discovery"
+	if managed {
+		budget, err = config.ExplorationBudget()
+		if err != nil {
+			return nil, false, err
+		}
+	}
 
 	// Check Task.Config
 	if len(taskConfig) > 0 && string(taskConfig) != "{}" {
@@ -151,7 +168,8 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 			}
 			if bMap, ok := cfgMap["budget"].(map[string]interface{}); ok {
 				if bBytes, err := json.Marshal(bMap); err == nil {
-					json.Unmarshal(bBytes, &budget)
+					json.Unmarshal(bBytes, &taskBudget)
+					budget = budget.WithOverrides(&taskBudget)
 				}
 			}
 		}
@@ -168,6 +186,27 @@ func (s *RunService) Create(ctx context.Context, taskID uuid.UUID, req model.Cre
 		mockScenario = *req.MockScenario
 	}
 	budget = budget.WithOverrides(req.Budget)
+	if managed {
+		budget = config.ManagedReserves(budget)
+		// Preserve deliberate expert/API reserve overrides; ordinary creation has none.
+		if taskBudget.PlannerReservedModelCalls > 0 {
+			budget.PlannerReservedModelCalls = taskBudget.PlannerReservedModelCalls
+		}
+		if taskBudget.MainReservedModelCalls > 0 {
+			budget.MainReservedModelCalls = taskBudget.MainReservedModelCalls
+		}
+		if req.Budget != nil {
+			if req.Budget.PlannerReservedModelCalls > 0 {
+				budget.PlannerReservedModelCalls = req.Budget.PlannerReservedModelCalls
+			}
+			if req.Budget.MainReservedModelCalls > 0 {
+				budget.MainReservedModelCalls = req.Budget.MainReservedModelCalls
+			}
+		}
+	}
+	if _, err := contract.AcceptWorkerCount(budget.MaxParallelWorkers, contract.MaxParallelWorkers); err != nil {
+		return nil, false, err
+	}
 
 	var modelConfig provider.Config
 	if executor == "agent" || executor == "orchestrator" || executor == "orchestration" {

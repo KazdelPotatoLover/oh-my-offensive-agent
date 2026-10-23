@@ -13,6 +13,7 @@ import (
 
 	"agent-workbench/backend/internal/agent"
 	"agent-workbench/backend/internal/contract"
+	"agent-workbench/backend/internal/mcp"
 	"agent-workbench/backend/internal/model"
 	"agent-workbench/backend/internal/provider"
 	"agent-workbench/backend/internal/service"
@@ -95,6 +96,7 @@ type Engine struct {
 	steer             *ToolBatchSupervisor
 	controlInstaller  PlannerControlInstaller
 	onModelWaitHook   func(queued int)
+	mcpManager        *mcp.Manager
 
 	// Live execution control plane (pause barrier, kill worker cancels, safe turn steer)
 	epoch          int
@@ -273,11 +275,16 @@ func NewEngine(
 			epoch = run.CurrentEpoch
 		}
 	}
+	var mcpMgr *mcp.Manager
+	if runService != nil && runService.Pool() != nil {
+		mcpMgr = mcp.NewManager(runService.Pool())
+	}
 	eng := &Engine{
 		epoch:            epoch,
 		runID:            runID,
 		runService:       runService,
 		provider:         p,
+		mcpManager:       mcpMgr,
 		initialBudget:    initialBudget,
 		budget:           budget,
 		maxWorkers:       maxWorkers,
@@ -644,7 +651,7 @@ func (e *Engine) Run(ctx context.Context) {
 		}
 
 		plannerPrompt := fmt.Sprintf(
-			"You are the Lead Security Planner. Break down the task into discrete work items and submit a plan.\nObjective: %s\nScope: %s%s%s",
+			"You are the Lead Security Planner. Break down the task into discrete work items and submit a plan.\nObjective: %s\nScope: %s%s%s\nRemember to write all work item titles, objectives, and plan summaries in Simplified Chinese (简体中文) so that the exploration chain canvas (探索链路画板) displays in Chinese.",
 			objective, string(scopeBytes), assetInfo.String(), todoInfo.String())
 		plannerMessages := []provider.ChatMessage{
 			{Role: provider.RoleSystem, Content: plannerContract + fmt.Sprintf("\nRun budget: %+v\nBudget snapshot: %+v", e.budgetConfig(), e.budgetSummary())},
@@ -868,7 +875,7 @@ func (e *Engine) Run(ctx context.Context) {
 		}
 
 		evalPrompt := fmt.Sprintf(
-			"Review current execution progress and observations. You can either call submit_plan to schedule additional follow-up work items, continue_work to resume an exhausted worker, or call suggest_completion to finish the run.\n%s",
+			"Review current execution progress and observations. You can either call submit_plan to schedule additional follow-up work items, continue_work to resume an exhausted worker, or call suggest_completion to finish the run.\n%s\nRemember to write all titles, objectives, intent summaries, and completion summaries in Simplified Chinese (简体中文).",
 			obsInfo.String())
 		evalMessages := []provider.ChatMessage{
 			{Role: provider.RoleSystem, Content: plannerContract + fmt.Sprintf("\nObjective: %s\nScope: %s\nRun budget: %+v; budget snapshot=%+v. Work item statuses and asset coverage are current snapshots, not proof of full coverage. Budget must include the model turn after tool calls. An exhausted worker has not completed its work; decide any bounded follow-up from existing evidence, never automatically replay external operations.", objective, scopeBytes, e.budgetConfig(), e.budgetSummary())},
@@ -1002,6 +1009,13 @@ func (e *Engine) executeWorkerSession(
 	workerRegistry.Register(tools.NewSearchAllWorkerTracesTool(e.runID, &wi.ID, e.runService))
 	workerRegistry.Register(tools.NewGetWorkerTraceTool(e.runID, e.runService))
 	workerRegistry.Register(tools.NewListWorkerTracesTool(e.runID, e.runService))
+	if e.mcpManager != nil {
+		mcpTools, mcpCleanup := e.mcpManager.BuildAllTools(ctx)
+		defer mcpCleanup()
+		for _, mt := range mcpTools {
+			workerRegistry.Register(mt)
+		}
+	}
 	switch wi.WorkType {
 	case "intent":
 		run, err := e.runService.Get(ctx, e.runID)

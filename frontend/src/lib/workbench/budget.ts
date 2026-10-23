@@ -11,6 +11,8 @@ export type BudgetTemplate = {
   main_reserved_model_calls: number;
 };
 
+// Historical explicit presets retained for callers/tests. The creation form
+// inherits managed defaults from the backend instead of submitting these.
 export const EXPLORATION_TEMPLATE: BudgetTemplate = {
   name: 'exploration',
   max_model_calls: 80,
@@ -75,7 +77,8 @@ export function buildDiscoveryScope(input: { origin: string; seedPath: string })
   if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.host || parsed.username || parsed.password) {
     return { ok: false, error: '范围 origin 必须是无凭据的 HTTP(S) URL' };
   }
-  const path = input.seedPath.startsWith('/') ? input.seedPath : `/${input.seedPath}`;
+  const seedPath = input.seedPath.trim() || `${parsed.pathname}${parsed.search}`;
+  const path = seedPath.startsWith('/') ? seedPath : `/${seedPath}`;
   const origin = `${parsed.protocol}//${parsed.host}`;
   return {
     ok: true,
@@ -122,7 +125,7 @@ export function buildTaskConfig(input: {
   provider: 'mock' | 'openai';
   profiles: unknown[];
   agents?: AgentsConfig;
-  budget: Omit<BudgetTemplate, 'name'>;
+  budget?: Partial<Omit<BudgetTemplate, 'name'>>;
   mockScenario?: string;
 }): Record<string, unknown> {
   return {
@@ -132,6 +135,6 @@ export function buildTaskConfig(input: {
     ...(input.provider === 'mock' && input.mockScenario ? { mock_scenario: input.mockScenario } : {}),
     ...(input.profiles.length ? { profiles: input.profiles } : {}),
     ...(input.agents ? { agents: input.agents } : {}),
-    budget: input.budget,
+    ...(input.budget && Object.keys(input.budget).length ? { budget: input.budget } : {}),
   };
 }

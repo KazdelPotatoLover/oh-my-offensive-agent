@@ -1,4 +1,5 @@
 import { parseExplorationGraph, type ExplorationGraph } from './workbench/graph';
+import type { CreationDefaults } from './workbench/creation';
 import {
   CheckResult,
   Finding,
@@ -42,6 +43,7 @@ import {
   ExecutionEpoch,
   FindingRetest,
   BudgetConfig,
+  MCPServer,
 } from './types';
 
 const API_BASE_URL =
@@ -143,6 +145,9 @@ async function request<T>(
 }
 
 export const api = {
+  async getCreationDefaults(): Promise<CreationDefaults> {
+    return request<CreationDefaults>('/api/runtime/defaults');
+  },
   async getAssetRelations(assetId: string): Promise<any[]> { const data = await request<{relations:any[]}>(`/api/assets/${assetId}/relations`); return data.relations || []; },
   async getCapabilities(runId: string): Promise<{profiles: Record<string, unknown>[]}> { return request(`/api/runs/${runId}/capabilities`); },
   async getArtifacts(runId: string, offset = 0): Promise<{artifacts: any[];has_more:boolean}> { return request(`/api/runs/${runId}/artifacts?offset=${offset}&limit=25`); },
@@ -446,6 +451,38 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ verdict, evidence, summary }),
+    });
+  },
+
+  // MCP Servers
+  async listMCPServers(): Promise<{ servers: MCPServer[] }> {
+    return request<{ servers: MCPServer[] }>(`/api/mcp/servers`);
+  },
+  async getMCPServer(id: number): Promise<MCPServer> {
+    return request<MCPServer>(`/api/mcp/servers/${id}`);
+  },
+  async createMCPServer(input: Partial<MCPServer>): Promise<MCPServer> {
+    return request<MCPServer>(`/api/mcp/servers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+  },
+  async updateMCPServer(id: number, input: Partial<MCPServer>): Promise<MCPServer> {
+    return request<MCPServer>(`/api/mcp/servers/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+  },
+  async deleteMCPServer(id: number): Promise<{ status: string }> {
+    return request<{ status: string }>(`/api/mcp/servers/${id}`, {
+      method: 'DELETE',
+    });
+  },
+  async discoverMCPTools(id: number): Promise<{ tools: any[] }> {
+    return request<{ tools: any[] }>(`/api/mcp/servers/${id}/discover`, {
+      method: 'POST',
     });
   },
 };

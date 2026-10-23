@@ -6,6 +6,8 @@ for (const viewport of [{ width: 1280, height: 600 }, { width: 900, height: 500 
     await page.goto('/workbench');
     if (viewport.width < 1024) await page.getByRole('tab', { name: '导航', exact: true }).click();
     await page.getByTestId('open-create').click();
+    await page.getByTestId('creation-advanced').locator('summary').first().click();
+    await page.getByText('开发与调试', { exact: true }).click();
     const panel = page.getByTestId('create-task-scroll');
     await expect(panel).toBeVisible();
     await expect.poll(() => panel.evaluate(el => el.scrollHeight > el.clientHeight && el.clientHeight > 0)).toBeTruthy();
